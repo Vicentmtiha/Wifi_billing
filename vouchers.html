@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usimamizi wa Vocha — CORE-WISP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Cyberpunk Node Theme - Match Overview Dashboard Exactly */
+        body { 
+            background-color: #090d16; 
+            font-family: 'JetBrains Mono', 'Fira Code', monospace; 
+            color: #e2e8f0;
+        }
+        .sidebar { 
+            height: 100vh; 
+            background-color: #020617; 
+            color: #fff; 
+            position: fixed; 
+            width: 260px; 
+            border-right: 1px solid #1e293b;
+            z-index: 100;
+        }
+        .sidebar a { 
+            color: #64748b; 
+            text-decoration: none; 
+            padding: 12px 20px; 
+            display: block; 
+            border-radius: 8px; 
+            margin: 6px 14px; 
+            font-weight: 500; 
+            font-size: 0.9rem;
+            transition: all 0.3s ease; 
+        }
+        .sidebar a:hover, .sidebar a.active { 
+            background-color: #0f172a; 
+            color: #38bdf8; 
+            box-shadow: inset 3px 0 0 #38bdf8;
+        }
+        .main-content { margin-left: 260px; padding: 40px; }
+        
+        .text-muted { color: #64748b !important; }
+        
+        /* Kadi za Kimtambo - Server Rack Concept */
+        .card-pro { 
+            border: 1px solid #1e293b; 
+            border-radius: 12px; 
+            background: #0f172a; 
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        /* Neon Indicators */
+        .card-glow-cyan::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #06b6d4; box-shadow: 0 0 12px #06b6d4; }
+        .card-glow-amber::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #f59e0b; box-shadow: 0 0 12px #f59e0b; }
+
+        /* Form Inputs Custom Styling */
+        .form-control-matrix {
+            background-color: #020617;
+            border: 1px solid #334155;
+            color: #fff;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: monospace;
+        }
+        .form-control-matrix:focus {
+            background-color: #020617;
+            border-color: #38bdf8;
+            color: #fff;
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.25);
+        }
+        
+        /* Advanced Table Structure */
+        .table { color: #cbd5e1; vertical-align: middle; }
+        .table-pro-header { background-color: #1e293b !important; color: #38bdf8 !important; border-bottom: 2px solid #334155; }
+        .table-hover tbody tr:hover { --bs-table-hover-bg: #1e293b; color: #fff; }
+        
+        /* Custom Control Terminal Buttons */
+        .btn-matrix {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-matrix:hover {
+            border-color: #38bdf8;
+            color: #38bdf8;
+            background: #020617;
+        }
+        .btn-matrix-action {
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .btn-act { border-color: #10b981; color: #10b981; background: transparent; }
+        .btn-act:hover { background: #10b981; color: #020617; box-shadow: 0 0 8px #10b981; }
+        
+        .btn-exp { border-color: #f59e0b; color: #f59e0b; background: transparent; }
+        .btn-exp:hover { background: #f59e0b; color: #020617; box-shadow: 0 0 8px #f59e0b; }
+        
+        .btn-del { border-color: #ef4444; color: #ef4444; background: transparent; }
+        .btn-del:hover { background: #ef4444; color: #fff; box-shadow: 0 0 8px #ef4444; }
+
+        .btn-generate-node {
+            background: #10b981;
+            border: 1px solid #10b981;
+            color: #020617;
+            font-weight: bold;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        .btn-generate-node:hover {
+            background: #059669;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+            color: #020617;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar flex-column d-flex justify-content-between">
+        <div>
+            <div class="p-4 border-bottom border-secondary border-opacity-10 d-flex align-items-center">
+                <i class="fa-solid fa-circle-nodes fs-4 text-info me-3"></i>
+                <h5 class="mb-0 fw-bold text-white" style="letter-spacing: 2px;">CORE-WISP</h5>
+            </div>
+            <div class="mt-4">
+                <a href="/dashboard"><i class="fa-solid fa-chart-pie w-5 me-2"></i>Overview Dashboard</a>
+                <a href="/vouchers" class="active"><i class="fa-solid fa-ticket w-5 me-2"></i>Voucher Engine</a>
+                <a href="/packages"><i class="fa-solid fa-box w-5 me-2"></i>Tariff Plans</a>
+                <a href="/users"><i class="fa-solid fa-users-gear w-5 me-2"></i>User Control</a>
+                <a href="/reports"><i class="fa-solid fa-file-invoice-dollar w-5 me-2"></i>Accounting</a>
+                <a href="/settings"><i class="fa-solid fa-sliders w-5 me-2"></i>System Setup</a>
+            </div>
+        </div>
+        <div class="p-3 text-center border-top border-secondary border-opacity-10 opacity-30 font-monospace" style="font-size: 10px; color: #64748b;">
+            SYS_NODE // ONLINE
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="d-flex justify-content-between align-items-center mb-5 border-bottom border-secondary border-opacity-10 pb-4">
+            <div>
+                <h1 class="fw-bold text-white fs-3 mb-1" style="letter-spacing: 1px;">VOUCHER ENGINE</h1>
+                <p class="text-muted small mb-0">// Token Generation & Database Control Matrix</p>
+            </div>
+            <div>
+                <a href="/dashboard" class="btn btn-matrix"><i class="fa-solid fa-arrow-left me-2"></i>Rudi Dashboard</a>
+            </div>
+        </div>
+
+        <div class="card card-pro card-glow-cyan p-4 mb-5">
+            <h5 class="fw-bold text-white mb-4 fs-6 font-monospace text-cyan"><i class="fa-solid fa-plus-circle me-2"></i>Tengeneza Vocha Mpya</h5>
+            <form action="/generate-voucher" method="POST">
+                <div class="row g-4 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small fw-bold font-monospace">BEI (TSH):</label>
+                        <input type="number" name="price" class="form-control form-control-matrix" placeholder="Mfano: 1000" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small fw-bold font-monospace">MUDA (1h, 24h, 7d):</label>
+                        <input type="text" name="duration" class="form-control form-control-matrix" placeholder="Mfano: 24h" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small fw-bold font-monospace">KIWANGO CHA DATA (LIMIT):</label>
+                        <input type="text" name="data_limit" class="form-control form-control-matrix" placeholder="Mfano: 1GB" required>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-generate-node w-100 py-2"><i class="fa-solid fa-bolt me-2"></i>Tengeneza Vocha</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="card card-pro card-glow-amber overflow-hidden">
+            <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 pt-4 px-4 pb-3">
+                <h6 class="fw-bold text-white mb-0 fs-6 font-monospace"><i class="fa-solid fa-server me-2 text-warning"></i>Vocha Zilizopo Kwenye Database</h6>
+            </div>
+            <div class="card-body px-0 pt-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="border-color: #1e293b;">
+                        <thead>
+                            <tr class="table-pro-header font-monospace">
+                                <th class="px-4">Code</th>
+                                <th>Bei</th>
+                                <th>Muda</th>
+                                <th>Data Limit</th>
+                                <th>Hali</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if vouchers is defined and vouchers %}
+                                {% for v in vouchers %}
+                                <tr>
+                                    <td class="px-4"><span class="badge bg-secondary bg-opacity-20 text-white font-monospace border border-secondary border-opacity-25 fs-6 px-3 py-2">{{ v.code }}</span></td>
+                                    <td class="fw-bold text-white font-monospace">{{ v.price }} TSH</td>
+                                    <td class="text-muted font-monospace">{{ v.duration }}</td>
+                                    <td class="text-info font-monospace">{{ v.data_limit }}</td>
+                                    <td>
+                                        <span class="badge {% if v.status == 'Haitumiki' or v.status == 'unused' %}bg-success bg-opacity-10 text-success border border-success border-opacity-25{% else %}bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25{% endif %} px-2 py-1">
+                                            {{ v.status }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-2">
+                                            <a href="/activate/{{ v.code }}" class="btn btn-matrix btn-matrix-action btn-act">Activate</a>
+                                            <a href="/expire/{{ v.code }}" class="btn btn-matrix btn-matrix-action btn-exp">Expire</a>
+                                            <a href="/delete/{{ v.code }}" class="btn btn-matrix btn-matrix-action btn-del">Delete</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td class="px-4"><span class="badge bg-secondary bg-opacity-20 text-white font-monospace border border-secondary border-opacity-25 fs-6 px-3 py-2">U8QRCD</span></td>
+                                    <td class="fw-bold text-white font-monospace">1000 TSH</td>
+                                    <td class="text-muted font-monospace">3h</td>
+                                    <td class="text-info font-monospace">3GB</td>
+                                    <td><span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">Haitumiki</span></td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-2">
+                                            <button class="btn btn-matrix btn-matrix-action btn-act">Activate</button>
+                                            <button class="btn btn-matrix btn-matrix-action btn-exp">Expire</button>
+                                            <button class="btn btn-matrix btn-matrix-action btn-del">Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4"><span class="badge bg-secondary bg-opacity-20 text-white font-monospace border border-secondary border-opacity-25 fs-6 px-3 py-2">ZDA5ZP</span></td>
+                                    <td class="fw-bold text-white font-monospace">500 TSH</td>
+                                    <td class="text-muted font-monospace">1h</td>
+                                    <td class="text-info font-monospace">1GB</td>
+                                    <td><span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">Haitumiki</span></td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-2">
+                                            <button class="btn btn-matrix btn-matrix-action btn-act">Activate</button>
+                                            <button class="btn btn-matrix btn-matrix-action btn-exp">Expire</button>
+                                            <button class="btn btn-matrix btn-matrix-action btn-del">Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

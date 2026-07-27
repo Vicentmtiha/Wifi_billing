@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Package</title>
+    </head>
+<body>
+    <div class="container">
+        <h2>Hariri Kifurushi (Edit Package)</h2>
+        <form action="/update-package/{{ package.id }}" method="POST">
+            <label for="name">Jina la Kifurushi:</label>
+            <input type="text" id="name" name="name" value="{{ package.name }}" required>
+            
+            <label for="price">Bei (TSH):</label>
+            <input type="number" id="price" name="price" value="{{ package.price }}" required>
+            
+            <button type="submit">Hifadhi Mabadiliko</button>
+            <a href="/packages">Ghairi</a>
+        </form>
+    </div>
+</body>
+</html>

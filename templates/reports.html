@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Ripoti za Vocha - CORE-WISP</title>
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body {
+    background: linear-gradient(135deg, #0b0e14, #0f172a);
+    font-family: 'Inter', sans-serif;
+    color: #e2e8f0;
+    margin: 0;
+    padding: 0;
+  }
+  .container {
+    padding: 40px 20px;
+  }
+  h1 {
+    color: #38bdf8;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  /* Header styling */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+  /* Card styles */
+  .card-custom {
+    background-color: #1e293b;
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  }
+  .card-header-custom {
+    background-color: #111827;
+    border-bottom: none;
+    padding: 20px;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #38bdf8;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+  }
+  /* Statistik boxes */
+  .stats-row {
+    margin-top: 40px;
+  }
+  .stat-box {
+    background-color: #2b3a4b;
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.3s ease;
+  }
+  .stat-box:hover {
+    background-color: #3b4a5b;
+    transform: translateY(-5px);
+  }
+  .stat-number {
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: #38bdf8;
+  }
+  /* Charts styling */
+  #charts-container {
+    margin-top: 50px;
+  }
+  .chart-card {
+    background-color: #1e293b;
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  }
+  .chart-header {
+    background-color: #111827;
+    padding: 15px 20px;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #38bdf8;
+  }
+  .chart-body {
+    padding: 20px;
+  }
+  canvas {
+    background-color: #1e293b;
+    border-radius: 12px;
+    padding: 15px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1><i class="fa fa-chart-pie"></i> Ripoti za Vocha</h1>
+  </div>
+
+  <!-- Takwimu kuu -->
+  <div class="row g-4 stats-row">
+    <div class="col-md-3">
+      <div class="stat-box">
+        <div class="stat-number">{{ total_issued }}</div>
+        <div>Vocha Zilizotolewa</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-box">
+        <div class="stat-number">{{ total_used }}</div>
+        <div>Vocha Zilizotumiwa</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-box">
+        <div class="stat-number">{{ total_unused }}</div>
+        <div>Vocha Bado Hawajatumiwa</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-box">
+        <div class="stat-number">{{ total_expired }}</div>
+        <div>Vocha Zilizoisha Muda</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grafu za takwimu -->
+  <div id="charts-container" class="row g-4 mt-5">
+    <!-- Matumizi ya Vocha kwa Muda -->
+    <div class="col-md-6">
+      <div class="card card-custom">
+        <div class="card-header-custom">Matumizi ya Vocha kwa Muda</div>
+        <div class="card-body chart-body">
+          <canvas id="usageChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <!-- Ripoti ya Mauzo -->
+    <div class="col-md-6">
+      <div class="card card-custom">
+        <div class="card-header-custom">Ripoti ya Mauzo</div>
+        <div class="card-body chart-body">
+          <canvas id="salesChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts za grafu -->
+<script>
+  // Data kutoka kwenye context yako
+  const vouchersData = {
+    labels: ['Hazijatumiwa', 'Zimetumiwa', 'Zimeisha Muda'],
+    datasets: [{
+      label: 'Vocha kwa hali',
+      data: [{{ total_unused }}, {{ total_used }}, {{ total_expired }}],
+      backgroundColor: ['#22c55e', '#3b82f6', '#ef4444'],
+      hoverOffset: 4
+    }]
+  };
+
+  const salesData = {
+    labels: ['Mauzo kwa Muda', 'Mauzo kwa Mwezi'],
+    datasets: [{
+      label: 'Mauzo',
+      data: [{{ total_sales }}, 0], // Badilisha kwa data halisi
+      backgroundColor: ['#60a5fa', '#3b82f6']
+    }]
+  };
+
+  // Kuweka grafu za pie
+  const ctxUsage = document.getElementById('usageChart').getContext('2d');
+  const usageChart = new Chart(ctxUsage, {
+    type: 'pie',
+    data: vouchersData,
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: { mode: 'index', intersect: false }
+      }
+    }
+  });
+
+  // Kuweka grafu ya bar
+  const ctxSales = document.getElementById('salesChart').getContext('2d');
+  const salesChart = new Chart(ctxSales, {
+    type: 'bar',
+    data: salesData,
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+</script>
+</body>
+</html>

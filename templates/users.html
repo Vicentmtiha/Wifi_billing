@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>User Control — CORE-WISP</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<style>
+    body { 
+        background-color: #090d16; 
+        font-family: 'JetBrains Mono', monospace; 
+        color: #e2e8f0;
+    }
+    .sidebar {
+        background-color: #020617;
+        border-right: 1px solid #1e293b;
+        min-height: 100vh;
+        padding: 20px 10px;
+    }
+    .sidebar .nav-link {
+        color: #94a3b8;
+        padding: 12px 15px;
+        border-radius: 6px;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s;
+        text-decoration: none;
+    }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active {
+        background-color: #1e1b4b;
+        color: #38bdf8;
+    }
+    .cyber-card {
+        background: #0f172a;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .cyber-card-header {
+        background: linear-gradient(90deg, #1e1b4b 0%, #0f172a 100%);
+        border-bottom: 2px solid #3b82f6;
+        padding: 15px 20px;
+        font-weight: bold;
+        color: #38bdf8;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .cyber-input {
+        background-color: #020617;
+        border: 1px solid #334155;
+        color: #fff;
+        border-radius: 4px;
+        padding: 10px;
+        width: 100%;
+        transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .cyber-input:focus {
+        outline: none;
+        border-color: #38bdf8;
+        box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+    }
+    .cyber-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .cyber-table th {
+        background-color: #020617 !important;
+        color: #64748b;
+        border-bottom: 2px solid #1e293b !important;
+        text-transform: uppercase;
+        padding: 12px;
+    }
+    .cyber-table td {
+        background-color: #0f172a;
+        color: #e2e8f0;
+        border-bottom: 1px solid #1e293b;
+        padding: 14px 12px;
+        vertical-align: middle;
+    }
+    .btn-neon-blue {
+        border: 1px solid #38bdf8; 
+        color: #38bdf8; 
+        background: transparent; 
+        transition: all 0.3s;
+        font-size: 0.9rem;
+    }
+    .btn-neon-blue:hover {
+        background: #38bdf8; 
+        color: #090d16; 
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+    }
+    .btn-neon-red {
+        border: 1px solid #f87171; 
+        color: #f87171; 
+        background: transparent; 
+        transition: all 0.3s;
+        font-size: 0.9rem;
+    }
+    .btn-neon-red:hover {
+        background: #f87171; 
+        color: #090d16; 
+        box-shadow: 0 0 15px rgba(248, 113, 113, 0.6);
+    }
+    .badge-active {
+        background-color: rgba(74, 222, 128, 0.1);
+        border: 1px solid #4ade80;
+        color: #4ade80;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+    }
+    .badge-role {
+        background-color: rgba(56, 189, 248, 0.1);
+        border: 1px solid #38bdf8;
+        color: #38bdf8;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+    }
+</style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar Navigation -->
+        <div class="col-md-3 col-lg-2 sidebar">
+            <h4 class="text-white fw-bold mb-4 px-2"><i class="fa-solid fa-broadcast-tower text-primary me-2"></i>CORE-WISP</h4>
+            <div class="nav flex-column">
+                <a href="/dashboard" class="nav-link"><i class="fa-solid fa-chart-pie"></i> Overview Dashboard</a>
+                <a href="/vouchers" class="nav-link"><i class="fa-solid fa-ticket"></i> Voucher Engine</a>
+                <a href="/packages" class="nav-link"><i class="fa-solid fa-box"></i> Tariff Plans</a>
+                <a href="/users" class="nav-link active"><i class="fa-solid fa-users"></i> User Control</a>
+                <a href="/logout" class="nav-link text-danger mt-5"><i class="fa-solid fa-sign-out-alt"></i> Toka (Logout)</a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10 p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold text-white">System Users Management</h2>
+                    <small class="text-muted">Ongeza au dhibiti ma-admin na wahudumu wa mfumo (Staff)</small>
+                </div>
+                <div class="bg-dark p-2 rounded border border-secondary text-center px-4">
+                    <span class="text-uppercase text-muted d-block" style="font-size: 0.75rem;">Active Accounts</span>
+                    <h4 class="text-primary fw-bold mb-0">{{ users|length }}</h4>
+                </div>
+            </div>
+
+            <!-- Form: Sajili Mtumiaji Mpya -->
+            <div class="cyber-card mb-4">
+                <div class="cyber-card-header"><i class="fa-solid fa-user-plus me-2"></i>Sajili Mtumiaji Mpya</div>
+                <div class="cyber-card-body p-4">
+                    <form action="/add-user" method="POST">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label text-muted small text-uppercase">Jina la mtumiaji (Username)</label>
+                                <input type="text" name="username" class="form-control cyber-input" placeholder="Mfano: kelvin_admin" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label text-muted small text-uppercase">Nenosiri (Password)</label>
+                                <input type="password" name="password" class="form-control cyber-input" placeholder="Weka nenosiri salama" required>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-neon-blue w-100 py-2 fw-bold">
+                                    <i class="fa-solid fa-user-check me-2"></i>Sajili
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Orodha ya Watumiaji -->
+            <div class="cyber-card">
+                <div class="cyber-card-header"><i class="fa-solid fa-users-gear me-2"></i>Orodha ya Watumiaji wa Mfumo</div>
+                <div class="table-responsive">
+                    <table class="table cyber-table table-striped table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user_account in users %}
+                            <tr>
+                                <td>#{{ user_account.id }}</td>
+                                <td class="fw-bold text-white"><i class="fa-regular fa-user me-2 text-muted"></i>{{ user_account.username }}</td>
+                                <td><span class="badge-role">{{ user_account.role }}</span></td>
+                                <td><span class="badge-active">{{ user_account.status }}</span></td>
+                                <td class="text-center">
+                                    <div class="d-flex justify-content-center gap-2">
+                                        <a href="/edit-user/{{ user_account.id }}" class="btn btn-outline-warning btn-sm">
+                                            <i class="fa-solid fa-user-pen"></i> Hariri
+                                        </a>
+                                        <a href="/delete-user/{{ user_account.id }}" class="btn btn-neon-red btn-sm px-3" onclick="return confirm('Unataka kufuta mtumiaji huyu?');">
+                                            <i class="fa-solid fa-user-slash me-1"></i> Futa
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    <i class="fa-solid fa-user-shield d-block mb-2" style="font-size: 2rem;"></i>
+                                    Hakuna watumiaji wengine waliosajiliwa kwenye mfumo.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

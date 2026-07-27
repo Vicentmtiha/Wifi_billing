@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORE-WISP Hotspot Portal</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        button:disabled { background-color: #ccc; }
+        #status { margin-top: 20px; text-align: center; font-weight: bold; padding: 10px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>CORE-WISP Wi-Fi</h2>
+    <form id="lipaForm">
+        <div class="form-group">
+            <label>Chagua Kifurushi:</label>
+            <select name="kiasi" id="kiasi">
+                <option value="500">Saa 1 (TSH 500)</option>
+                <option value="1000">Saa 3 (TSH 1,000)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Mtandao:</label>
+            <select name="mtandao" id="mtandao">
+                <option value="TIGO">Tigo Pesa</option>
+                <option value="AIRTEL">Airtel Money</option>
+                <option value="HALOPESA">Halopesa</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Namba ya Simu:</label>
+            <input type="text" name="namba_ya_simu" id="namba_ya_simu" placeholder="Mfano: 0712345678" required>
+        </div>
+        <button type="submit" id="btnLipa">Lipia Sasa Hivi</button>
+    </form>
+    <div id="status"></div>
+</div>
+
+<script>
+document.getElementById("lipaForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("btnLipa");
+    const statusDiv = document.getElementById("status");
+    
+    btn.disabled = true;
+    statusDiv.style.color = "#007bff";
+    statusDiv.innerHTML = "Tafadhali subiri, tunatuma ombi...";
+
+    // Kusanya data kutoka kwenye form
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+
+    try {
+        let response = await fetch("/lipia-kifurushi", { 
+            method: "POST", 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data) 
+        });
+        
+        let result = await response.json();
+        console.log("Jibu la Seva:", result);
+
+        // Hapa tunaangalia jibu linalotoka AzamPay
+        if (result.success === true || result.status === "SUCCESS") {
+            statusDiv.style.color = "green";
+            statusDiv.innerHTML = "Safi! Angalia simu yako uweke PIN.";
+        } else {
+            // Kama kuna error, ionyeshe
+            statusDiv.style.color = "red";
+            statusDiv.innerHTML = "Error: " + (result.message || result.details || "Imeshindikana, jaribu tena.");
+            btn.disabled = false;
+        }
+    } catch (error) {
+        statusDiv.style.color = "red";
+        statusDiv.innerHTML = "Kuna tatizo la mtandao. Tafadhali jaribu tena.";
+        btn.disabled = false;
+    }
+};
+</script>
+
+</body>
+</html>

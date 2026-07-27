@@ -1,0 +1,973 @@
+import os
+from dotenv import load_dotenv
+from fastapi import FastAPI, Request, Form, HTTPException
+import requests
+import random
+import string
+# ... (hifadhi imports zingine ulizokuwa nazo chini)
+
+# Load environment variables
+load_dotenv()
+
+app = FastAPI()
+
+def get_access_token():
+    url = "https://authenticator-sandbox.azampay.co.tz/AppRegistration/GenerateToken"
+    
+    # Hakikisha majina ya keys hapa yanalingana na yale yaliyopo kwenye .env yako
+    payload = {
+        "appName": os.getenv("AZAMPAY_APP_NAME"),
+        "clientId": os.getenv("AZAMPAY_CLIENT_ID"),
+        "clientSecret": os.getenv("AZAMPAY_CLIENT_SECRET")
+    }
+    
+    # Debug: Tuone kama data zinasomeka kabla ya kutuma ombi
+    print(f"DEBUG PAYLOAD: {payload}")
+    
+    try:
+        response = requests.post(url, json=payload)
+        data = response.json()
+        
+        if response.status_code == 200 and data.get("success"):
+            return data["data"]["accessToken"]
+        else:
+            print(f"DEBUG ERROR: {data}")
+            return None
+    except Exception as e:
+        print(f"DEBUG EXCEPTION: {e}")
+        return None
+
+# Futa ile function nyingine ya zamani ya fanya_malipo na get_access_token iliyokuwa juu kabla ya imports
+# Kisha ndipo unaendelea na function yako ya lipa_internet...
+import requests # Hakikisha umeweka hii juu ya faili
+from fastapi import FastAPI
+app = FastAPI()
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+print(f"Client ID: {os.getenv('AZAMPAY_CLIENT_ID')}")
+import random
+import string
+import logging
+import os
+import threading
+import time
+import re
+from datetime import datetime, timedelta
+from typing import Optional
+from functools import wraps
+
+from librouteros import connect
+from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
+
+from database import engine, Base, SessionLocal
+from models import User, Voucher, Package
+
+# ================= CONFIGURATION =================
+Base.metadata.create_all(bind=engine)
+app = FastAPI()
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "wifi_billing_secret_key_123"))
+templates = Jinja2Templates(directory="templates")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# ================= MIKROTIK CONFIG =================
+class MikrotikConfig:
+    HOST = os.getenv("MIKROTIK_HOST", "192.168.122.218")
+    PORT = int(os.getenv("MIKROTIK_PORT", 8728))
+    USER = os.getenv("MIKROTIK_USER", "admin")
+    PASS = os.getenv("MIKROTIK_PASS", "Janet@123")
+    ENABLED = os.getenv("MIKROTIK_ENABLED", "true").lower() == "true"
+
+# ================= VOUCHER SERVICE LAYER =================
+class VoucherService:
+    """Handle all voucher-related database operations"""
+    
+    @staticmethod
+    def generate_code():
+        """Generate unique 6-character voucher code"""
+        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    
+    @staticmethod
+    def convert_to_mikrotik_time(time_str: str) -> str:
+        """Convert human-readable time to Mikrotik format (HH:MM:SS)"""
+        time_str = time_str.lower().strip()
+        match = re.search(r'\d+', time_str)
+        num = int(match.group()) if match else 1
+        
+        if 'day' in time_str:
+            return f"{num * 24:02}:00:00"
+        elif 'h' in time_str:
+            return f"{num:02}:00:00"
+        elif 'm' in time_str:
+            return f"00:{num:02}:00"
+        return "01:00:00"
+    
+    @staticmethod
+    def create_voucher(price: int, uptime: str, data_limit: str, profile_name: str = "default") -> Optional[str]:
+        """Create new voucher in database"""
+        db = SessionLocal()
+        try:
+            code = VoucherService.generate_code()
+            
+            # Check if code already exists
+            existing = db.query(Voucher).filter(Voucher.code == code).first()
+            if existing:
+                return VoucherService.create_voucher(price, uptime, data_limit, profile_name)
+            
+            expiry_date = datetime.now() + timedelta(days=30)
+            voucher = Voucher(
+                code=code,
+                profile=profile_name,
+                price=price,
+                uptime=uptime,
+                data_limit=data_limit,
+                status="unused",
+                created_at=datetime.now(),
+                expires_at=expiry_date,
+                used_by=""
+            )
+            db.add(voucher)
+            db.commit()
+            
+            logger.info(f"Voucher created: {code}")
+            
+            # Sync to Mikrotik asynchronously
+            if MikrotikConfig.ENABLED:
+                threading.Thread(
+                    target=MikrotikService.sync_voucher_to_mikrotik,
+                    args=(code, uptime),
+                    daemon=True
+                ).start()
+            
+            return code
+        except Exception as e:
+            logger.error(f"Error creating voucher: {e}")
+            db.rollback()
+            return None
+        finally:
+            db.close()
+    
+    @staticmethod
+    def get_voucher(voucher_id: int) -> Optional[Voucher]:
+        """Get voucher by ID"""
+        db = SessionLocal()
+        try:
+            return db.query(Voucher).filter(Voucher.id == voucher_id).first()
+        finally:
+            db.close()
+    
+    @staticmethod
+    def get_voucher_by_code(code: str) -> Optional[Voucher]:
+        """Get voucher by code"""
+        db = SessionLocal()
+        try:
+            return db.query(Voucher).filter(Voucher.code == code).first()
+        finally:
+            db.close()
+    
+    @staticmethod
+    def mark_used(voucher_id: int, client_mac: str = "") -> bool:
+        """Mark voucher as used"""
+        db = SessionLocal()
+        try:
+            voucher = db.query(Voucher).filter(Voucher.id == voucher_id).first()
+            if not voucher:
+                return False
+            
+            voucher.status = "used"
+            voucher.used_by = client_mac
+            voucher.used_at = datetime.now()
+            db.commit()
+            
+            logger.info(f"Voucher {voucher.code} marked as used")
+            return True
+        except Exception as e:
+            logger.error(f"Error marking voucher as used: {e}")
+            db.rollback()
+            return False
+        finally:
+            db.close()
+    
+    @staticmethod
+    def mark_expired(voucher_id: int) -> bool:
+        """Mark voucher as expired"""
+        db = SessionLocal()
+        try:
+            voucher = db.query(Voucher).filter(Voucher.id == voucher_id).first()
+            if not voucher:
+                return False
+            
+            voucher.status = "expired"
+            db.commit()
+            
+            # Remove from Mikrotik asynchronously
+            if MikrotikConfig.ENABLED:
+                threading.Thread(
+                    target=MikrotikService.remove_user_from_mikrotik,
+                    args=(voucher.code,),
+                    daemon=True
+                ).start()
+            
+            logger.info(f"Voucher {voucher.code} marked as expired")
+            return True
+        except Exception as e:
+            logger.error(f"Error marking voucher as expired: {e}")
+            db.rollback()
+            return False
+        finally:
+            db.close()
+    
+    @staticmethod
+    def delete_voucher(voucher_id: int) -> bool:
+        """Delete voucher from database"""
+        db = SessionLocal()
+        try:
+            voucher = db.query(Voucher).filter(Voucher.id == voucher_id).first()
+            if not voucher:
+                return False
+            
+            code = voucher.code
+            db.delete(voucher)
+            db.commit()
+            
+            # Remove from Mikrotik asynchronously
+            if MikrotikConfig.ENABLED:
+                threading.Thread(
+                    target=MikrotikService.remove_user_from_mikrotik,
+                    args=(code,),
+                    daemon=True
+                ).start()
+            
+            logger.info(f"Voucher {code} deleted")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting voucher: {e}")
+            db.rollback()
+            return False
+        finally:
+            db.close()
+    
+    @staticmethod
+    def get_all_vouchers():
+        """Get all vouchers"""
+        db = SessionLocal()
+        try:
+            return db.query(Voucher).all()
+        finally:
+            db.close()
+    
+    @staticmethod
+    def check_and_expire_vouchers() -> int:
+        """Check and expire old vouchers"""
+        db = SessionLocal()
+        expired_count = 0
+        try:
+            now = datetime.now()
+            vouchers = db.query(Voucher).filter(
+                Voucher.status == "unused",
+                Voucher.expires_at < now
+            ).all()
+            
+            for v in vouchers:
+                v.status = "expired"
+                expired_count += 1
+                
+                # Remove from Mikrotik asynchronously
+                if MikrotikConfig.ENABLED:
+                    threading.Thread(
+                        target=MikrotikService.remove_user_from_mikrotik,
+                        args=(v.code,),
+                        daemon=True
+                    ).start()
+            
+            if expired_count > 0:
+                db.commit()
+                logger.info(f"Expired {expired_count} vouchers")
+        
+        except Exception as e:
+            logger.error(f"Error checking expiry: {e}")
+            db.rollback()
+        finally:
+            db.close()
+        
+        return expired_count
+# ================= MIKROTIK SERVICE LAYER (ILIKAMILIKA) =================
+
+class MikrotikService:
+
+    @staticmethod
+    def get_api():
+        try:
+            return connect(
+                host=MikrotikConfig.HOST,
+                username=MikrotikConfig.USER,
+                password=MikrotikConfig.PASS,
+                port=MikrotikConfig.PORT
+            )
+        except Exception as e:
+            logger.error(f"Mikrotik Connection Error: {e}")
+            return None
+
+    @staticmethod
+    def check_connection():
+        """Inaangalia kama connection ipo"""
+        api = MikrotikService.get_api()
+        if api:
+            api.close()
+            return True
+        return False
+
+    @staticmethod
+    def sync_voucher_to_mikrotik(voucher_code: str, uptime: str):
+        try:
+            api = MikrotikService.get_api()
+            if not api: return False
+            
+            mikrotik_uptime = VoucherService.convert_to_mikrotik_time(uptime)
+            hotspot_users = api.path("ip", "hotspot", "user")
+            
+            hotspot_users.add(
+                name=voucher_code,
+                password=voucher_code,
+                **{"limit-uptime": mikrotik_uptime, "comment": "Auto Voucher"}
+            )
+            api.close()
+            logger.info(f"Voucher {voucher_code} synced to MikroTik")
+            return True
+        except Exception as e:
+            logger.error(f"Error syncing {voucher_code}: {e}")
+            return False
+
+    @staticmethod
+    def remove_user_from_mikrotik(voucher_code: str):
+        try:
+            api = MikrotikService.get_api()
+            if not api: return False
+            
+            hotspot_users = api.path("ip", "hotspot", "user")
+            users = list(hotspot_users)
+            target_user = next((u for u in users if u.get("name") == voucher_code), None)
+            
+            if target_user:
+                hotspot_users.remove(target_user[".id"])
+                logger.info(f"Voucher {voucher_code} removed from MikroTik")
+            
+            api.close()
+            return True
+        except Exception as e:
+            logger.error(f"Error removing {voucher_code}: {e}")
+            return False
+
+    @staticmethod
+    def lock_voucher_to_mac(voucher_code: str, mac: str):
+        """Hii ndiyo inayokosekana kwenye hotspot_login"""
+        try:
+            api = MikrotikService.get_api()
+            if not api: return False
+            
+            hotspot_users = api.path("ip", "hotspot", "user")
+            users = list(hotspot_users)
+            target_user = next((u for u in users if u.get("name") == voucher_code), None)
+            
+            if target_user:
+                hotspot_users.update(id=target_user[".id"], mac_address=mac)
+                logger.info(f"Voucher {voucher_code} locked to MAC {mac}")
+            
+            api.close()
+            return True
+        except Exception as e:
+            logger.error(f"Error locking MAC for {voucher_code}: {e}")
+            return False
+# ================= USER SERVICE LAYER =================
+class UserService:
+    """Handle user-related database operations"""
+    
+    @staticmethod
+    def create_user(username: str, password: str, role: str = "Staff", status: str = "Active") -> bool:
+        """Create new user"""
+        db = SessionLocal()
+        try:
+            existing = db.query(User).filter(User.username == username).first()
+            if existing:
+                logger.warning(f"User {username} already exists")
+                return False
+            
+            user = User(username=username, password=password, role=role, status=status)
+            db.add(user)
+            db.commit()
+            logger.info(f"User {username} created")
+            return True
+        except Exception as e:
+            logger.error(f"Error creating user: {e}")
+            db.rollback()
+            return False
+        finally:
+            db.close()
+    
+    @staticmethod
+    def get_user(user_id: int) -> Optional[User]:
+        """Get user by ID"""
+        db = SessionLocal()
+        try:
+            return db.query(User).filter(User.id == user_id).first()
+        finally:
+            db.close()
+    
+    @staticmethod
+    def authenticate(username: str, password: str) -> Optional[User]:
+        """Authenticate user"""
+        db = SessionLocal()
+        try:
+            return db.query(User).filter(
+                User.username == username,
+                User.password == password
+            ).first()
+        finally:
+            db.close()
+    
+    @staticmethod
+    def update_user(user_id: int, username: str, password: str, role: str, status: str) -> bool:
+        """Update user details"""
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                return False
+            
+            user.username = username
+            user.password = password
+            user.role = role
+            user.status = status
+            db.commit()
+            logger.info(f"User {user_id} updated")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating user: {e}")
+            db.rollback()
+            return False
+        finally:
+            db.close()
+    
+    @staticmethod
+    def delete_user(user_id: int) -> bool:
+        """Delete user"""
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                return False
+            
+            db.delete(user)
+            db.commit()
+            logger.info(f"User {user_id} deleted")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting user: {e}")
+            db.rollback()
+            return False
+        finally:
+            db.close()
+    
+    @staticmethod
+    def get_all_users():
+        """Get all users"""
+        db = SessionLocal()
+        try:
+            return db.query(User).all()
+        finally:
+            db.close()
+
+
+# ================= PACKAGE SERVICE LAYER =================
+class PackageService:
+    """Handle package-related database operations"""
+    
+    @staticmethod
+    def create_package(name: str, price: int) -> bool:
+        """Create new package"""
+        db = SessionLocal()
+        try:
+            package = Package(name=name, price=price)
+            db.add(package)
+            db.commit()
+            logger.info(f"Package {name} created")
+            return True
+        except Exception as e:
+            logger.error(f"Error creating package: {e}")
+            db.rollback()
+            return False
+        finally:
+            db.close()
+    
+    @staticmethod
+    def get_package(pkg_id: int) -> Optional[Package]:
+        """Get package by ID"""
+        db = SessionLocal()
+        try:
+            return db.query(Package).filter(Package.id == pkg_id).first()
+        finally:
+            db.close()
+    
+    @staticmethod
+    def update_package(pkg_id: int, name: str, price: int) -> bool:
+        """Update package"""
+        db = SessionLocal()
+        try:
+            pkg = db.query(Package).filter(Package.id == pkg_id).first()
+            if not pkg:
+                return False
+            
+            pkg.name = name
+            pkg.price = price
+            db.commit()
+            logger.info(f"Package {pkg_id} updated")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating package: {e}")
+            db.rollback()
+            return False
+        finally:
+            db.close()
+    
+    @staticmethod
+    def delete_package(pkg_id: int) -> bool:
+        """Delete package"""
+        db = SessionLocal()
+        try:
+            pkg = db.query(Package).filter(Package.id == pkg_id).first()
+            if not pkg:
+                return False
+            
+            db.delete(pkg)
+            db.commit()
+            logger.info(f"Package {pkg_id} deleted")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting package: {e}")
+            db.rollback()
+            return False
+        finally:
+            db.close()
+    
+    @staticmethod
+    def get_all_packages():
+        """Get all packages"""
+        db = SessionLocal()
+        try:
+            return db.query(Package).all()
+        finally:
+            db.close()
+
+
+# ================= DECORATOR FUNCTIONS =================
+def login_required(f):
+    """Check if user is logged in"""
+    @wraps(f)
+    def decorated_function(request: Request, *args, **kwargs):
+        if not request.session.get("logged_in"):
+            return RedirectResponse("/login", status_code=303)
+        return f(request, *args, **kwargs)
+    return decorated_function
+
+def get_current_user(request: Request) -> str:
+    """Get current user from session"""
+    return request.session.get("user", "Guest")
+
+
+# ================= BACKGROUND WORKER =================
+def expiry_worker():
+    """Background worker to check voucher expiry every 5 minutes"""
+    while True:
+        try:
+            VoucherService.check_and_expire_vouchers()
+        except Exception as e:
+            logger.error(f"Error in expiry worker: {e}")
+        time.sleep(300)  # Check every 5 minutes
+
+threading.Thread(target=expiry_worker, daemon=True).start()
+
+
+# ================= AUTH ROUTES =================
+@app.get("/")
+@app.get("/login")
+def login_page(request: Request):
+    if request.session.get("logged_in"):
+        return RedirectResponse("/dashboard", status_code=303)
+    error = request.session.pop("login_error", None)
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={"request": request, "error": error}
+    )
+
+@app.post("/login")
+def handle_login(request: Request, username: str = Form(...), password: str = Form(...)):
+    # Check superadmin first
+    if username == "admin" and password == "admin123":
+        request.session.update({"logged_in": True, "user": "SuperAdmin", "role": "admin"})
+        logger.info(f"SuperAdmin logged in")
+        return RedirectResponse("/dashboard", status_code=303)
+    
+    # Check database users
+    user = UserService.authenticate(username, password)
+    if user:
+        request.session.update({"logged_in": True, "user": user.username, "role": user.role})
+        logger.info(f"User {username} logged in")
+        return RedirectResponse("/dashboard", status_code=303)
+    
+    logger.warning(f"Failed login attempt: {username}")
+    request.session["login_error"] = "Taarifa si sahihi!"
+    return RedirectResponse("/login", status_code=303)
+
+@app.get("/logout")
+def logout(request: Request):
+    user = get_current_user(request)
+    logger.info(f"User {user} logged out")
+    request.session.clear()
+    return RedirectResponse("/login", status_code=303)
+
+
+@app.post("/lipa")
+async def lipa_internet(amount: int, phone: str):
+    token = get_access_token()
+    if not token:
+        return {"status": "error", "message": "Imeshindwa kupata Token"}
+        
+    url = "https://checkout.azampay.co.tz/api/v1/MnoCheckout/POST" # Hakikisha URL ni sahihi
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "amount": amount,
+        "phoneNumber": phone,
+        "externalId": f"order_{random.randint(1000,9999)}",
+        "callbackURL": "https://yako-ngrok-url.com/payment-callback"
+    }
+    
+    response = requests.post(url, json=payload, headers=headers)
+    
+    # ONGEZA HII KUONA KOSA HALISI
+    if response.status_code != 200:
+        print(f"ERROR: {response.text}")
+        return {"status": "error", "message": response.text}
+        
+    return response.json()
+# ================= HOTSPOT INTERACTION =================
+@app.get("/hotspot-login")
+def get_hotspot_login(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="hotspot.html",
+        context={"request": request}
+    )
+
+    
+    # Check expiry
+    if voucher_obj.expires_at < datetime.now():
+        return {"status": "error", "message": "Voucher imekaliwa muda"}
+    
+    # Mark as used
+    success = VoucherService.mark_used(voucher_obj.id, mac)
+    if not success:
+        return {"status": "error", "message": "Kosa katika kuboresha voucher"}
+    
+    # Lock to MAC asynchronously
+    if MikrotikConfig.ENABLED:
+        threading.Thread(
+            target=MikrotikService.lock_voucher_to_mac,
+            args=(voucher, mac),
+            daemon=True
+        ).start()
+    
+    logger.info(f"Voucher {voucher} used with MAC {mac}")
+    return {"status": "success", "message": "Karibu kwenye network!"}
+
+
+# ================= DASHBOARD =================
+@app.get("/dashboard")
+@login_required
+def dashboard(request: Request):
+    all_vouchers = VoucherService.get_all_vouchers()
+    # Tunachuja vouchers zilizokwisha muda
+    expired_vouchers = [v for v in all_vouchers if v.status == 'expired']
+    
+    context = {
+        "request": request,
+        "total": len(all_vouchers),
+        "used": len([v for v in all_vouchers if v.status == 'used']),
+        "unused": len([v for v in all_vouchers if v.status == 'unused']),
+        "expired": len(expired_vouchers), # Hii ndio tunayotumia kwenye Pie Chart pia
+        "expired_count": len(expired_vouchers), # Hii ni kwa ajili ya notification
+        "router_status": "Connected" if MikrotikService.check_connection() else "Disconnected"
+    }
+    return templates.TemplateResponse(request=request, name="dashboard.html", context=context)
+# ================= USERS MANAGEMENT =================
+@app.get("/users")
+@login_required
+def users(request: Request):
+    """View all users"""
+    return templates.TemplateResponse(
+        request=request,
+        name="users.html",
+        context={
+            "request": request,
+            "users": UserService.get_all_users(),
+            "user": get_current_user(request)
+        }
+    )
+
+@app.post("/add-user")
+@login_required
+def add_user(request: Request, username: str = Form(...), password: str = Form(...)):
+    """Add new user"""
+    if UserService.create_user(username, password):
+        return RedirectResponse("/users", status_code=303)
+    
+    logger.warning(f"Failed to create user: {username}")
+    return RedirectResponse("/users", status_code=303)
+
+@app.get("/edit-user/{user_id}")
+@login_required
+def edit_user_form(request: Request, user_id: int):
+    """Edit user form"""
+    user = UserService.get_user(user_id)
+    if not user:
+        return RedirectResponse("/users", status_code=303)
+    
+    return templates.TemplateResponse(
+        request=request,
+        name="edit_user.html",
+        context={"request": request, "account": user}
+    )
+
+@app.post("/edit-user/{user_id}")
+@login_required
+def update_user(
+    request: Request,
+    user_id: int,
+    username: str = Form(...),
+    password: str = Form(...),
+    role: str = Form(...),
+    status: str = Form(...)
+):
+    """Update user"""
+    UserService.update_user(user_id, username, password, role, status)
+    return RedirectResponse("/users", status_code=303)
+
+@app.get("/delete-user/{user_id}")
+@login_required
+def delete_user(request: Request, user_id: int):
+    """Delete user"""
+    UserService.delete_user(user_id)
+    return RedirectResponse("/users", status_code=303)
+
+
+# ================= PACKAGES MANAGEMENT =================
+@app.get("/packages")
+@login_required
+def packages(request: Request):
+    """View all packages"""
+    return templates.TemplateResponse(
+        request=request,
+        name="packages.html",
+        context={
+            "request": request,
+            "packages": PackageService.get_all_packages(),
+            "user": get_current_user(request)
+        }
+    )
+
+@app.post("/add-package")
+@login_required
+def add_package(request: Request, name: str = Form(...), price: int = Form(...)):
+    """Add new package"""
+    PackageService.create_package(name, price)
+    return RedirectResponse("/packages", status_code=303)
+
+@app.get("/edit-package/{pkg_id}")
+@login_required
+def edit_package_form(request: Request, pkg_id: int):
+    """Edit package form"""
+    pkg = PackageService.get_package(pkg_id)
+    if not pkg:
+        return RedirectResponse("/packages", status_code=303)
+    
+    return templates.TemplateResponse(
+        request=request,
+        name="edit_package.html",
+        context={"request": request, "package": pkg}
+    )
+
+@app.post("/edit-package/{pkg_id}")
+@login_required
+def update_package(
+    request: Request,
+    pkg_id: int,
+    name: str = Form(...),
+    price: int = Form(...)
+):
+    """Update package"""
+    PackageService.update_package(pkg_id, name, price)
+    return RedirectResponse("/packages", status_code=303)
+
+@app.get("/delete-package/{pkg_id}")
+@login_required
+def delete_package(request: Request, pkg_id: int):
+    """Delete package"""
+    PackageService.delete_package(pkg_id)
+    return RedirectResponse("/packages", status_code=303)
+
+
+# ================= VOUCHERS MANAGEMENT =================
+@app.get("/vouchers")
+@login_required
+def vouchers(request: Request):
+    """View all vouchers"""
+    return templates.TemplateResponse(
+        request=request,
+        name="vouchers.html",
+        context={
+            "request": request,
+            "vouchers": VoucherService.get_all_vouchers(),
+            "user": get_current_user(request)
+        }
+    )
+@app.post("/generate_voucher")
+# @login_required  <-- Iweke kwenye comment (weka # mbele)
+def generate_voucher(
+    price: int = Form(...),
+    duration: str = Form(...),
+    data_limit: str = Form(...)
+):
+    # Hapa weka code zako za ku-generate voucher
+    print(f"DEBUG: Nimepokea {price}, {duration}, {data_limit}")
+    return {"status": "success", "message": "Voucher generated"}
+@app.post("/generate-voucher")
+@login_required
+def generate_voucher(
+    request: Request,
+    price: int = Form(...),
+    duration: str = Form(...),
+    data_limit: str = Form(...)
+):
+    """Generate new voucher"""
+    code = VoucherService.create_voucher(price, duration, data_limit)
+    if not code:
+        logger.error("Failed to generate voucher")
+    return RedirectResponse("/vouchers", status_code=303)
+
+@app.get("/activate-voucher/{voucher_id}")
+@login_required
+def activate_voucher(request: Request, voucher_id: int):
+    """Activate/Use voucher"""
+    VoucherService.mark_used(voucher_id)
+    return RedirectResponse("/vouchers", status_code=303)
+
+@app.get("/expire-voucher/{voucher_id}")
+@login_required
+def expire_voucher(request: Request, voucher_id: int):
+    """Expire voucher"""
+    VoucherService.mark_expired(voucher_id)
+    return RedirectResponse("/vouchers", status_code=303)
+
+@app.get("/delete-voucher/{voucher_id}")
+@login_required
+def delete_voucher(request: Request, voucher_id: int):
+    """Delete voucher"""
+    VoucherService.delete_voucher(voucher_id)
+    return RedirectResponse("/vouchers", status_code=303)
+
+@app.get("/print-vouchers")
+@login_required
+def print_vouchers(request: Request):
+    """Print all vouchers"""
+    return templates.TemplateResponse(
+        request=request,
+        name="print_vouchers.html",
+        context={
+            "request": request,
+            "vouchers": VoucherService.get_all_vouchers()
+        }
+    )
+
+
+# ================= REPORTS =================
+@app.get("/reports")
+@login_required
+def reports(request: Request):
+    """View financial reports"""
+    all_vouchers = VoucherService.get_all_vouchers()
+    used_vouchers = [v for v in all_vouchers if v.status == "used"]
+    total_sales = sum(v.price for v in used_vouchers)
+    
+    context = {
+        "request": request,
+        "user": get_current_user(request),
+        "vouchers": all_vouchers,
+        "total_sales": total_sales,
+        "total_issued": len(all_vouchers),
+        "total_used": len(used_vouchers),
+        "total_unused": len([v for v in all_vouchers if v.status == "unused"]),
+        "total_expired": len([v for v in all_vouchers if v.status == "expired"])
+    }
+    return templates.TemplateResponse(
+        request=request,
+        name="reports.html",
+        context=context
+    )
+
+
+# ================= SETTINGS =================
+@app.get("/settings")
+@login_required
+def settings(request: Request):
+    """System settings"""
+    return templates.TemplateResponse(
+        request=request,
+        name="settings.html",
+        context={
+            "request": request,
+            "user": get_current_user(request),
+            "mikrotik_status": MikrotikService.check_connection(),
+            "mikrotik_host": MikrotikConfig.HOST
+        }
+    )
+
+@app.post("/save-settings")
+@login_required
+def save_settings(
+    request: Request,
+    system_name: str = Form(...),
+    tax_rate: int = Form(...),
+    # Mikrotik settings would be saved to environment or config file
+):
+    """Save system settings"""
+    logger.info(f"Settings saved by {get_current_user(request)}")
+    return RedirectResponse("/settings", status_code=303)
+
+
+# ================= HEALTH CHECK =================
+@app.get("/health")
+def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "ok",
+        "mikrotik": MikrotikService.check_connection(),
+        "database": "ok"
+    }
+
+
+# ================= RUN SERVER =================
+if __name__ == "__main__":
+    import uvicorn
+    logger.info("Starting CORE-WISP WiFi Billing System")
+    uvicorn.run(app, host="0.0.0.0", port=8002)

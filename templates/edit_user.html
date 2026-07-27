@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit User — CORE-WISP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { 
+            background-color: #090d16; 
+            font-family: 'JetBrains Mono', monospace; 
+            color: #e2e8f0;
+        }
+        .cyber-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 0 15px;
+        }
+        .cyber-card {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+        .cyber-card-header {
+            background: linear-gradient(90deg, #1e1b4b 0%, #0f172a 100%);
+            border-bottom: 2px solid #eab308; /* Rangi ya njano kwa ajili ya Edit */
+            padding: 25px 20px;
+            font-weight: bold;
+            color: #f59e0b;
+        }
+        .cyber-input, .cyber-select {
+            background-color: #020617;
+            border: 1px solid #334155;
+            color: #fff;
+        }
+        .cyber-input:focus, .cyber-select:focus {
+            background-color: #020617;
+            border-color: #f59e0b;
+            color: #fff;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+        }
+        .cyber-select option {
+            background-color: #020617;
+            color: #fff;
+        }
+        .btn-neon-yellow {
+            border: 1px solid #f59e0b; color: #f59e0b; background: transparent;
+        }
+        .btn-neon-yellow:hover {
+            background: #f59e0b; color: #090d16; box-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
+        }
+        .btn-back {
+            color: #94a3b8;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .btn-back:hover {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+
+<div class="cyber-container">
+    <!-- Kitufe cha Kurudi Nyuma -->
+    <div class="mb-4">
+        <a href="/users" class="btn-back fw-bold">
+            <i class="fa-solid fa-arrow-left-long me-2"></i> Rudi kwenye Watumiaji (Back Users)
+        </a>
+    </div>
+
+    <!-- Kadi ya Kuhariri Mtumiaji -->
+    <div class="cyber-card">
+        <div class="cyber-card-header d-flex justify-content-between align-items-center">
+            <span><i class="fa-solid fa-user-pen me-2"></i> Badili Taarifa za Mtumiaji</span>
+            <small class="text-muted" style="font-size: 0.8rem;">ID: #{{ account.id }}</small>
+        </div>
+        
+        <div class="cyber-card-body p-4">
+            <form action="/edit-user/{{ account.id }}" method="POST">
+                
+                <!-- Username -->
+                <div class="mb-3">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Username</label>
+                    <input type="text" name="username" class="form-control cyber-input" value="{{ account.username }}" required>
+                </div>
+
+                <!-- Password -->
+                <div class="mb-3">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Password (Nenosiri)</label>
+                    <input type="password" name="password" class="form-control cyber-input" value="{{ account.password }}" required>
+                </div>
+
+                <!-- Role Selection -->
+                <div class="mb-3">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Role (Wadhifa)</label>
+                    <select name="role" class="form-select cyber-select" required>
+                        <option value="Admin" {% if account.role == 'Admin' %}selected{% endif %}>Admin</option>
+                        <option value="Staff" {% if account.role == 'Staff' %}selected{% endif %}>Staff</option>
+                    </select>
+                </div>
+
+                <!-- Status Selection -->
+                <div class="mb-4">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Status (Hali)</label>
+                    <select name="status" class="form-select cyber-select" required>
+                        <option value="Active" {% if account.status == 'Active' %}selected{% endif %}>Active</option>
+                        <option value="Disabled" {% if account.status == 'Disabled' %}selected{% endif %}>Disabled</option>
+                    </select>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-neon-yellow w-100 py-2.5 fw-bold text-uppercase">
+                    <i class="fa-solid fa-user-check me-2"></i> Update User
+                </button>
+                
+            </form>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

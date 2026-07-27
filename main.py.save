@@ -1,0 +1,370 @@
+from models import User, Voucher, Package
+from starlette.middleware.sessions import SessionMiddleware
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
+
+from librouteros import connect
+from database import engine, Base, SessionLocal
+
+import random
+import string
+import logging
+import time
+import socket
+from datetime import datetime
+import os
+
+# ================= LOGGING =================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
+)
+
+# ================= INIT DB =================
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI()
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SECRET_KEY", "wifi_billing_secret_key_123")
+)
+
+templates = Jinja2Templates(directory="templates")
+
+# ================= MIKROTIK CONFIG =================
+MIKROTIK_HOST = "192.168.122.218"
+MIKROTIK_PORT = 8728
+MIKROTIK_USER = "admin"
+MIKROTIK_PASS = "Janet@123"
+
+
+# ================= SAFE MIKROTIK =================
+    except:
+        return False
+
+
+def safe_add_mikrotik_user(username):
+    if not mikrotik_is_alive():
+        logging.warning("MIKROTIK OFFLINE - skipping user creation")
+        return False
+
+    try:
+        api = connect(
+            username=MIKROTIK_USER,
+            password=MIKROTIK_PASS,
+            host=MIKROTIK_HOST,
+            port=MIKROTIK_PORT
+        )
+
+        api.path("ip", "hotspot", "user").add(
+            name=username,
+            password=username,
+            profile="default"
+        )
+
+        return True
+
+    except Exception as e:
+        logging.error(f"MIKROTIK ERROR: {e}")
+        return False
+
+
+# ================= HOME =================
+@app.get("/")
+def home():
+    return {"message": "WiFi Billing System Running"}
+
+
+# ================= REPORTS =================
+@app.get("/reports")
+def reports(request: Request):
+
+    db = SessionLocal()
+
+    total_vouchers = db.query(Voucher).count()
+    used_vouchers = db.query(Voucher).filter(Voucher.status.in_(["used", "active"])).count()
+    unused_vouchers = db.query(Voucher).filter(Voucher.status == "unused").count()
+
+    revenue_list = db.query(Voucher).filter(Voucher.status.in_(["used", "active"])).all()
+    revenue = sum(v.price for v in revenue_list)
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="reports.html",
+        context={
+            "total_vouchers": total_vouchers,
+            "used_vouchers": used_vouchers,
+            "unused_vouchers": unused_vouchers,
+            "revenue": revenue
+        }
+    )
+
+
+# ================= SETTINGS =================
+@app.get("/settings")
+def settings(request: Request):
+    return templates.TemplateResponse(request=request, name="settings.html", context={})
+
+
+# ================= PRINT =================
+@app.get("/print-vouchers")
+def print_vouchers(request: Request):
+
+    db = SessionLocal()
+    vouchers = db.query(Voucher).order_by(Voucher.id.desc()).all()
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="print_vouchers.html",
+        context={"vouchers": vouchers}
+    )
+
+
+# ================= USERS =================
+@app.get("/users")
+def users_page(request: Request):
+
+    db = SessionLocal()
+    users = db.query(User).all()
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="users.html",
+        context={"users": users}
+    )
+
+
+@app.post("/add-user")
+def add_user(username: str = Form(...), password: str = Form(...)):
+
+    db = SessionLocal()
+
+    try:
+        exists = db.query(User).filter(User.username == username).first()
+        if exists:
+            return {"error": "User exists"}
+
+        user = User(username=username, password=password)
+        db.add(user)
+        db.commit()
+
+        try:
+            api = connect(
+                host=MIKROTIK_HOST,
+                port=MIKROTIK_PORT,
+                username="apiuser",
+                password="apipass"
+            )
+
+            api("/ip/hotspot/user/add", {
+                "name": username,
+                "password": password,
+                "profile": "default"
+            })
+
+        except Exception as e:
+            logging.error(f"MIKROTIK USER ADD FAIL: {e}")
+
+    except Exception as e:
+        db.rollback()
+        logging.error(e)
+        return {"error": str(e)}
+
+    finally:
+        db.close()
+
+    return RedirectResponse("/users", status_code=303)
+
+
+# ================= DASHBOARD =================
+@app.get("/dashboard")
+def dashboard(request: Request):
+
+    if "user" not in request.session:
+        return RedirectResponse("/login", status_code=303)
+
+    db = SessionLocal()
+
+    total = db.query(Voucher).count()
+    used = db.query(Voucher).filter(Voucher.status == "used").count()
+    unused = db.query(Voucher).filter(Voucher.status == "unused").count()
+    recent = db.query(Voucher).order_by(Voucher.id.desc()).limit(5).all()
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={
+            "total": total,
+            "used": used,
+            "unused": unused,
+            "recent": recent,
+            "user": request.session.get("user")
+        }
+    )
+
+
+# ================= GENERATE VOUCHER (FIXED) =================
+@app.get("/generate")
+def generate_voucher():
+
+    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+    db = SessionLocal()
+
+    voucher = Voucher(
+        code=code,
+        profile="1 Hour",
+        price=500,
+        uptime="1h",
+        data_limit="1GB",
+        status="unused",
+        created_at=datetime.now(),
+        used_by=""
+    )
+
+    db.add(voucher)
+    db.commit()
+
+    success = safe_add_mikrotik_user(code)
+
+    if success:
+        voucher.status = "active"
+    else:
+        voucher.status = "pending"
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/voucher-list", status_code=303)
+
+
+# ================= CUSTOM VOUCHER =================
+@app.post("/generate-custom")
+def generate_custom(price: int = Form(...), uptime: str = Form(...), data_limit: str = Form(...)):
+
+    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+    db = SessionLocal()
+
+    voucher = Voucher(
+        code=code,
+        profile="Custom",
+        price=price,
+        uptime=uptime,
+        data_limit=data_limit,
+        status="unused",
+        created_at=datetime.now(),
+        used_by=""
+    )
+
+    db.add(voucher)
+    db.commit()
+
+    safe_add_mikrotik_user(code)
+
+    db.close()
+
+    return RedirectResponse("/voucher-list", status_code=303)
+
+
+# ================= PACKAGES =================
+@app.get("/packages")
+def packages_page(request: Request):
+
+    db = SessionLocal()
+    packages = db.query(Package).all()
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="packages.html",
+        context={"packages": packages}
+    )
+
+
+@app.post("/add-package")
+def add_package(name: str = Form(...), price: int = Form(...), uptime: str = Form(...), data_limit: str = Form(...)):
+
+    db = SessionLocal()
+
+    package = Package(
+        name=name,
+        price=price,
+        uptime=uptime,
+        data_limit=data_limit
+    )
+
+    db.add(package)
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/packages", status_code=303)
+
+
+# ================= AUTH =================
+@app.get("/login")
+def login_page(request: Request):
+    return templates.TemplateResponse(request=request, name="login.html", context={})
+
+
+@app.post("/login")
+def login(request: Request, username: str = Form(...), password: str = Form(...)):
+
+    db = SessionLocal()
+
+    user = db.query(User).filter(User.username == username, User.password == password).first()
+
+    db.close()
+
+    if not user:
+        return {"error": "Invalid login"}
+
+    request.session["user"] = user.username
+    return RedirectResponse("/dashboard", status_code=303)
+
+
+@app.get("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/login", status_code=303)
+@app.get("/voucher-list")
+def voucher_list(request: Request):
+    db = SessionLocal()
+    vouchers = db.query(Voucher).all()
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="vouchers.html",
+        context={"vouchers": vouchers}
+    )
+@app.get("/voucher-list")
+def voucher_list(request: Request, search: str = ""):
+
+    db = SessionLocal()
+
+    if search:
+        vouchers = db.query(Voucher).filter(
+            Voucher.code.contains(search)
+        ).all()
+    else:
+        vouchers = db.query(Voucher).all()
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="vouchers.html",
+        context={
+            "vouchers": vouchers,
+            "search": search
+        }
+    )

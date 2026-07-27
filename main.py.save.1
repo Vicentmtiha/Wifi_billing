@@ -1,0 +1,1009 @@
+import random
+import string
+import logging
+import os
+import threading
+import time
+import re
+from datetime import datetime, timedelta
+
+from librouteros import connect
+from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
+
+from database import engine, Base, SessionLocal
+from models import User, Voucher, Package
+
+# ================= CONFIGURATION =================
+Base.metadata.create_all(bind=engine)
+app = FastAPI()
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "wifi_billing_secret_key_123"))
+templates = Jinja2Templates(directory="templates")
+logging.basicConfig(level=logging.INFO)
+
+MIKROTIK_HOST = "192.168.122.218"
+MIKROTIK_PORT = 8728
+MIKROTIK_USER = "admin"
+MIKROTIK_PASS = "Janet@123"
+
+# ================= HELPER FUNCTIONS =================
+def convert_to_mikrotik_time(time_str):
+    time_str = time_str.lower().strip()
+    num = int(re.search(r'\d+', time_str).group()) if re.search(r'\d+', time_str) else 1
+    if 'day' in time_str:
+        return f"{num * 24:02}:00:00"
+    elif 'h' in time_str:
+        return f"{num:02}:00:00"
+    elif 'm' in time_str:
+        return f"00:{num:02}:00"
+    return "01:00:00"
+
+def get_api():
+    return connect(host=MIKROTIK_HOST, username=MIKROTIK_USER, password=MIKROTIK_PASS, port=MIKROTIK_PORT)
+
+def lock_voucher_to_mac(voucher_code, client_mac):
+    try:
+        api = get_api()
+        api.path("/ip/hotspot/user").set(name=voucher_code, mac_address=client_mac)
+    except Exception as e:
+        logging.error(f"MAC Binding Error: {e}")
+
+def generate_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+def current_user(request: Request):
+    return request.session.get("user", "Guest")
+
+def login_required(request: Request):
+    if not request.session.get("logged_in"):
+        return RedirectResponse("/login")
+    return None
+
+def add_voucher_to_db(price=500, uptime="1h", data_limit="1GB", profile_name="default"):
+    db = SessionLocal()
+    try:
+        code = generate_code()
+        expiry_date = datetime.now() + timedelta(days=30)
+        voucher = Voucher(code=code, profile=profile_name, price=price, uptime=uptime,
+                          data_limit=data_limit, status="unused", created_at=datetime.now(),
+                          expires_at=expiry_date, used_by="")
+        db.add(voucher)
+        db.commit()
+        try:
+            api = get_api()
+            mikrotik_uptime = convert_to_mikrotik_time(uptime)
+            user_data = {
+                "name": code, 
+                "password": code, 
+                "limit-uptime": mikrotik_uptime, 
+                "comment": "Manual Voucher"
+            }
+            api.path("/ip/hotspot/user").add(**user_data)
+        except Exception as e:
+            logging.error(f"Mikrotik Error: {e}")
+        return code
+    finally:
+        db.close()
+
+def check_expiry():
+    db = SessionLocal()
+    try:
+        now = datetime.now()
+        vouchers = db.query(Voucher).filter(Voucher.status == "unused", Voucher.expires_at < now).all()
+        if vouchers:
+            try:
+                api = get_api()
+                for v in vouchers:
+                    try:
+                        api.path("/ip/hotspot/user").remove(name=v.code)
+                    except: pass
+                    v.status = "expired"
+                db.commit()
+            except Exception as e:
+                logging.error(f"Mikrotik connection error in check_expiry: {e}")
+    finally:
+        db.close()
+
+def worker():
+    while True:
+        check_expiry()
+        time.sleep(300)
+
+threading.Thread(target=worker, daemon=True).start()
+
+# ================= AUTH ROUTES =================
+@app.get("/")
+@app.get("/login")
+def login_page(request: Request):
+    if request.session.get("logged_in"): return RedirectResponse("/dashboard", status_code=303)
+    error = request.session.pop("login_error", None)
+    return templates.TemplateResponse(request=request, name="login.html", context={"request": request, "error": error})
+
+@app.post("/login")
+def handle_login(request: Request, username: str = Form(...), password: str = Form(...)):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == username, User.password == password).first()
+        if not user and username == "admin" and password == "admin123":
+            request.session.update({"logged_in": True, "user": "SuperAdmin"})
+            return RedirectResponse("/dashboard", status_code=303)
+        if user:
+            request.session.update({"logged_in": True, "user": user.username})
+            return RedirectResponse("/dashboard", status_code=303)
+        request.session["login_error"] = "Taarifa si sahihi!"
+        return RedirectResponse("/login", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/login", status_code=303)
+
+# ================= HOTSPOT INTERACTION =================
+@app.get("/hotspot-login")
+def get_hotspot_login(request: Request):
+    return templates.TemplateResponse(request=request, name="hotspot.html", context={"request": request})
+
+@app.post("/hotspot-login")
+def hotspot_login(voucher: str = Form(...), mac: str = Form(...)):
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.code == voucher, Voucher.status == "unused").first()
+        if v:
+            lock_voucher_to_mac(voucher, mac)
+            v.status = "used"
+            db.commit()
+            return {"status": "success"}
+        return {"status": "error"}
+    finally:
+        db.close()
+
+# ================= DASHBOARD =================
+import random
+import string
+import logging
+import os
+import threading
+import time
+import re
+from datetime import datetime, timedelta
+
+from librouteros import connect
+from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
+
+from database import engine, Base, SessionLocal
+from models import User, Voucher, Package
+
+# ================= CONFIGURATION =================
+Base.metadata.create_all(bind=engine)
+app = FastAPI()
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "wifi_billing_secret_key_123"))
+templates = Jinja2Templates(directory="templates")
+logging.basicConfig(level=logging.INFO)
+
+MIKROTIK_HOST = "192.168.122.218"
+MIKROTIK_PORT = 8728
+MIKROTIK_USER = "admin"
+MIKROTIK_PASS = "Janet@123"
+
+# ================= HELPER FUNCTIONS =================
+def convert_to_mikrotik_time(time_str):
+    time_str = time_str.lower().strip()
+    num = int(re.search(r'\d+', time_str).group()) if re.search(r'\d+', time_str) else 1
+    if 'day' in time_str:
+        return f"{num * 24:02}:00:00"
+    elif 'h' in time_str:
+        return f"{num:02}:00:00"
+    elif 'm' in time_str:
+        return f"00:{num:02}:00"
+    return "01:00:00"
+
+def get_api():
+    return connect(host=MIKROTIK_HOST, username=MIKROTIK_USER, password=MIKROTIK_PASS, port=MIKROTIK_PORT)
+
+def lock_voucher_to_mac(voucher_code, client_mac):
+    try:
+        api = get_api()
+        api.path("/ip/hotspot/user").set(name=voucher_code, mac_address=client_mac)
+    except Exception as e:
+        logging.error(f"MAC Binding Error: {e}")
+
+def generate_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+def current_user(request: Request):
+    return request.session.get("user", "Guest")
+
+def login_required(request: Request):
+    if not request.session.get("logged_in"):
+        return RedirectResponse("/login")
+    return None
+
+def add_voucher_to_db(price=500, uptime="1h", data_limit="1GB", profile_name="default"):
+    db = SessionLocal()
+    try:
+        code = generate_code()
+        expiry_date = datetime.now() + timedelta(days=30)
+        voucher = Voucher(code=code, profile=profile_name, price=price, uptime=uptime,
+                          data_limit=data_limit, status="unused", created_at=datetime.now(),
+                          expires_at=expiry_date, used_by="")
+        db.add(voucher)
+        db.commit()
+        try:
+            api = get_api()
+            mikrotik_uptime = convert_to_mikrotik_time(uptime)
+            user_data = {
+                "name": code, 
+                "password": code, 
+                "limit-uptime": mikrotik_uptime, 
+                "comment": "Manual Voucher"
+            }
+            api.path("/ip/hotspot/user").add(**user_data)
+        except Exception as e:
+            logging.error(f"Mikrotik Error: {e}")
+        return code
+    finally:
+        db.close()
+
+def check_expiry():
+    db = SessionLocal()
+    try:
+        now = datetime.now()
+        vouchers = db.query(Voucher).filter(Voucher.status == "unused", Voucher.expires_at < now).all()
+        if vouchers:
+            try:
+                api = get_api()
+                for v in vouchers:
+                    try:
+                        api.path("/ip/hotspot/user").remove(name=v.code)
+                    except: pass
+                    v.status = "expired"
+                db.commit()
+            except Exception as e:
+                logging.error(f"Mikrotik connection error in check_expiry: {e}")
+    finally:
+        db.close()
+
+def worker():
+    while True:
+        check_expiry()
+        time.sleep(300)
+
+threading.Thread(target=worker, daemon=True).start()
+
+# ================= AUTH ROUTES =================
+@app.get("/")
+@app.get("/login")
+def login_page(request: Request):
+    if request.session.get("logged_in"): return RedirectResponse("/dashboard", status_code=303)
+    error = request.session.pop("login_error", None)
+    return templates.TemplateResponse(request=request, name="login.html", context={"request": request, "error": error})
+
+@app.post("/login")
+def handle_login(request: Request, username: str = Form(...), password: str = Form(...)):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == username, User.password == password).first()
+        if not user and username == "admin" and password == "admin123":
+            request.session.update({"logged_in": True, "user": "SuperAdmin"})
+            return RedirectResponse("/dashboard", status_code=303)
+        if user:
+            request.session.update({"logged_in": True, "user": user.username})
+            return RedirectResponse("/dashboard", status_code=303)
+        request.session["login_error"] = "Taarifa si sahihi!"
+        return RedirectResponse("/login", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/login", status_code=303)
+
+# ================= HOTSPOT INTERACTION =================
+@app.get("/hotspot-login")
+def get_hotspot_login(request: Request):
+    return templates.TemplateResponse(request=request, name="hotspot.html", context={"request": request})
+
+@app.post("/hotspot-login")
+def hotspot_login(voucher: str = Form(...), mac: str = Form(...)):
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.code == voucher, Voucher.status == "unused").first()
+        if v:
+            lock_voucher_to_mac(voucher, mac)
+            v.status = "used"
+            db.commit()
+            return {"status": "success"}
+        return {"status": "error"}
+    finally:
+        db.close()
+
+# ================= DASHBOARD =================
+@app.get("/dashboard")
+def dashboard(request: Request):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        now = datetime.now()
+        data = {
+            "request": request,
+            "total": db.query(Voucher).count(),
+            "used": db.query(Voucher).filter(Voucher.status == "used").count(),
+            "unused": db.query(Voucher).filter(Voucher.status == "unused", Voucher.expires_at > now).count(),
+            "expired": db.query(Voucher).filter((Voucher.status == "expired") | (Voucher.expires_at < now)).count(),
+            "recent": db.query(Voucher).order_by(Voucher.id.desc()).limit(5).all(),
+            "packages": db.query(Package).all(),
+            "user": current_user(request)
+        }
+        return templates.TemplateResponse(request=request, name="dashboard.html", context=data)
+    finally:
+        db.close()
+
+# ================= SYSTEM USERS MANAGEMENT =================
+@app.get("/users")
+def users(request: Request):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        data = {"request": request, "users": db.query(User).all(), "user": current_user(request)}
+        return templates.TemplateResponse(request=request, name="users.html", context=data)
+    finally:
+        db.close()
+
+@app.post("/add-user")
+def add_user(request: Request, username: str = Form(...), password: str = Form(...)):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        db.add(User(username=username, password=password, role="Staff", status="Active"))
+        db.commit()
+        return RedirectResponse("/users", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/edit-user/{user_id}")
+def edit_user_form(request: Request, user_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return RedirectResponse("/users", status_code=303)
+        return templates.TemplateResponse(request=request, name="edit_user.html", context={"request": request, "account": user})
+    finally:
+        db.close()
+
+# HAPA NDIPO PALIPOLETA MATATIZO YA METHOD NOT ALLOWED - SASA IMEANDIKWA VIZURI
+@app.post("/edit-user/{user_id}")
+def update_user_detailed(
+    request: Request, 
+    user_id: int, 
+    username: str = Form(...), 
+    password: str = Form(...), 
+    role: str = Form(...), 
+    status: str = Form(...)
+):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            user.username = username
+            user.password = password
+            user.role = role
+            user.status = status
+            db.commit()
+        return RedirectResponse("/users", status_code=303)
+    finally:
+        db.close()
+
+@app.post("/update-user/{user_id}")
+def update_user_basic(request: Request, user_id: int, username: str = Form(...), password: str = Form(...)):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            user.username = username
+            user.password = password
+            db.commit()
+        return RedirectResponse("/users", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/delete-user/{user_id}")
+def delete_user(request: Request, user_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            db.delete(user)
+            db.commit()
+        return RedirectResponse("/users", status_code=303)
+    finally:
+        db.close()
+
+# ================= TARIFF & PACKAGES =================
+@app.get("/packages")
+def packages(request: Request):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        data = {"request": request, "packages": db.query(Package).all(), "user": current_user(request)}
+        return templates.TemplateResponse(request=request, name="packages.html", context=data)
+    finally:
+        db.close()
+
+@app.post("/add-package")
+def add_package(request: Request, name: str = Form(...), price: int = Form(...)):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        db.add(Package(name=name, price=price))
+        db.commit()
+        return RedirectResponse("/packages", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/edit-package/{pkg_id}")
+def edit_package(request: Request, pkg_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        pkg = db.query(Package).filter(Package.id == pkg_id).first()
+        return templates.TemplateResponse(request=request, name="edit_package.html", context={"request": request, "package": pkg})
+    finally:
+        db.close()
+
+@app.post("/update-package/{pkg_id}")
+def update_package(request: Request, pkg_id: int, name: str = Form(...), price: int = Form(...)):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        pkg = db.query(Package).filter(Package.id == pkg_id).first()
+        if pkg:
+            pkg.name = name
+            pkg.price = price
+            db.commit()
+        return RedirectResponse("/packages", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/delete-package/{pkg_id}")
+def delete_package(request: Request, pkg_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        pkg = db.query(Package).filter(Package.id == pkg_id).first()
+        if pkg:
+            db.delete(pkg)
+            db.commit()
+        return RedirectResponse("/packages", status_code=303)
+    finally:
+        db.close()
+
+# ================= VOUCHER CONSOLE =================
+@app.get("/vouchers")
+def vouchers(request: Request):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        data = {"request": request, "vouchers": db.query(Voucher).all(), "user": current_user(request)}
+        return templates.TemplateResponse(request=request, name="vouchers.html", context=data)
+    finally:
+        db.close()
+
+@app.get("/generate")
+def generate(request: Request):
+    check = login_required(request)
+    if check: return check
+    add_voucher_to_db()
+    return RedirectResponse("/vouchers", status_code=303)
+
+@app.post("/vouchers")
+def generate_custom_legacy(request: Request, bei: int = Form(...), muda: str = Form(...), data_limit: str = Form(...)):
+    check = login_required(request)
+    if check: return check
+    add_voucher_to_db(bei, muda, data_limit)
+    return RedirectResponse("/vouchers", status_code=303)
+
+@app.post("/generate-voucher")
+def generate_custom_new(request: Request, price: int = Form(...), duration: str = Form(...), data_limit: str = Form(...)):
+    check = login_required(request)
+    if check: return check
+    add_voucher_to_db(price, duration, data_limit)
+    return RedirectResponse("/vouchers", status_code=303)
+
+@app.get("/vouchers/activate/{code}")
+def activate_voucher_legacy(request: Request, code: str):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.code == code).first()
+        if v:
+            v.status = "used"
+            db.commit()
+        return RedirectResponse("/vouchers", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/activate-voucher/{voucher_id}")
+def activate_voucher_new(request: Request, voucher_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.id == voucher_id).first()
+        if v:
+            v.status = "used"
+            db.commit()
+        return RedirectResponse("/vouchers", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/vouchers/expire/{code}")
+def expire_voucher_legacy(request: Request, code: str):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.code == code).first()
+        if v:
+            v.status = "expired"
+            db.commit()
+            try:
+                api = get_api()
+                api.path("/ip/hotspot/user").remove(name=code)
+            except: pass
+        return RedirectResponse("/vouchers", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/expire-voucher/{voucher_id}")
+def expire_voucher_new(request: Request, voucher_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.id == voucher_id).first()
+        if v:
+            v.status = "expired"
+            db.commit()
+            try:
+                api = get_api()
+                api.path("/ip/hotspot/user").remove(name=v.code)
+            except: pass
+        return RedirectResponse("/vouchers", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/vouchers/delete/{code}")
+def delete_voucher_legacy(request: Request, code: str):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.code == code).first()
+        if v:
+            db.delete(v)
+            db.commit()
+            try:
+                api = get_api()
+                api.path("/ip/hotspot/user").remove(name=code)
+            except: pass
+        return RedirectResponse("/vouchers", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/delete-voucher/{voucher_id}")
+def delete_voucher_new(request: Request, voucher_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.id == voucher_id).first()
+        if v:
+            db.delete(v)
+            db.commit()
+            try:
+                api = get_api()
+                api.path("/ip/hotspot/user").remove(name=v.code)
+            except: pass
+        return RedirectResponse("/vouchers", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/print-vouchers")
+def print_vouchers(request: Request):
+    db = SessionLocal()
+    try:
+        data = {"request": request, "vouchers": db.query(Voucher).all()}
+        return templates.TemplateResponse(request=request, name="print_vouchers.html", context=data)
+    finally:
+        db.close()
+
+# ================= SETTINGS & REPORTS =================
+@app.get("/reports")
+def reports(request: Request):
+    check = login_required(request)
+    if check: return check
+    return templates.TemplateResponse(request=request, name="reports.html", context={"request": request, "user": current_user(request)})
+
+@app.get("/settings")
+def settings(request: Request):
+    check = login_required(request)
+    if check: return check
+    return templates.TemplateResponse(request=request, name="settings.html", context={"request": request, "user": current_user(request)})
+
+@app.post("/save-settings")
+def save_system_settings(
+    request: Request,
+    system_name: str = Form(...),
+    tax_rate: int = Form(...),
+    mikrotik_ip: str = Form(...),
+    mikrotik_port: int = Form(...),
+    hotspot_profile: str = Form(...),
+    mikrotik_user: str = Form(...),
+    mikrotik_pass: str = Form("")
+):
+    check = login_required(request)
+    if check: return check
+    print(f"--- SETTINGS ZIMEHIFADHIWA: {system_name} ---")
+    return RedirectResponse("/settings", status_code=303)
+
+# ================= RUN SERVER =================
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+# ================= SYSTEM USERS MANAGEMENT =================
+@app.get("/users")
+def users(request: Request):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        data = {"request": request, "users": db.query(User).all(), "user": current_user(request)}
+        return templates.TemplateResponse(request=request, name="users.html", context=data)
+    finally:
+        db.close()
+
+@app.post("/add-user")
+def add_user(request: Request, username: str = Form(...), password: str = Form(...)):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        db.add(User(username=username, password=password, role="Staff", status="Active"))
+        db.commit()
+        return RedirectResponse("/users", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/edit-user/{user_id}")
+def edit_user_form(request: Request, user_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return RedirectResponse("/users", status_code=303)
+        return templates.TemplateResponse(request=request, name="edit_user.html", context={"request": request, "account": user})
+    finally:
+        db.close()
+
+# HAPA NDIPO PALIPOLETA MATATIZO YA METHOD NOT ALLOWED - SASA IMEANDIKWA VIZURI
+@app.post("/edit-user/{user_id}")
+def update_user_detailed(
+    request: Request, 
+    user_id: int, 
+    username: str = Form(...), 
+    password: str = Form(...), 
+    role: str = Form(...), 
+    status: str = Form(...)
+):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            user.username = username
+            user.password = password
+            user.role = role
+            user.status = status
+            db.commit()
+        return RedirectResponse("/users", status_code=303)
+    finally:
+        db.close()
+
+@app.post("/update-user/{user_id}")
+def update_user_basic(request: Request, user_id: int, username: str = Form(...), password: str = Form(...)):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            user.username = username
+            user.password = password
+            db.commit()
+        return RedirectResponse("/users", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/delete-user/{user_id}")
+def delete_user(request: Request, user_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            db.delete(user)
+            db.commit()
+        return RedirectResponse("/users", status_code=303)
+    finally:
+        db.close()
+
+# ================= TARIFF & PACKAGES =================
+@app.get("/packages")
+def packages(request: Request):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        data = {"request": request, "packages": db.query(Package).all(), "user": current_user(request)}
+        return templates.TemplateResponse(request=request, name="packages.html", context=data)
+    finally:
+        db.close()
+
+@app.post("/add-package")
+def add_package(request: Request, name: str = Form(...), price: int = Form(...)):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        db.add(Package(name=name, price=price))
+        db.commit()
+        return RedirectResponse("/packages", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/edit-package/{pkg_id}")
+def edit_package(request: Request, pkg_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        pkg = db.query(Package).filter(Package.id == pkg_id).first()
+        return templates.TemplateResponse(request=request, name="edit_package.html", context={"request": request, "package": pkg})
+    finally:
+        db.close()
+
+@app.post("/update-package/{pkg_id}")
+def update_package(request: Request, pkg_id: int, name: str = Form(...), price: int = Form(...)):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        pkg = db.query(Package).filter(Package.id == pkg_id).first()
+        if pkg:
+            pkg.name = name
+            pkg.price = price
+            db.commit()
+        return RedirectResponse("/packages", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/delete-package/{pkg_id}")
+def delete_package(request: Request, pkg_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        pkg = db.query(Package).filter(Package.id == pkg_id).first()
+        if pkg:
+            db.delete(pkg)
+            db.commit()
+        return RedirectResponse("/packages", status_code=303)
+    finally:
+        db.close()
+
+# ================= VOUCHER CONSOLE =================
+@app.get("/vouchers")
+def vouchers(request: Request):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        data = {"request": request, "vouchers": db.query(Voucher).all(), "user": current_user(request)}
+        return templates.TemplateResponse(request=request, name="vouchers.html", context=data)
+    finally:
+        db.close()
+
+@app.get("/generate")
+def generate(request: Request):
+    check = login_required(request)
+    if check: return check
+    add_voucher_to_db()
+    return RedirectResponse("/vouchers", status_code=303)
+
+@app.post("/vouchers")
+def generate_custom_legacy(request: Request, bei: int = Form(...), muda: str = Form(...), data_limit: str = Form(...)):
+    check = login_required(request)
+    if check: return check
+    add_voucher_to_db(bei, muda, data_limit)
+    return RedirectResponse("/vouchers", status_code=303)
+
+@app.post("/generate-voucher")
+def generate_custom_new(request: Request, price: int = Form(...), duration: str = Form(...), data_limit: str = Form(...)):
+    check = login_required(request)
+    if check: return check
+    add_voucher_to_db(price, duration, data_limit)
+    return RedirectResponse("/vouchers", status_code=303)
+
+@app.get("/vouchers/activate/{code}")
+def activate_voucher_legacy(request: Request, code: str):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.code == code).first()
+        if v:
+            v.status = "used"
+            db.commit()
+        return RedirectResponse("/vouchers", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/activate-voucher/{voucher_id}")
+def activate_voucher_new(request: Request, voucher_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.id == voucher_id).first()
+        if v:
+            v.status = "used"
+            db.commit()
+        return RedirectResponse("/vouchers", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/vouchers/expire/{code}")
+def expire_voucher_legacy(request: Request, code: str):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.code == code).first()
+        if v:
+            v.status = "expired"
+            db.commit()
+            try:
+                api = get_api()
+                api.path("/ip/hotspot/user").remove(name=code)
+            except: pass
+        return RedirectResponse("/vouchers", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/expire-voucher/{voucher_id}")
+def expire_voucher_new(request: Request, voucher_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.id == voucher_id).first()
+        if v:
+            v.status = "expired"
+            db.commit()
+            try:
+                api = get_api()
+                api.path("/ip/hotspot/user").remove(name=v.code)
+            except: pass
+        return RedirectResponse("/vouchers", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/vouchers/delete/{code}")
+def delete_voucher_legacy(request: Request, code: str):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.code == code).first()
+        if v:
+            db.delete(v)
+            db.commit()
+            try:
+                api = get_api()
+                api.path("/ip/hotspot/user").remove(name=code)
+            except: pass
+        return RedirectResponse("/vouchers", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/delete-voucher/{voucher_id}")
+def delete_voucher_new(request: Request, voucher_id: int):
+    check = login_required(request)
+    if check: return check
+    db = SessionLocal()
+    try:
+        v = db.query(Voucher).filter(Voucher.id == voucher_id).first()
+        if v:
+            db.delete(v)
+            db.commit()
+            try:
+                api = get_api()
+                api.path("/ip/hotspot/user").remove(name=v.code)
+            except: pass
+        return RedirectResponse("/vouchers", status_code=303)
+    finally:
+        db.close()
+
+@app.get("/print-vouchers")
+def print_vouchers(request: Request):
+    db = SessionLocal()
+    try:
+        data = {"request": request, "vouchers": db.query(Voucher).all()}
+        return templates.TemplateResponse(request=request, name="print_vouchers.html", context=data)
+    finally:
+        db.close()
+
+# ================= SETTINGS & REPORTS =================
+@app.get("/reports")
+def reports(request: Request):
+    check = login_required(request)
+    if check: return check
+    return templates.TemplateResponse(request=request, name="reports.html", context={"request": request, "user": current_user(request)})
+
+@app.get("/settings")
+def settings(request: Request):
+    check = login_required(request)
+    if check: return check
+    return templates.TemplateResponse(request=request, name="settings.html", context={"request": request, "user": current_user(request)})
+
+@app.post("/save-settings")
+def save_system_settings(
+    request: Request,
+    system_name: str = Form(...),
+    tax_rate: int = Form(...),
+    mikrotik_ip: str = Form(...),
+    mikrotik_port: int = Form(...),
+    hotspot_profile: str = Form(...),
+    mikrotik_user: str = Form(...),
+    mikrotik_pass: str = Form("")
+):
+    check = login_required(request)
+    if check: return check
+    print(f"--- SETTINGS ZIMEHIFADHIWA: {system_name} ---")
+    return RedirectResponse("/settings", status_code=303)
+
+# ================= RUN SERVER =================
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
