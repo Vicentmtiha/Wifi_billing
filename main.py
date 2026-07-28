@@ -11,7 +11,8 @@ from functools import wraps
 
 import requests
 from librouteros import connect
-from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi import FastAPI, Request, Form, HTTPException, Depends
+from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -24,7 +25,7 @@ from models import User, Voucher, Package
 load_dotenv()
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+app = FastAPI(title="CORE-WISP WiFi Billing System")
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "wifi_billing_secret_key_123"))
 templates = Jinja2Templates(directory="templates")
 
@@ -45,7 +46,7 @@ class MikrotikConfig:
 
 
 # ================= AZAMPAY CONFIG & HELPERS =================
-AZAMPAY_BASE_URL = "https://sandbox.azampay.co.tz"
+AZAMPAY_BASE_URL = os.getenv("AZAMPAY_BASE_URL", "https://sandbox.azampay.co.tz")
 
 def detect_provider(phone: str) -> str:
     """Inatambua mtandao wa simu nchini Tanzania kulingana na namba"""
@@ -55,7 +56,7 @@ def detect_provider(phone: str) -> str:
     
     prefix = clean[:3]
     
-    if prefix in ["074", "075", "076"]:
+    if prefix in ["074", "075", "076", "079"]:
         return "Mpesa"
     elif prefix in ["065", "067", "071"]:
         return "Tigo"
@@ -80,7 +81,12 @@ def get_access_token():
         "clientId": os.getenv("AZAMPAY_CLIENT_ID"),
         "clientSecret": os.getenv("AZAMPAY_CLIENT_SECRET")
     }
-    headers = {"Content-Type": "application/json"}
+    
+    # Kitu cha muhimu: Ongeza User-Agent hapa
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
 
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=15)
@@ -98,11 +104,14 @@ def get_access_token():
         return None
 
 
-@app.post("/lipa")
-async def lipa_internet(amount: int, phone: str):
+@app.api_route("/lipa", methods=["GET", "POST"])
+async def lipa_internet(amount: int = 1000, phone: str = "0712345678"):
     token = get_access_token()
     if not token:
-        return {"status": "error", "message": "Imeshindwa kupata Token - Hakikisha Credentials za .env ni sahihi"}
+        return {
+            "status": "error", 
+            "message": "Imeshindwa kupata Token. Hakikisha AZAMPAY credentials ziko sahihi kwenye .env"
+        }
 
     url = f"{AZAMPAY_BASE_URL}/azampay/mno/checkout"
     
@@ -112,9 +121,11 @@ async def lipa_internet(amount: int, phone: str):
 
     provider = detect_provider(phone)
 
+    # Headers zenye User-Agent kuzuia RemoteDisconnected Error
     headers = {
         "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     
     payload = {
@@ -129,28 +140,58 @@ async def lipa_internet(amount: int, phone: str):
         response = requests.post(url, json=payload, headers=headers, timeout=20)
         logger.info(f"Checkout Response Status: {response.status_code}")
         
-        if response.text and response.text.strip():
+        if response.status_code == 200:
             try:
                 return response.json()
             except Exception:
-                return {
-                    "status": "warning", 
-                    "http_code": response.status_code, 
-                    "raw_response": response.text
-                }
+                return {"status": "success", "raw": response.text}
         else:
             return {
-                "status": "success", 
-                "message": "Ombi la malipo limetumwa vizuri",
-                "provider_used": provider,
-                "phone": clean_phone
+                "status": "error",
+                "http_code": response.status_code,
+                "message": response.text
             }
             
+    except requests.exceptions.ConnectionError:
+        return {
+            "status": "error",
+            "message": "AzamPay server imefunga connection. Jaribu tena au kagua kama Sandbox ya AzamPay iko hewani."
+        }
     except Exception as e:
         logger.error(f"Checkout Error: {e}")
         return {"status": "error", "message": str(e)}
 
-
+# 1. Ongeza route hii ili /lipa-page iweze kufunguka bila kuleta 404
+@app.get("/lipa-page", response_class=HTMLResponse)
+async def lipa_page(request: Request):
+    return """
+    <!DOCTYPE html>
+    <html lang="sw">
+    <head>
+        <meta charset="UTF-8">
+        <title>CORE-WISP - Lipa</title>
+        <style>
+            body { font-family: Arial; background: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 350px; text-align: center; }
+            input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+            button { width: 100%; background: #28a745; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h2>Lipa Intaneti</h2>
+            <form action="/lipa" method="GET">
+                <input type="text" name="phone" placeholder="Namba ya Simu (Mf: 0712345678)" required>
+                <select name="amount">
+                    <option value="1000">TZS 1,000 - Siku 1</option>
+                    <option value="5000">TZS 5,000 - Wiki 1</option>
+                </select>
+                <button type="submit">LIPA SASA</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    """
 # ================= VOUCHER SERVICE =================
 class VoucherService:
 
@@ -160,10 +201,10 @@ class VoucherService:
 
     @staticmethod
     def convert_to_mikrotik_time(time_str: str) -> str:
-        time_str = time_str.lower().strip()
+        time_str = str(time_str).lower().strip()
         match = re.search(r'\d+', time_str)
         num = int(match.group()) if match else 1
-        if 'day' in time_str:
+        if 'day' in time_str or 'd' in time_str:
             return f"{num * 24:02}:00:00"
         elif 'h' in time_str:
             return f"{num:02}:00:00"
@@ -178,6 +219,7 @@ class VoucherService:
             code = VoucherService.generate_code()
             existing = db.query(Voucher).filter(Voucher.code == code).first()
             if existing:
+                db.close()
                 return VoucherService.create_voucher(price, uptime, data_limit, profile_name)
 
             expiry_date = datetime.now() + timedelta(days=30)
@@ -354,7 +396,10 @@ class MikrotikService:
     def check_connection():
         api = MikrotikService.get_api()
         if api:
-            api.close()
+            try:
+                api.close()
+            except Exception:
+                pass
             return True
         return False
 
@@ -370,6 +415,7 @@ class MikrotikService:
 
     @staticmethod
     def sync_voucher_to_mikrotik(voucher_code: str, uptime: str):
+        api = None
         try:
             api = MikrotikService.get_api()
             if not api:
@@ -377,7 +423,6 @@ class MikrotikService:
 
             if MikrotikService.user_exists_on_mikrotik(api, voucher_code):
                 logger.info(f"User {voucher_code} tayari yupo Mikrotik, kuruka sync")
-                api.close()
                 return True
 
             mikrotik_uptime = VoucherService.convert_to_mikrotik_time(uptime)
@@ -387,15 +432,21 @@ class MikrotikService:
                 password=voucher_code,
                 **{"limit-uptime": mikrotik_uptime, "comment": "Auto Voucher"}
             )
-            api.close()
             logger.info(f"Voucher {voucher_code} synced to Mikrotik")
             return True
         except Exception as e:
             logger.error(f"Error syncing {voucher_code}: {e}")
             return False
+        finally:
+            if api:
+                try:
+                    api.close()
+                except Exception:
+                    pass
 
     @staticmethod
     def remove_user_from_mikrotik(voucher_code: str):
+        api = None
         try:
             api = MikrotikService.get_api()
             if not api:
@@ -406,14 +457,20 @@ class MikrotikService:
             if target_user:
                 hotspot_users.remove(target_user[".id"])
                 logger.info(f"User {voucher_code} removed from Mikrotik")
-            api.close()
             return True
         except Exception as e:
             logger.error(f"Error removing {voucher_code}: {e}")
             return False
+        finally:
+            if api:
+                try:
+                    api.close()
+                except Exception:
+                    pass
 
     @staticmethod
     def lock_voucher_to_mac(voucher_code: str, mac: str):
+        api = None
         try:
             api = MikrotikService.get_api()
             if not api:
@@ -428,11 +485,16 @@ class MikrotikService:
                 list(hotspot_users.update(**{".id": user_id, "mac-address": mac}))
                 logger.info(f"Voucher {voucher_code} locked to MAC {mac}")
 
-            api.close()
             return True
         except Exception as e:
             logger.error(f"Error locking MAC for {voucher_code}: {e}")
             return False
+        finally:
+            if api:
+                try:
+                    api.close()
+                except Exception:
+                    pass
 
 
 # ================= USER SERVICE =================
@@ -598,14 +660,16 @@ class PackageService:
             db.close()
 
 
-# ================= HELPERS =================
+# ================= HELPERS & DECORATOR =================
 def login_required(f):
     @wraps(f)
-    def decorated_function(request: Request, *args, **kwargs):
+    async def decorated_function(request: Request, *args, **kwargs):
         if not request.session.get("logged_in"):
             return RedirectResponse("/login", status_code=303)
-        return f(request, *args, **kwargs)
+        return await f(request, *args, **kwargs) if asyncio_iscoroutinefunction(f) else f(request, *args, **kwargs)
     return decorated_function
+
+from inspect import iscoroutinefunction as asyncio_iscoroutinefunction
 
 def get_current_user(request: Request) -> str:
     return request.session.get("user", "Guest")
