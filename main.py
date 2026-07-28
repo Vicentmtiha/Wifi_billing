@@ -44,13 +44,37 @@ class MikrotikConfig:
     ENABLED = os.getenv("MIKROTIK_ENABLED", "true").lower() == "true"
 
 
-# ================= AZAMPAY =================
+# ================= AZAMPAY CONFIG & HELPERS =================
+AZAMPAY_BASE_URL = "https://sandbox.azampay.co.tz"
+
+def detect_provider(phone: str) -> str:
+    """Inatambua mtandao wa simu nchini Tanzania kulingana na namba"""
+    clean = phone.strip().replace("+", "")
+    if clean.startswith("255"):
+        clean = "0" + clean[3:]
+    
+    prefix = clean[:3]
+    
+    if prefix in ["074", "075", "076"]:
+        return "Mpesa"
+    elif prefix in ["065", "067", "071"]:
+        return "Tigo"
+    elif prefix in ["068", "069", "078"]:
+        return "Airtel"
+    elif prefix in ["062", "061"]:
+        return "Halopesa"
+    elif prefix in ["073"]:
+        return "Azampesa"
+    
+    return "Airtel"  # Fallback
+
+
 def get_access_token():
     env_token = os.getenv("AZAMPAY_TOKEN", "").strip().strip('"').strip("'")
     if env_token:
         return env_token
 
-    url = "https://authenticator-sandbox.azampay.co.tz/AppHeader/token"
+    url = f"{AZAMPAY_BASE_URL}/app/outer/v1/token"
     payload = {
         "appName": os.getenv("AZAMPAY_APP_NAME"),
         "clientId": os.getenv("AZAMPAY_CLIENT_ID"),
@@ -66,10 +90,65 @@ def get_access_token():
                 return data["data"].get("accessToken")
             elif isinstance(data.get("data"), str):
                 return data["data"]
+            return data.get("accessToken")
+        logger.error(f"AzamPay Token Error: {response.text}")
         return None
     except Exception as e:
-        logger.error(f"AzamPay Exception: {e}")
+        logger.error(f"AzamPay Token Exception: {e}")
         return None
+
+
+@app.post("/lipa")
+async def lipa_internet(amount: int, phone: str):
+    token = get_access_token()
+    if not token:
+        return {"status": "error", "message": "Imeshindwa kupata Token - Hakikisha Credentials za .env ni sahihi"}
+
+    url = f"{AZAMPAY_BASE_URL}/azampay/mno/checkout"
+    
+    clean_phone = phone.strip().replace("+", "")
+    if clean_phone.startswith("0"):
+        clean_phone = "255" + clean_phone[1:]
+
+    provider = detect_provider(phone)
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "accountNumber": clean_phone,
+        "amount": str(amount),
+        "currency": "TZS",
+        "externalId": f"order_{random.randint(100000, 999999)}",
+        "provider": provider
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=20)
+        logger.info(f"Checkout Response Status: {response.status_code}")
+        
+        if response.text and response.text.strip():
+            try:
+                return response.json()
+            except Exception:
+                return {
+                    "status": "warning", 
+                    "http_code": response.status_code, 
+                    "raw_response": response.text
+                }
+        else:
+            return {
+                "status": "success", 
+                "message": "Ombi la malipo limetumwa vizuri",
+                "provider_used": provider,
+                "phone": clean_phone
+            }
+            
+    except Exception as e:
+        logger.error(f"Checkout Error: {e}")
+        return {"status": "error", "message": str(e)}
 
 
 # ================= VOUCHER SERVICE =================
@@ -582,43 +661,6 @@ def logout(request: Request):
     logger.info(f"User {get_current_user(request)} logged out")
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
-
-
-# ================= AZAMPAY ROUTE =================
-@app.post("/lipa")
-async def lipa_internet(amount: int, phone: str):
-    token = get_access_token()
-    if not token:
-        return {"status": "error", "message": "Imeshindwa kupata Token - Hakikisha Credentials za .env ni sahihi"}
-
-    url = "https://checkout-sandbox.azampay.co.tz/api/v1/Checkout/mno/checkout"
-    
-    clean_phone = phone.strip()
-    if clean_phone.startswith("0"):
-        clean_phone = "255" + clean_phone[1:]
-    elif clean_phone.startswith("+"):
-        clean_phone = clean_phone[1:]
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "accountNumber": clean_phone,
-        "amount": str(amount),
-        "currency": "TZS",
-        "externalId": f"order_{random.randint(10000, 99999)}",
-        "provider": "Airtel"  # Mfano: Airtel, Tigo, Mpesa, Halopesa
-    }
-    
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=20)
-        logger.info(f"Checkout Response Status: {response.status_code}")
-        return response.json()
-    except Exception as e:
-        logger.error(f"Checkout Error: {e}")
-        return {"status": "error", "message": str(e)}
 
 
 # ================= HOTSPOT ROUTES =================
