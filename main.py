@@ -46,21 +46,29 @@ class MikrotikConfig:
 
 # ================= AZAMPAY =================
 def get_access_token():
-    url = "https://authenticator-sandbox.azampay.co.tz/AppRegistration/GenerateToken"
+    env_token = os.getenv("AZAMPAY_TOKEN", "").strip().strip('"').strip("'")
+    if env_token:
+        return env_token
+
+    url = "https://authenticator-sandbox.azampay.co.tz/AppHeader/token"
     payload = {
         "appName": os.getenv("AZAMPAY_APP_NAME"),
         "clientId": os.getenv("AZAMPAY_CLIENT_ID"),
         "clientSecret": os.getenv("AZAMPAY_CLIENT_SECRET")
     }
+    headers = {"Content-Type": "application/json"}
+
     try:
-        response = requests.post(url, json=payload)
-        data = response.json()
-        if response.status_code == 200 and data.get("success"):
-            return data["data"]["accessToken"]
-        logger.error(f"AzamPay token error: {data}")
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            if isinstance(data.get("data"), dict):
+                return data["data"].get("accessToken")
+            elif isinstance(data.get("data"), str):
+                return data["data"]
         return None
     except Exception as e:
-        logger.error(f"AzamPay token exception: {e}")
+        logger.error(f"AzamPay Exception: {e}")
         return None
 
 
@@ -109,7 +117,6 @@ class VoucherService:
             db.commit()
             logger.info(f"Voucher created: {code}")
 
-            # Sync to Mikrotik - only once here, NOT again during hotspot login
             if MikrotikConfig.ENABLED:
                 threading.Thread(
                     target=MikrotikService.sync_voucher_to_mikrotik,
@@ -274,7 +281,6 @@ class MikrotikService:
 
     @staticmethod
     def user_exists_on_mikrotik(api, voucher_code: str) -> bool:
-        """Angalia kama user tayari yupo Mikrotik"""
         try:
             hotspot_users = api.path("ip", "hotspot", "user")
             users = list(hotspot_users)
@@ -285,13 +291,11 @@ class MikrotikService:
 
     @staticmethod
     def sync_voucher_to_mikrotik(voucher_code: str, uptime: str):
-        """Ongeza voucher Mikrotik - angalia kwanza kama haipo"""
         try:
             api = MikrotikService.get_api()
             if not api:
                 return False
 
-            # Kama tayari yupo, usimwongeze tena (hii ndiyo fix ya "already have user")
             if MikrotikService.user_exists_on_mikrotik(api, voucher_code):
                 logger.info(f"User {voucher_code} tayari yupo Mikrotik, kuruka sync")
                 api.close()
@@ -331,10 +335,6 @@ class MikrotikService:
 
     @staticmethod
     def lock_voucher_to_mac(voucher_code: str, mac: str):
-        """
-        Lock voucher kwa MAC address.
-        FIX: librouteros inahitaji .id kama string na kutumia update() vizuri.
-        """
         try:
             api = MikrotikService.get_api()
             if not api:
@@ -346,7 +346,6 @@ class MikrotikService:
 
             if target_user:
                 user_id = target_user[".id"]
-                # FIX: Tumia syntax sahihi ya librouteros kwa update
                 list(hotspot_users.update(**{".id": user_id, "mac-address": mac}))
                 logger.info(f"Voucher {voucher_code} locked to MAC {mac}")
 
@@ -560,7 +559,10 @@ def login_page(request: Request):
 
 @app.post("/login")
 def handle_login(request: Request, username: str = Form(...), password: str = Form(...)):
-    if username == "admin" and password == "admin123":
+    admin_user = os.getenv("ADMIN_USER", "admin")
+    admin_pass = os.getenv("ADMIN_PASS", "admin123")
+
+    if username == admin_user and password == admin_pass:
         request.session.update({"logged_in": True, "user": "SuperAdmin", "role": "admin"})
         logger.info("SuperAdmin logged in")
         return RedirectResponse("/dashboard", status_code=303)
@@ -587,21 +589,36 @@ def logout(request: Request):
 async def lipa_internet(amount: int, phone: str):
     token = get_access_token()
     if not token:
-        return {"status": "error", "message": "Imeshindwa kupata Token"}
+        return {"status": "error", "message": "Imeshindwa kupata Token - Hakikisha Credentials za .env ni sahihi"}
 
-    url = "https://checkout.azampay.co.tz/api/v1/MnoCheckout/POST"
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    payload = {
-        "amount": amount,
-        "phoneNumber": phone,
-        "externalId": f"order_{random.randint(1000, 9999)}",
-        "callbackURL": "https://yako-ngrok-url.com/payment-callback"
+    url = "https://checkout-sandbox.azampay.co.tz/api/v1/Checkout/mno/checkout"
+    
+    clean_phone = phone.strip()
+    if clean_phone.startswith("0"):
+        clean_phone = "255" + clean_phone[1:]
+    elif clean_phone.startswith("+"):
+        clean_phone = clean_phone[1:]
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
     }
-    response = requests.post(url, json=payload, headers=headers)
-    if response.status_code != 200:
-        logger.error(f"AzamPay checkout error: {response.text}")
-        return {"status": "error", "message": response.text}
-    return response.json()
+    
+    payload = {
+        "accountNumber": clean_phone,
+        "amount": str(amount),
+        "currency": "TZS",
+        "externalId": f"order_{random.randint(10000, 99999)}",
+        "provider": "Airtel"  # Mfano: Airtel, Tigo, Mpesa, Halopesa
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=20)
+        logger.info(f"Checkout Response Status: {response.status_code}")
+        return response.json()
+    except Exception as e:
+        logger.error(f"Checkout Error: {e}")
+        return {"status": "error", "message": str(e)}
 
 
 # ================= HOTSPOT ROUTES =================
@@ -630,8 +647,6 @@ def hotspot_login(voucher: str = Form(...), mac: str = Form(...)):
     if not success:
         return {"status": "error", "message": "Imeshindwa kusasisha voucher kwenye database"}
 
-    # MUHIMU: sync_voucher_to_mikrotik tayari ilifanyika wakati wa create_voucher.
-    # Hapa tunafanya lock tu (MAC binding) - SIFANYI sync tena ili kuepuka "already have user".
     if MikrotikConfig.ENABLED:
         threading.Thread(
             target=MikrotikService.lock_voucher_to_mac,

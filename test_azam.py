@@ -4,11 +4,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Tunazipata moja kwa moja ili kuondoa mashaka ya .env
-AZAMPAY_APP_NAME = os.getenv("AZAMPAY_APP_NAME", "CORE-WISP").strip('"')
+# Jina lililorekebishwa kufanana na portal ya AzamPay
+AZAMPAY_APP_NAME = os.getenv("AZAMPAY_APP_NAME", "Wifi-billing").strip('"')
 AZAMPAY_CLIENT_ID = os.getenv("AZAMPAY_CLIENT_ID", "").strip('"')
 AZAMPAY_CLIENT_SECRET = os.getenv("AZAMPAY_CLIENT_SECRET", "").strip('"')
 
+# URL sahihi ya Authentication kwenye Sandbox
 AUTH_URL = "https://authenticator-sandbox.azampay.co.tz/Applink/GetToken"
 
 def get_azampay_token():
@@ -17,48 +18,43 @@ def get_azampay_token():
         "Accept": "application/json"
     }
 
-    # Jaribio 1: Standard camelCase (Mara nyingi ndio inayofanya kazi AzamPay)
+    # Format 1: Standard camelCase
     p1 = {
         "appName": AZAMPAY_APP_NAME,
         "clientId": AZAMPAY_CLIENT_ID,
         "clientSecret": AZAMPAY_CLIENT_SECRET
     }
 
-    # Jaribio 2: PascalCase
+    # Format 2: PascalCase
     p2 = {
         "AppName": AZAMPAY_APP_NAME,
         "ClientId": AZAMPAY_CLIENT_ID,
         "ClientSecret": AZAMPAY_CLIENT_SECRET
     }
 
-    # Jaribio 3: appName pekee (Kama AzamPay portal account yako tayari imesajiliwa na appName hii)
-    p3 = {
-        "appName": AZAMPAY_APP_NAME
-    }
-
-    payloads = [("camelCase", p1), ("PascalCase", p2), ("appName Only", p3)]
+    payloads = [("camelCase", p1), ("PascalCase", p2)]
 
     for name, payload in payloads:
-        print(f"🔄 Inajaribu format: {name}...")
+        print(f"🔄 Inajaribu format: {name} kwa AppName: '{AZAMPAY_APP_NAME}'...")
         try:
             res = requests.post(AUTH_URL, json=payload, headers=headers, timeout=15)
             print(f"Status: {res.status_code} | Body: {res.text}")
 
             if res.status_code == 200:
                 data = res.json()
-                # AzamPay inarudisha: {"data": {"accessToken": "..."}} au {"data": "..."}
                 token = None
                 if isinstance(data.get("data"), dict):
                     token = data["data"].get("accessToken")
                 elif isinstance(data.get("data"), str):
                     token = data["data"]
-                elif "data" in data and "token" in data["data"]:
-                    token = data["data"]["token"]
                 
                 if token:
-                    print(f"🎉 SUCCESS ({name})! Token imepatikana!")
+                    print(f"\n🎉 SUCCESS ({name})! Token imepatikana kwa mafanikio!")
                     return token
         except Exception as e:
             print(f"Error: {e}")
 
     return None
+
+if __name__ == "__main__":
+    get_azampay_token()
