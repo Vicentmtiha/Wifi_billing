@@ -8,22 +8,26 @@ import re
 from datetime import datetime, timedelta
 from typing import Optional
 from functools import wraps
+from inspect import iscoroutinefunction as asyncio_iscoroutinefunction
 
 import requests
 from librouteros import connect
 from fastapi import FastAPI, Request, Form, HTTPException, Depends
 from fastapi.responses import RedirectResponse, HTMLResponse
-from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
-
-from database import engine, Base, SessionLocal
-from models import User, Voucher, Package
+from pymongo import MongoClient
 
 # ================= SETUP =================
 load_dotenv()
-Base.metadata.create_all(bind=engine)
+
+# MongoDB Connection (Inatumia MONGO_URL kutoka kwenye .env au inatumia default ya local)
+# Weka hivi moja kwa moja bila kutumia os.getenv kwenye hii sehemu
+MONGO_URL = "mongodb://localhost:27017"
+client = MongoClient(MONGO_URL)
+client = MongoClient(MONGO_URL)
+db = client["core_wisp_db"]
 
 app = FastAPI(title="CORE-WISP WiFi Billing System")
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "wifi_billing_secret_key_123"))
@@ -82,7 +86,6 @@ def get_access_token():
         "clientSecret": os.getenv("AZAMPAY_CLIENT_SECRET")
     }
     
-    # Kitu cha muhimu: Ongeza User-Agent hapa
     headers = {
         "Content-Type": "application/json",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -121,7 +124,6 @@ async def lipa_internet(amount: int = 1000, phone: str = "0712345678"):
 
     provider = detect_provider(phone)
 
-    # Headers zenye User-Agent kuzuia RemoteDisconnected Error
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -161,7 +163,6 @@ async def lipa_internet(amount: int = 1000, phone: str = "0712345678"):
         logger.error(f"Checkout Error: {e}")
         return {"status": "error", "message": str(e)}
 
-# 1. Ongeza route hii ili /lipa-page iweze kufunguka bila kuleta 404
 @app.get("/lipa-page", response_class=HTMLResponse)
 async def lipa_page(request: Request):
     return """
@@ -192,7 +193,8 @@ async def lipa_page(request: Request):
     </body>
     </html>
     """
-# ================= VOUCHER SERVICE =================
+
+# ================= VOUCHER SERVICE (MongoDB) =================
 class VoucherService:
 
     @staticmethod
@@ -214,28 +216,26 @@ class VoucherService:
 
     @staticmethod
     def create_voucher(price: int, uptime: str, data_limit: str, profile_name: str = "default") -> Optional[str]:
-        db = SessionLocal()
         try:
             code = VoucherService.generate_code()
-            existing = db.query(Voucher).filter(Voucher.code == code).first()
+            existing = db.vouchers.find_one({"code": code})
             if existing:
-                db.close()
                 return VoucherService.create_voucher(price, uptime, data_limit, profile_name)
 
             expiry_date = datetime.now() + timedelta(days=30)
-            voucher = Voucher(
-                code=code,
-                profile=profile_name,
-                price=price,
-                uptime=uptime,
-                data_limit=data_limit,
-                status="unused",
-                created_at=datetime.now(),
-                expires_at=expiry_date,
-                used_by=""
-            )
-            db.add(voucher)
-            db.commit()
+            voucher_doc = {
+                "id": random.randint(10000, 99999),
+                "code": code,
+                "profile": profile_name,
+                "price": price,
+                "uptime": uptime,
+                "data_limit": data_limit,
+                "status": "unused",
+                "created_at": datetime.now(),
+                "expires_at": expiry_date,
+                "used_by": ""
+            }
+            db.vouchers.insert_one(voucher_doc)
             logger.info(f"Voucher created: {code}")
 
             if MikrotikConfig.ENABLED:
@@ -248,131 +248,95 @@ class VoucherService:
             return code
         except Exception as e:
             logger.error(f"Error creating voucher: {e}")
-            db.rollback()
             return None
-        finally:
-            db.close()
 
     @staticmethod
-    def get_voucher(voucher_id: int) -> Optional[Voucher]:
-        db = SessionLocal()
+    def get_voucher(voucher_id: int):
         try:
-            return db.query(Voucher).filter(Voucher.id == voucher_id).first()
-        finally:
-            db.close()
+            return db.vouchers.find_one({"id": voucher_id})
+        except Exception:
+            return None
 
     @staticmethod
-    def get_voucher_by_code(code: str) -> Optional[Voucher]:
-        db = SessionLocal()
+    def get_voucher_by_code(code: str):
         try:
-            return db.query(Voucher).filter(Voucher.code == code).first()
-        finally:
-            db.close()
+            return db.vouchers.find_one({"code": code})
+        except Exception:
+            return None
 
     @staticmethod
     def mark_used(voucher_id: int, client_mac: str = "") -> bool:
-        db = SessionLocal()
         try:
-            voucher = db.query(Voucher).filter(Voucher.id == voucher_id).first()
-            if not voucher:
-                return False
-            voucher.status = "used"
-            voucher.used_by = client_mac
-            voucher.used_at = datetime.now()
-            db.commit()
-            logger.info(f"Voucher {voucher.code} marked as used")
-            return True
+            result = db.vouchers.update_one(
+                {"id": voucher_id},
+                {"$set": {"status": "used", "used_by": client_mac, "used_at": datetime.now()}}
+            )
+            return result.modified_count > 0
         except Exception as e:
             logger.error(f"Error marking voucher as used: {e}")
-            db.rollback()
             return False
-        finally:
-            db.close()
 
     @staticmethod
     def mark_expired(voucher_id: int) -> bool:
-        db = SessionLocal()
         try:
-            voucher = db.query(Voucher).filter(Voucher.id == voucher_id).first()
-            if not voucher:
+            v = db.vouchers.find_one({"id": voucher_id})
+            if not v:
                 return False
-            voucher.status = "expired"
-            db.commit()
+            db.vouchers.update_one({"id": voucher_id}, {"$set": {"status": "expired"}})
             if MikrotikConfig.ENABLED:
                 threading.Thread(
                     target=MikrotikService.remove_user_from_mikrotik,
-                    args=(voucher.code,),
+                    args=(v["code"],),
                     daemon=True
                 ).start()
-            logger.info(f"Voucher {voucher.code} marked as expired")
             return True
         except Exception as e:
             logger.error(f"Error marking voucher as expired: {e}")
-            db.rollback()
             return False
-        finally:
-            db.close()
 
     @staticmethod
     def delete_voucher(voucher_id: int) -> bool:
-        db = SessionLocal()
         try:
-            voucher = db.query(Voucher).filter(Voucher.id == voucher_id).first()
-            if not voucher:
+            v = db.vouchers.find_one({"id": voucher_id})
+            if not v:
                 return False
-            code = voucher.code
-            db.delete(voucher)
-            db.commit()
+            code = v["code"]
+            db.vouchers.delete_one({"id": voucher_id})
             if MikrotikConfig.ENABLED:
                 threading.Thread(
                     target=MikrotikService.remove_user_from_mikrotik,
                     args=(code,),
                     daemon=True
                 ).start()
-            logger.info(f"Voucher {code} deleted")
             return True
         except Exception as e:
             logger.error(f"Error deleting voucher: {e}")
-            db.rollback()
             return False
-        finally:
-            db.close()
 
     @staticmethod
     def get_all_vouchers():
-        db = SessionLocal()
         try:
-            return db.query(Voucher).all()
-        finally:
-            db.close()
+            return list(db.vouchers.find())
+        except Exception:
+            return []
 
     @staticmethod
     def check_and_expire_vouchers() -> int:
-        db = SessionLocal()
         expired_count = 0
         try:
             now = datetime.now()
-            vouchers = db.query(Voucher).filter(
-                Voucher.status == "unused",
-                Voucher.expires_at < now
-            ).all()
+            vouchers = list(db.vouchers.find({"status": "unused", "expires_at": {"$lt": now}}))
             for v in vouchers:
-                v.status = "expired"
+                db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "expired"}})
                 expired_count += 1
                 if MikrotikConfig.ENABLED:
                     threading.Thread(
                         target=MikrotikService.remove_user_from_mikrotik,
-                        args=(v.code,),
+                        args=(v["code"],),
                         daemon=True
                     ).start()
-            if expired_count > 0:
-                db.commit()
-                logger.info(f"Expired {expired_count} vouchers")
         except Exception as e:
             logger.error(f"Error checking expiry: {e}")
-            db.rollback()
-        finally:
-            db.close()
         return expired_count
 
 
@@ -422,7 +386,6 @@ class MikrotikService:
                 return False
 
             if MikrotikService.user_exists_on_mikrotik(api, voucher_code):
-                logger.info(f"User {voucher_code} tayari yupo Mikrotik, kuruka sync")
                 return True
 
             mikrotik_uptime = VoucherService.convert_to_mikrotik_time(uptime)
@@ -432,7 +395,6 @@ class MikrotikService:
                 password=voucher_code,
                 **{"limit-uptime": mikrotik_uptime, "comment": "Auto Voucher"}
             )
-            logger.info(f"Voucher {voucher_code} synced to Mikrotik")
             return True
         except Exception as e:
             logger.error(f"Error syncing {voucher_code}: {e}")
@@ -456,7 +418,6 @@ class MikrotikService:
             target_user = next((u for u in users if u.get("name") == voucher_code), None)
             if target_user:
                 hotspot_users.remove(target_user[".id"])
-                logger.info(f"User {voucher_code} removed from Mikrotik")
             return True
         except Exception as e:
             logger.error(f"Error removing {voucher_code}: {e}")
@@ -483,8 +444,6 @@ class MikrotikService:
             if target_user:
                 user_id = target_user[".id"]
                 list(hotspot_users.update(**{".id": user_id, "mac-address": mac}))
-                logger.info(f"Voucher {voucher_code} locked to MAC {mac}")
-
             return True
         except Exception as e:
             logger.error(f"Error locking MAC for {voucher_code}: {e}")
@@ -497,167 +456,122 @@ class MikrotikService:
                     pass
 
 
-# ================= USER SERVICE =================
+# ================= USER SERVICE (MongoDB) =================
 class UserService:
 
     @staticmethod
     def create_user(username: str, password: str, role: str = "Staff", status: str = "Active") -> bool:
-        db = SessionLocal()
         try:
-            existing = db.query(User).filter(User.username == username).first()
+            existing = db.users.find_one({"username": username})
             if existing:
-                logger.warning(f"User {username} already exists")
                 return False
-            user = User(username=username, password=password, role=role, status=status)
-            db.add(user)
-            db.commit()
-            logger.info(f"User {username} created")
+            user_doc = {
+                "id": random.randint(10000, 99999),
+                "username": username,
+                "password": password,
+                "role": role,
+                "status": status
+            }
+            db.users.insert_one(user_doc)
             return True
         except Exception as e:
             logger.error(f"Error creating user: {e}")
-            db.rollback()
             return False
-        finally:
-            db.close()
 
     @staticmethod
-    def get_user(user_id: int) -> Optional[User]:
-        db = SessionLocal()
+    def get_user(user_id: int):
         try:
-            return db.query(User).filter(User.id == user_id).first()
-        finally:
-            db.close()
+            return db.users.find_one({"id": user_id})
+        except Exception:
+            return None
 
     @staticmethod
-    def authenticate(username: str, password: str) -> Optional[User]:
-        db = SessionLocal()
+    def authenticate(username: str, password: str):
         try:
-            return db.query(User).filter(
-                User.username == username,
-                User.password == password
-            ).first()
-        finally:
-            db.close()
+            return db.users.find_one({"username": username, "password": password})
+        except Exception:
+            return None
 
     @staticmethod
     def update_user(user_id: int, username: str, password: str, role: str, status: str) -> bool:
-        db = SessionLocal()
         try:
-            user = db.query(User).filter(User.id == user_id).first()
-            if not user:
-                return False
-            user.username = username
-            user.password = password
-            user.role = role
-            user.status = status
-            db.commit()
-            logger.info(f"User {user_id} updated")
-            return True
+            result = db.users.update_one(
+                {"id": user_id},
+                {"$set": {"username": username, "password": password, "role": role, "status": status}}
+            )
+            return result.modified_count > 0
         except Exception as e:
             logger.error(f"Error updating user: {e}")
-            db.rollback()
             return False
-        finally:
-            db.close()
 
     @staticmethod
     def delete_user(user_id: int) -> bool:
-        db = SessionLocal()
         try:
-            user = db.query(User).filter(User.id == user_id).first()
-            if not user:
-                return False
-            db.delete(user)
-            db.commit()
-            logger.info(f"User {user_id} deleted")
-            return True
+            result = db.users.delete_one({"id": user_id})
+            return result.deleted_count > 0
         except Exception as e:
             logger.error(f"Error deleting user: {e}")
-            db.rollback()
             return False
-        finally:
-            db.close()
 
     @staticmethod
     def get_all_users():
-        db = SessionLocal()
         try:
-            return db.query(User).all()
-        finally:
-            db.close()
+            return list(db.users.find())
+        except Exception:
+            return []
 
 
-# ================= PACKAGE SERVICE =================
+# ================= PACKAGE SERVICE (MongoDB) =================
 class PackageService:
 
     @staticmethod
     def create_package(name: str, price: int) -> bool:
-        db = SessionLocal()
         try:
-            package = Package(name=name, price=price)
-            db.add(package)
-            db.commit()
-            logger.info(f"Package {name} created")
+            pkg_doc = {
+                "id": random.randint(10000, 99999),
+                "name": name,
+                "price": price
+            }
+            db.packages.insert_one(pkg_doc)
             return True
         except Exception as e:
             logger.error(f"Error creating package: {e}")
-            db.rollback()
             return False
-        finally:
-            db.close()
 
     @staticmethod
-    def get_package(pkg_id: int) -> Optional[Package]:
-        db = SessionLocal()
+    def get_package(pkg_id: int):
         try:
-            return db.query(Package).filter(Package.id == pkg_id).first()
-        finally:
-            db.close()
+            return db.packages.find_one({"id": pkg_id})
+        except Exception:
+            return None
 
     @staticmethod
     def update_package(pkg_id: int, name: str, price: int) -> bool:
-        db = SessionLocal()
         try:
-            pkg = db.query(Package).filter(Package.id == pkg_id).first()
-            if not pkg:
-                return False
-            pkg.name = name
-            pkg.price = price
-            db.commit()
-            logger.info(f"Package {pkg_id} updated")
-            return True
+            result = db.packages.update_one(
+                {"id": pkg_id},
+                {"$set": {"name": name, "price": price}}
+            )
+            return result.modified_count > 0
         except Exception as e:
             logger.error(f"Error updating package: {e}")
-            db.rollback()
             return False
-        finally:
-            db.close()
 
     @staticmethod
     def delete_package(pkg_id: int) -> bool:
-        db = SessionLocal()
         try:
-            pkg = db.query(Package).filter(Package.id == pkg_id).first()
-            if not pkg:
-                return False
-            db.delete(pkg)
-            db.commit()
-            logger.info(f"Package {pkg_id} deleted")
-            return True
+            result = db.packages.delete_one({"id": pkg_id})
+            return result.deleted_count > 0
         except Exception as e:
             logger.error(f"Error deleting package: {e}")
-            db.rollback()
             return False
-        finally:
-            db.close()
 
     @staticmethod
     def get_all_packages():
-        db = SessionLocal()
         try:
-            return db.query(Package).all()
-        finally:
-            db.close()
+            return list(db.packages.find())
+        except Exception:
+            return []
 
 
 # ================= HELPERS & DECORATOR =================
@@ -668,8 +582,6 @@ def login_required(f):
             return RedirectResponse("/login", status_code=303)
         return await f(request, *args, **kwargs) if asyncio_iscoroutinefunction(f) else f(request, *args, **kwargs)
     return decorated_function
-
-from inspect import iscoroutinefunction as asyncio_iscoroutinefunction
 
 def get_current_user(request: Request) -> str:
     return request.session.get("user", "Guest")
@@ -712,7 +624,7 @@ def handle_login(request: Request, username: str = Form(...), password: str = Fo
 
     user = UserService.authenticate(username, password)
     if user:
-        request.session.update({"logged_in": True, "user": user.username, "role": user.role})
+        request.session.update({"logged_in": True, "user": user["username"], "role": user["role"]})
         logger.info(f"User {username} logged in")
         return RedirectResponse("/dashboard", status_code=303)
 
@@ -743,20 +655,20 @@ def hotspot_login(voucher: str = Form(...), mac: str = Form(...)):
     if not voucher_obj:
         return {"status": "error", "message": "Voucher haipo"}
 
-    if voucher_obj.status != "unused":
+    if voucher_obj["status"] != "unused":
         return {"status": "error", "message": "Voucher tayari imetumika"}
 
-    if voucher_obj.expires_at < datetime.now():
+    if voucher_obj["expires_at"] < datetime.now():
         return {"status": "error", "message": "Voucher muda wake umekwisha"}
 
-    success = VoucherService.mark_used(voucher_obj.id, mac)
+    success = VoucherService.mark_used(voucher_obj["id"], mac)
     if not success:
         return {"status": "error", "message": "Imeshindwa kusasisha voucher kwenye database"}
 
     if MikrotikConfig.ENABLED:
         threading.Thread(
             target=MikrotikService.lock_voucher_to_mac,
-            args=(voucher_obj.code, mac),
+            args=(voucher_obj["code"], mac),
             daemon=True
         ).start()
 
@@ -768,12 +680,12 @@ def hotspot_login(voucher: str = Form(...), mac: str = Form(...)):
 @login_required
 def dashboard(request: Request):
     all_vouchers = VoucherService.get_all_vouchers()
-    expired_vouchers = [v for v in all_vouchers if v.status == 'expired']
+    expired_vouchers = [v for v in all_vouchers if v.get('status') == 'expired']
     context = {
         "request": request,
         "total": len(all_vouchers),
-        "used": len([v for v in all_vouchers if v.status == 'used']),
-        "unused": len([v for v in all_vouchers if v.status == 'unused']),
+        "used": len([v for v in all_vouchers if v.get('status') == 'used']),
+        "unused": len([v for v in all_vouchers if v.get('status') == 'unused']),
         "expired": len(expired_vouchers),
         "expired_count": len(expired_vouchers),
         "router_status": "Connected" if MikrotikService.check_connection() else "Disconnected"
@@ -923,16 +835,16 @@ def print_vouchers(request: Request):
 @login_required
 def reports(request: Request):
     all_vouchers = VoucherService.get_all_vouchers()
-    used_vouchers = [v for v in all_vouchers if v.status == "used"]
+    used_vouchers = [v for v in all_vouchers if v.get("status") == "used"]
     context = {
         "request": request,
         "user": get_current_user(request),
         "vouchers": all_vouchers,
-        "total_sales": sum(v.price for v in used_vouchers),
+        "total_sales": sum(v.get("price", 0) for v in used_vouchers),
         "total_issued": len(all_vouchers),
         "total_used": len(used_vouchers),
-        "total_unused": len([v for v in all_vouchers if v.status == "unused"]),
-        "total_expired": len([v for v in all_vouchers if v.status == "expired"])
+        "total_unused": len([v for v in all_vouchers if v.get("status") == "unused"]),
+        "total_expired": len([v for v in all_vouchers if v.get("status") == "expired"])
     }
     return templates.TemplateResponse(request=request, name="reports.html", context=context)
 
@@ -954,23 +866,5 @@ def settings(request: Request):
 
 @app.post("/save-settings")
 @login_required
-def save_settings(request: Request, system_name: str = Form(...), tax_rate: int = Form(...)):
-    logger.info(f"Settings saved by {get_current_user(request)}")
+def save_settings(request: Request):
     return RedirectResponse("/settings", status_code=303)
-
-
-# ================= HEALTH CHECK =================
-@app.get("/health")
-def health_check():
-    return {
-        "status": "ok",
-        "mikrotik": MikrotikService.check_connection(),
-        "database": "ok"
-    }
-
-
-# ================= RUN =================
-if __name__ == "__main__":
-    import uvicorn
-    logger.info("Starting CORE-WISP WiFi Billing System")
-    uvicorn.run(app, host="0.0.0.0", port=8002)
