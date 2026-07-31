@@ -22,13 +22,10 @@ from pymongo import MongoClient
 # ================= SETUP =================
 load_dotenv()
 
-# MongoDB Connection (Inatumia MONGO_URL kutoka kwenye .env au inatumia default ya local)
-# Weka hivi moja kwa moja bila kutumia os.getenv kwenye hii sehemu
-MONGO_URL = "mongodb://localhost:27017"
-client = MongoClient(MONGO_URL)
+# MongoDB Connection (Inasoma kutoka MONGO_URL ya .env au Render, ikiwa haipo inatumia local)
+MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 client = MongoClient(MONGO_URL)
 db = client["core_wisp_db"]
-
 app = FastAPI(title="CORE-WISP WiFi Billing System")
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "wifi_billing_secret_key_123"))
 templates = Jinja2Templates(directory="templates")
