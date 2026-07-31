@@ -18,18 +18,22 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from pymongo import MongoClient
+from urllib.parse import quote_plus
 
 # ================= SETUP =================
 load_dotenv()
 
-# MongoDB Connection (Inasoma kutoka MONGO_URL ya .env au Render, ikiwa haipo inatumia local)
-MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
+# MongoDB Connection (Inasoma salama hata kama password ina alama maalum)
+username = quote_plus("vicentmtiha4_db_user")
+password = quote_plus("sKJFIrbFy4RvjUpZ") # <--- Badilisha hapa uweke password yako halisi ya Atlas kama sio Venom@123
+MONGO_URL = f"mongodb+srv://{username}:{password}@cluster0.jqljfd3.mongodb.net/?retryWrites=true&w=majority"
+
 client = MongoClient(MONGO_URL)
 db = client["core_wisp_db"]
+
 app = FastAPI(title="CORE-WISP WiFi Billing System")
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "wifi_billing_secret_key_123"))
 templates = Jinja2Templates(directory="templates")
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
