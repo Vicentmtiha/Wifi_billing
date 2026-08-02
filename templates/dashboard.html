@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>WiFi Billing Dashboard</title>
+<title>CORE-WISP | Next-Gen Cyber Dashboard</title>
 
 <!-- Bootstrap CSS -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
@@ -12,23 +12,22 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- Google Fonts -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
 <style>
   :root {
-    --primary: #6366f1; /* Gradient Colors */
-    --success: #22c55e;
-    --danger: #ef4444;
-    --warning: #f59e0b;
-    --info: #06b6d4;
-    --purple: #8b5cf6;
-
-    --bg: #0f172a; /* Dark Background */
-    --card: #1e293b; /* Card Background */
-    --sidebar: #111827; /* Sidebar */
-    --border: #374151; /* Border Lines */
-    --text: #f9fafb; /* Text */
-    --muted: #9ca3af; /* Muted Text */
+    --primary: #6366f1;
+    --neon-cyan: #00f3ff;
+    --neon-purple: #b537f2;
+    --neon-green: #00ff88;
+    --neon-red: #ff0055;
+    
+    --bg: #040711;
+    --card: rgba(13, 20, 36, 0.75);
+    --sidebar: #060a17;
+    --border: rgba(0, 243, 255, 0.15);
+    --text: #f8fafc;
+    --muted: #64748b;
   }
 
   * {
@@ -38,10 +37,56 @@
   }
 
   body {
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     background: var(--bg);
     color: var(--text);
     overflow-x: hidden;
+    min-height: 100vh;
+    position: relative;
+  }
+
+  /* Futuristic Wire Grid Background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+      linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    z-index: -2;
+  }
+
+  /* Animated Fiber Cables Background */
+  .cyber-wires {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
+  .wire-line {
+    position: absolute;
+    background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+    height: 2px;
+    width: 100%;
+    animation: wireFlow 8s linear infinite;
+  }
+
+  .wire-line:nth-child(1) { top: 20%; animation-duration: 6s; }
+  .wire-line:nth-child(2) { top: 55%; background: linear-gradient(90deg, transparent, var(--neon-purple), transparent); animation-duration: 10s; animation-delay: 2s; }
+  .wire-line:nth-child(3) { top: 85%; animation-duration: 7s; animation-delay: 4s; }
+
+  @keyframes wireFlow {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 
   /* Sidebar styling */
@@ -52,28 +97,33 @@
     bottom: 0;
     width: 280px;
     background-color: var(--sidebar);
+    border-right: 1px solid var(--border);
     padding: 30px 20px;
     z-index: 999;
-    box-shadow: 2px 0 10px rgba(0,0,0,0.4);
+    backdrop-filter: blur(15px);
+    box-shadow: 5px 0 25px rgba(0,0,0,0.5);
   }
 
   .logo {
     text-align: center;
-    font-size: 24px;
-    font-weight: 700;
-    color: #60a5fa;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: #fff;
     margin-bottom: 40px;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     display: flex;
     flex-direction: column;
     align-items: center;
   }
+  
   .logo i {
-    font-size: 32px;
-    margin-bottom: 8px;
-    background: linear-gradient(45deg, #00f2fe, #4facfe);
+    font-size: 40px;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 18px var(--neon-cyan));
   }
 
   /* Sidebar links */
@@ -81,31 +131,36 @@
     display: flex;
     align-items: center;
     gap: 15px;
-    padding: 14px 20px;
+    padding: 14px 18px;
     margin: 8px 0;
     border-radius: 12px;
-    font-size: 15px;
-    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     text-decoration: none;
-    color: #9ca3af;
+    color: var(--muted);
+    border: 1px solid transparent;
   }
 
   .sidebar a:hover {
-    background-color: #374151;
-    color: #fff;
-    transform: translateX(4px);
+    background: rgba(0, 243, 255, 0.05);
+    color: var(--neon-cyan);
+    border-color: rgba(0, 243, 255, 0.2);
+    transform: translateX(6px);
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
   }
 
   .sidebar a.active {
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(181, 55, 242, 0.3));
     color: #fff;
-    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    border: 1px solid var(--neon-cyan);
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
   }
 
   /* Main container */
   .main {
     margin-left: 280px;
-    padding: 40px 30px;
+    padding: 35px 40px;
   }
 
   /* Top bar style */
@@ -113,19 +168,25 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 30px;
+    margin-bottom: 35px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
   }
 
   .title h2 {
-    font-size: 28px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 24px;
     font-weight: 700;
-    letter-spacing: -0.5px;
+    letter-spacing: 0.5px;
+    background: linear-gradient(90deg, #fff, var(--muted));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
   .title p {
     margin-top: 4px;
-    font-size: 14px;
-    color: #9ca3af;
+    font-size: 13px;
+    color: var(--muted);
   }
 
   /* Status badges */
@@ -133,205 +194,286 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 14px;
+    padding: 8px 18px;
     border-radius: 50px;
-    font-size: 13px;
-    font-weight: 600;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 0.5px;
   }
 
   .online {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
-    border: 1px solid #22c55e;
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--neon-green);
+    border: 1px solid var(--neon-green);
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
   }
 
   .offline {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
-    border: 1px solid #ef4444;
+    background: rgba(255, 0, 85, 0.1);
+    color: var(--neon-red);
+    border: 1px solid var(--neon-red);
+    box-shadow: 0 0 15px rgba(255, 0, 85, 0.3);
   }
 
   /* Cards styling */
   .card-box {
-    background: #2a3040;
-    border-radius: 20px;
-    padding: 25px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    background: var(--card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
   }
 
   .card-box:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-  }
-
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 14px;
+    transform: translateY(-5px);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 10px 30px rgba(0, 243, 255, 0.2);
   }
 
   .card-icon {
-    font-size: 28px;
-    height: 50px;
-    width: 50px;
+    font-size: 22px;
+    height: 48px;
+    width: 48px;
     display: flex;
     justify-content: center;
     align-items: center;
     border-radius: 12px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: #fff;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    background: rgba(0, 243, 255, 0.05);
+    border: 1px solid var(--border);
+    box-shadow: inset 0 0 10px rgba(0, 243, 255, 0.1);
   }
 
   .number {
-    font-size: 32px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 28px;
     font-weight: 700;
-    margin-top: 5px;
-    letter-spacing: -1px;
+    margin-top: 8px;
   }
 
-  /* Charts container */
+  /* Network Topology Panel & Matrix */
   .chart-box {
-    background: #2a3040;
+    background: var(--card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   }
 
-  /* Topology interfaces panel */
-  .port-container {
+  /* Visual Router Matrix Container */
+  .matrix-wrapper {
+    position: relative;
+    width: 100%;
+    height: 220px;
+    background: rgba(4, 7, 17, 0.9);
+    border-radius: 14px;
+    border: 1px solid rgba(0, 243, 255, 0.25);
+    overflow: hidden;
+  }
+
+  .port-container-fixed {
     display: flex;
-    gap: 16px;
-    background: #1e293b;
-    padding: 20px;
-    border-radius: 12px;
-    border: 2px solid #374151;
-    justify-content: center;
-    flex-wrap: wrap;
+    justify-content: space-around;
+    align-items: flex-start;
+    padding-top: 25px;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
   }
 
   .lan-port {
-    width: 60px;
-    height: 70px;
-    background: #334155;
-    border-radius: 8px;
-    border: 2px solid #4b5563;
+    width: 75px;
+    height: 75px;
+    background: #080d1a;
+    border-radius: 10px;
+    border: 2px solid #1e293b;
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
     padding: 8px 0;
-    box-shadow: inset 0 0 8px rgba(0,0,0,0.7);
-    transition: all 0.2s ease;
+    box-shadow: 0 0 15px rgba(0,0,0,0.9);
+    transition: all 0.3s ease;
+  }
+
+  .lan-port:hover {
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
   }
 
   .lan-port::after {
     content: '';
-    width: 30px;
-    height: 16px;
-    background: #0f172a;
+    width: 32px;
+    height: 12px;
+    background: #02040a;
     border-radius: 3px;
     position: absolute;
-    bottom: 10px;
-    border: 1px solid #475569;
+    bottom: 6px;
+    border: 1px solid #334155;
   }
 
-  /* Taa za taa za WAN na LAN */
   .port-led {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    background: #475569; /* Default color as unactive */
-    box-shadow: 0 0 4px #475569;
-    transition: all 0.3s ease;
+    background: #334155;
   }
 
-  /* Taa za WAN */
   .wan-link {
-    background: #06b6d4; /* Rangi ya WAN: Blue */
-    box-shadow: 0 0 12px #06b6d4, 0 0 20px #06b6d4;
+    background: var(--neon-cyan);
+    box-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan);
+    animation: port-blink 0.3s infinite alternate;
+  }
+
+  .active-link {
+    background: var(--neon-green);
+    box-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green);
     animation: port-blink 0.6s infinite alternate;
   }
 
-  /* Taa za LAN active */
-  .active-link {
-    background: #22c55e; /* Rangi ya LAN: Green */
-    box-shadow: 0 0 12px #22c55e, 0 0 20px #22c55e;
-    animation: port-blink 1.2s infinite alternate;
-  }
-
-  /* Animation ya taa kuonyesha hali */
   @keyframes port-blink {
-    0% { opacity: 0.4; }
+    0% { opacity: 0.3; }
     100% { opacity: 1; }
   }
 
-  /* Maandishi ya majina */
   .port-label {
-    font-size: 10px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
     font-weight: 700;
-    color: #9ca3af;
-    margin-top: 4px;
+    color: #94a3b8;
     text-transform: uppercase;
+  }
+
+  /* Dynamic SVG Overlay Layer */
+  .svg-wire-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
   }
 
   /* Data table styles */
   .table-dark {
-    --bs-table-bg: #1f2937;
-    --bs-table-hover-bg: #374151;
-    border-color: rgba(255,255,255,0.05);
+    --bs-table-bg: transparent;
+    --bs-table-hover-bg: rgba(0, 243, 255, 0.03);
+    border-color: var(--border);
   }
 
   .table th {
-    color: #9ca3af !important;
-    font-size: 13px;
+    color: var(--muted) !important;
+    font-size: 11px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 12px;
+    letter-spacing: 1px;
+    padding: 14px;
+    border-bottom: 1px solid var(--border);
   }
 
   .table td {
-    padding: 12px;
-    font-size: 14px;
+    padding: 14px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
   }
 
-  /* Quick button styles */
+  /* Quick action buttons */
   .quick-btn {
-    padding: 14px 16px;
+    padding: 12px 16px;
     font-weight: 600;
-    font-size: 14px;
-    border-radius: 12px;
+    font-size: 13px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    transition: all 0.2s ease;
-    border: none;
-    background-color: #6366f1;
+    transition: all 0.3s ease;
+    border: 1px solid var(--border);
+    background: rgba(0, 243, 255, 0.02);
     color: #fff;
+    text-decoration: none;
   }
 
   .quick-btn:hover {
-    transform: scale(1.02);
-    filter: brightness(1.1);
+    transform: translateY(-2px);
+    background: linear-gradient(135deg, rgba(0, 243, 255, 0.2), rgba(181, 55, 242, 0.2));
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+    color: #fff;
   }
 
-  /* Footer style */
+  /* Progress bars */
+  .progress {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  /* Pulse Badge */
+  .live-pulse {
+    width: 8px;
+    height: 8px;
+    background-color: var(--neon-green);
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 10px var(--neon-green);
+    animation: pulse 1.2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+  }
+
+  /* Venom Company Footer */
   footer {
     margin-top: 60px;
-    padding-top: 20px;
+    padding: 25px 0;
     border-top: 1px solid var(--border);
     text-align: center;
     font-size: 13px;
-    color: #9ca3af;
+    color: var(--muted);
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 1px;
+  }
+
+  .venom-brand {
+    color: var(--neon-cyan);
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
   }
 </style>
 </head>
 <body>
+
+<!-- Background Fiber Lines -->
+<div class="cyber-wires">
+  <div class="wire-line"></div>
+  <div class="wire-line"></div>
+  <div class="wire-line"></div>
+</div>
 
 <div class="sidebar">
     <div class="logo">
@@ -348,17 +490,23 @@
 
 <div class="main">
     <!-- Top Bar -->
-    <div class="topbar mb-4">
+    <div class="topbar">
         <div class="title">
-            <h2>WiFi Billing Dashboard</h2>
-            <p class="text-muted small">Monitor your hotspot business in real time</p>
+            <h2>WIFI BILLING ENGINE</h2>
+            <p>Real-time enterprise hotspot and bandwidth management core</p>
         </div>
-        <div>
-            {% if router_status == "Connected" %}
-            <span class="status online"><i class="fa-solid fa-circle-check"></i> MikroTik Connected</span>
-            {% else %}
-            <span class="status offline"><i class="fa-solid fa-circle-xmark"></i> MikroTik Offline</span>
-            {% endif %}
+        <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="background: rgba(0,243,255,0.03); border: 1px solid var(--border);">
+                <span class="live-pulse"></span>
+                <span class="small fw-bold text-success" style="font-family: 'Orbitron'; font-size: 11px;">LIVE MATRIX SYNC</span>
+            </div>
+            <div>
+                {% if router_status == "Connected" %}
+                <span class="status online"><i class="fa-solid fa-shield-halved"></i> MIKROTIK CONNECTED</span>
+                {% else %}
+                <span class="status offline"><i class="fa-solid fa-triangle-exclamation"></i> MIKROTIK OFFLINE</span>
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -367,101 +515,171 @@
         <div class="col-lg-3 col-md-6">
             <div class="card-box d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="text-uppercase fw-semibold text-secondary" style="font-size: 11px;">Total Vouchers</small>
-                    <div class="number">{{ total|default(0) }}</div>
+                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Total Vouchers</small>
+                    <div class="number text-light">{{ total|default(0) }}</div>
                 </div>
-                <div class="card-icon text-info"><i class="fa-solid fa-ticket"></i></div>
+                <div class="card-icon" style="color: var(--neon-cyan);"><i class="fa-solid fa-ticket"></i></div>
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
             <div class="card-box d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="text-uppercase fw-semibold text-secondary" style="font-size: 11px;">Used Vouchers</small>
-                    <div class="number text-success">{{ used|default(0) }}</div>
+                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Used Vouchers</small>
+                    <div class="number" style="color: var(--neon-green);">{{ used|default(0) }}</div>
                 </div>
-                <div class="card-icon text-success"><i class="fa-solid fa-wifi"></i></div>
+                <div class="card-icon" style="color: var(--neon-green);"><i class="fa-solid fa-wifi"></i></div>
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
             <div class="card-box d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="text-uppercase fw-semibold text-secondary" style="font-size: 11px;">Unused Vouchers</small>
-                    <div class="number text-warning">{{ unused|default(0) }}</div>
+                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Unused Vouchers</small>
+                    <div class="number" style="color: #fbbf24;">{{ unused|default(0) }}</div>
                 </div>
-                <div class="card-icon text-warning"><i class="fa-solid fa-key"></i></div>
+                <div class="card-icon" style="color: #fbbf24;"><i class="fa-solid fa-key"></i></div>
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
             <div class="card-box d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="text-uppercase fw-semibold text-secondary" style="font-size: 11px;">Total Revenue</small>
-                    <div class="number text-danger">Tsh {{ earnings|default(0) }}</div>
+                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Total Revenue</small>
+                    <div class="number" style="color: var(--neon-red);">Tsh {{ earnings|default(0) }}</div>
                 </div>
-                <div class="card-icon text-danger"><i class="fa-solid fa-money-bill-wave"></i></div>
+                <div class="card-icon" style="color: var(--neon-red);"><i class="fa-solid fa-money-bill-wave"></i></div>
             </div>
         </div>
     </div>
 
-    <!-- Network Topology -->
+    <!-- Integrated Router Topology & Vibrant SVG Wire Matrix -->
     <div class="row g-4 mb-4">
         <div class="col-12">
-            <div class="chart-box p-4">
+            <div class="chart-box">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0"><i class="fa-solid fa-network-wired text-primary"></i> Live Router Topology & Ports</h5>
-                    <span class="badge bg-success">Active Map</span>
+                    <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;">
+                        <i class="fa-solid fa-microchip me-2" style="color: var(--neon-cyan);"></i> Live Integrated Topology & Wire Matrix
+                    </h5>
+                    <span class="badge bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2 rounded-pill" style="font-family: 'Orbitron'; font-size: 10px;">
+                        CYBER BUS ONLINE
+                    </span>
                 </div>
-                <div class="port-container">
-                  <!-- WAN port -->
-                  <div class="lan-port">
-                    <div class="port-led wan-link"></div>
-                    <div class="port-label">WAN</div>
-                  </div>
-                  <!-- LAN ports -->
-                  <div class="lan-port">
-                    <div class="port-led active-link"></div>
-                    <div class="port-label">eth2</div>
-                  </div>
-                  <div class="lan-port">
-                    <div class="port-led active-link"></div>
-                    <div class="port-label">eth3</div>
-                  </div>
-                  <div class="lan-port">
-                    <div class="port-led"></div>
-                    <div class="port-label">eth4</div>
-                  </div>
-                  <div class="lan-port">
-                    <div class="port-led active-link"></div>
-                    <div class="port-label">eth5</div>
-                  </div>
-                  <div class="lan-port">
-                    <div class="port-led"></div>
-                    <div class="port-label">sfp1</div>
-                  </div>
-                </div>
-                <div class="mt-3 text-center text-muted small">
-                  <i class="fa-solid fa-circle text-info"></i> WAN (Fiber In)
-                  <span class="mx-2">|</span>
-                  <i class="fa-solid fa-circle text-success"></i> LAN Distribution
+
+                <div class="matrix-wrapper">
+                    <!-- Top Port Interface Block -->
+                    <div class="port-container-fixed">
+                        <div class="lan-port">
+                            <div class="port-led wan-link"></div>
+                            <div class="port-label">WAN</div>
+                        </div>
+                        <div class="lan-port">
+                            <div class="port-led active-link"></div>
+                            <div class="port-label">eth2</div>
+                        </div>
+                        <div class="lan-port">
+                            <div class="port-led active-link"></div>
+                            <div class="port-label">eth3</div>
+                        </div>
+                        <div class="lan-port" style="opacity: 0.35;">
+                            <div class="port-led"></div>
+                            <div class="port-label">eth4</div>
+                        </div>
+                        <div class="lan-port">
+                            <div class="port-led active-link"></div>
+                            <div class="port-label">eth5</div>
+                        </div>
+                        <div class="lan-port">
+                            <div class="port-led wan-link"></div>
+                            <div class="port-label">sfp1</div>
+                        </div>
+                    </div>
+
+                    <!-- Vibrant High-Visibility Wire Overlay (SVG) -->
+                    <svg class="svg-wire-overlay" viewBox="0 0 1000 220" preserveAspectRatio="none">
+                        <defs>
+                            <filter id="wire-glow-cyan" x="-30%" y="-30%" width="160%" height="160%">
+                                <feGaussianBlur stdDeviation="5" result="blur" />
+                                <feMerge>
+                                    <feMergeNode in="blur" />
+                                    <feMergeNode in="SourceGraphic" />
+                                </feMerge>
+                            </filter>
+                            <filter id="wire-glow-green" x="-30%" y="-30%" width="160%" height="160%">
+                                <feGaussianBlur stdDeviation="5" result="blur" />
+                                <feMerge>
+                                    <feMergeNode in="blur" />
+                                    <feMergeNode in="SourceGraphic" />
+                                </feMerge>
+                            </filter>
+                        </defs>
+
+                        <!-- Main Cyber Bus Line Bar -->
+                        <line x1="50" y1="185" x2="950" y2="185" stroke="#00f3ff" stroke-width="4" opacity="0.4" stroke-dasharray="8,8" />
+
+                        <!-- Plugged Wires with High Contrast & Neon Glow -->
+                        <!-- WAN Wire -->
+                        <path id="path-wan" d="M 83 100 C 83 150, 150 185, 300 185" fill="none" stroke="#00f3ff" stroke-width="3.5" filter="url(#wire-glow-cyan)" />
+                        
+                        <!-- eth2 Wire -->
+                        <path id="path-eth2" d="M 250 100 C 250 145, 320 185, 420 185" fill="none" stroke="#00ff88" stroke-width="3" filter="url(#wire-glow-green)" />
+                        
+                        <!-- eth3 Wire -->
+                        <path id="path-eth3" d="M 416 100 C 416 140, 460 185, 500 185" fill="none" stroke="#00ff88" stroke-width="3" filter="url(#wire-glow-green)" />
+                        
+                        <!-- eth5 Wire -->
+                        <path id="path-eth5" d="M 750 100 C 750 140, 640 185, 580 185" fill="none" stroke="#00ff88" stroke-width="3" filter="url(#wire-glow-green)" />
+                        
+                        <!-- sfp1 Wire -->
+                        <path id="path-sfp1" d="M 916 100 C 916 150, 800 185, 680 185" fill="none" stroke="#00f3ff" stroke-width="3.5" filter="url(#wire-glow-cyan)" />
+
+                        <!-- Data Pulses (Travelling Lights) -->
+                        <circle r="5" fill="#ffffff" filter="url(#wire-glow-cyan)">
+                            <animateMotion dur="2.2s" repeatCount="indefinite">
+                                <mpath href="#path-wan"/>
+                            </animateMotion>
+                        </circle>
+                        <circle r="4.5" fill="#00ff88" filter="url(#wire-glow-green)">
+                            <animateMotion dur="1.7s" repeatCount="indefinite">
+                                <mpath href="#path-eth2"/>
+                            </animateMotion>
+                        </circle>
+                        <circle r="4.5" fill="#00ff88" filter="url(#wire-glow-green)">
+                            <animateMotion dur="2s" repeatCount="indefinite">
+                                <mpath href="#path-eth3"/>
+                            </animateMotion>
+                        </circle>
+                        <circle r="5" fill="#ffffff" filter="url(#wire-glow-cyan)">
+                            <animateMotion dur="2.5s" repeatCount="indefinite">
+                                <mpath href="#path-sfp1"/>
+                            </animateMotion>
+                        </circle>
+                    </svg>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Charts and Stats -->
+    <!-- Charts and Bandwidth Monitor -->
     <div class="row g-4 mb-4">
         <div class="col-lg-8">
             <div class="chart-box">
-                <div class="d-flex justify-content-between mb-3">
-                    <h5><i class="fa-solid fa-chart-line text-info"></i> Network Bandwidth Profile</h5>
-                    <span class="badge bg-info">Live Traffic</span>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-network-wired me-2" style="color: var(--neon-cyan);"></i> Real-time Bandwidth Throughput</h5>
+                        <small class="text-muted">Dynamic high-speed ISP packet simulation</small>
+                    </div>
+                    <div class="d-flex gap-2" style="font-family: 'Orbitron'; font-size: 11px;">
+                        <span class="badge bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2">DL: <span id="currentDl" style="color: var(--neon-cyan);">0</span> Mbps</span>
+                        <span class="badge bg-opacity-10 text-purple border border-purple border-opacity-25 px-3 py-2" style="color: var(--neon-purple); border-color: var(--neon-purple) !important;">UL: <span id="currentUl">0</span> Mbps</span>
+                    </div>
                 </div>
-                <canvas id="trafficChart" height="120"></canvas>
+                <canvas id="trafficChart" height="115"></canvas>
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="chart-box">
-                <h5 class="mb-3"><i class="fa-solid fa-chart-pie text-warning"></i> Voucher Distribution</h5>
-                <canvas id="voucherPie"></canvas>
+            <div class="chart-box h-100 d-flex flex-column justify-content-between">
+                <h5 class="mb-3 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-chart-pie me-2" style="color: #fbbf24;"></i> Voucher Distribution</h5>
+                <div style="max-height: 230px; position: relative;" class="my-auto">
+                    <canvas id="voucherPie"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -471,33 +689,33 @@
         <div class="col-lg-4">
             <div class="card-box">
                 <div class="d-flex justify-content-between mb-2">
-                    <h6>CPU Usage</h6>
-                    <span id="cpuValue" class="text-primary fw-bold">24%</span>
+                    <span class="fw-bold text-muted small" style="font-family: 'Orbitron';">CPU PROCESSOR</span>
+                    <span id="cpuValue" class="fw-bold" style="color: var(--neon-cyan);">24%</span>
                 </div>
-                <div class="progress" style="height:10px;">
-                    <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" id="cpuBar" style="width:24%;"></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card-box">
-                <div class="d-flex justify-content-between mb-2">
-                    <h6>Memory Usage</h6>
-                    <span id="ramValue" class="text-success fw-bold">45%</span>
-                </div>
-                <div class="progress" style="height:10px;">
-                    <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" id="ramBar" style="width:45%;"></div>
+                <div class="progress" style="height:8px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="cpuBar" style="width:24%; background: var(--neon-cyan);"></div>
                 </div>
             </div>
         </div>
         <div class="col-lg-4">
             <div class="card-box">
                 <div class="d-flex justify-content-between mb-2">
-                    <h6>Disk Storage</h6>
-                    <span class="fw-bold text-warning">18%</span>
+                    <span class="fw-bold text-muted small" style="font-family: 'Orbitron';">SYSTEM RAM</span>
+                    <span id="ramValue" class="fw-bold" style="color: var(--neon-green);">45%</span>
                 </div>
-                <div class="progress" style="height:10px;">
-                    <div class="progress-bar bg-warning" id="diskBar" style="width:18%;"></div>
+                <div class="progress" style="height:8px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="ramBar" style="width:45%; background: var(--neon-green);"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card-box">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="fw-bold text-muted small" style="font-family: 'Orbitron';">STORAGE DISK</span>
+                    <span class="fw-bold" style="color: #fbbf24;">18%</span>
+                </div>
+                <div class="progress" style="height:8px;">
+                    <div class="progress-bar" id="diskBar" style="width:18%; background: #fbbf24;"></div>
                 </div>
             </div>
         </div>
@@ -506,10 +724,10 @@
     <!-- Recent Vouchers & Quick Actions -->
     <div class="row g-4 mb-4">
         <div class="col-lg-8">
-            <div class="card-box p-4">
+            <div class="chart-box p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5><i class="fa-solid fa-clock-rotate-left text-info"></i> Hotspot Sessions</h5>
-                    <a href="/vouchers" class="btn btn-outline-info btn-sm px-3 rounded-pill">View Archive</a>
+                    <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-terminal me-2" style="color: var(--neon-cyan);"></i> Active Hotspot Sessions</h5>
+                    <a href="/vouchers" class="btn btn-outline-info btn-sm px-3 rounded-pill" style="font-size: 11px; font-family: 'Orbitron';">VIEW ARCHIVE</a>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-dark table-hover mb-0">
@@ -524,22 +742,22 @@
                         {% if recent %}
                             {% for voucher in recent %}
                             <tr>
-                                <td><strong class="font-monospace text-info">{{ voucher.code }}</strong></td>
-                                <td><span class="badge bg-secondary">{{ voucher.profile }}</span></td>
+                                <td><strong class="font-monospace" style="color: var(--neon-cyan);">{{ voucher.code }}</strong></td>
+                                <td><span class="badge bg-secondary bg-opacity-20 text-light border border-secondary border-opacity-25">{{ voucher.profile }}</span></td>
                                 <td>
                                     {% if voucher.status == "unused" %}
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2">Unused</span>
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2">Unused</span>
                                     {% elif voucher.status == "used" %}
-                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2">Active</span>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2">Active</span>
                                     {% else %}
-                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2">Expired</span>
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2">Expired</span>
                                     {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="3" class="text-center text-muted py-4">No active vouchers detected on interfaces.</td>
+                                <td colspan="3" class="text-center text-muted py-4">No active sessions detected on network interfaces.</td>
                             </tr>
                         {% endif %}
                         </tbody>
@@ -549,44 +767,44 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card-box p-4">
-                <h5 class="mb-4"><i class="fa-solid fa-bolt text-warning"></i> Quick Actions</h5>
+            <div class="chart-box p-4">
+                <h5 class="mb-4 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-bolt me-2" style="color: #fbbf24;"></i> Quick Actions</h5>
                 <div class="d-grid gap-2">
-                    <a href="/generate" class="btn btn-primary quick-btn"><i class="fa-solid fa-plus"></i> Generate Voucher</a>
-                    <a href="/vouchers" class="btn btn-success quick-btn"><i class="fa-solid fa-ticket"></i> Manage Vouchers</a>
-                    <a href="/packages" class="btn btn-warning quick-btn"><i class="fa-solid fa-box"></i> Packages</a>
-                    <a href="/users" class="btn btn-info quick-btn"><i class="fa-solid fa-users"></i> Users</a>
-                    <a href="/reports" class="btn btn-secondary quick-btn"><i class="fa-solid fa-chart-column"></i> Reports</a>
-                    <a href="/print-vouchers" class="btn btn-danger quick-btn"><i class="fa-solid fa-print"></i> Print Vouchers</a>
+                    <a href="/generate" class="quick-btn"><i class="fa-solid fa-plus" style="color: var(--neon-cyan);"></i> Generate Voucher</a>
+                    <a href="/vouchers" class="quick-btn"><i class="fa-solid fa-ticket" style="color: var(--neon-green);"></i> Manage Vouchers</a>
+                    <a href="/packages" class="quick-btn"><i class="fa-solid fa-box" style="color: #fbbf24;"></i> Packages</a>
+                    <a href="/users" class="quick-btn"><i class="fa-solid fa-users" style="color: var(--neon-purple);"></i> Client Accounts</a>
+                    <a href="/reports" class="quick-btn"><i class="fa-solid fa-chart-column text-secondary"></i> Financial Reports</a>
+                    <a href="/print-vouchers" class="quick-btn"><i class="fa-solid fa-print" style="color: var(--neon-red);"></i> Print Queue</a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Revenue & Statistics -->
+    <!-- Revenue & System Diagnostics -->
     <div class="row g-4 mb-4">
         <div class="col-lg-8">
             <div class="chart-box">
-                <h5 class="mb-4"><i class="fa-solid fa-chart-area text-success"></i> Weekly Revenue</h5>
-                <canvas id="revenueChart" height="120"></canvas>
+                <h5 class="mb-4 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-chart-area me-2" style="color: var(--neon-green);"></i> Weekly Revenue Analytics</h5>
+                <canvas id="revenueChart" height="115"></canvas>
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="chart-box p-4">
-                <h5 class="mb-4"><i class="fa-solid fa-server text-primary"></i> System Stats</h5>
-                <table class="table table-borderless text-light mb-0">
-                    <tr><td>Total Generated</td><td class="text-end fw-bold">{{ total }}</td></tr>
-                    <tr><td>Active Vouchers</td><td class="text-end fw-bold">{{ used }}</td></tr>
-                    <tr><td>Unused</td><td class="text-end fw-bold">{{ unused }}</td></tr>
-                    <tr><td>Expired</td><td class="text-end fw-bold">{{ expired }}</td></tr>
-                    <tr><td>Gross Earnings</td><td class="text-end fw-bold">Tsh {{ earnings }}</td></tr>
+            <div class="chart-box p-4 h-100">
+                <h5 class="mb-4 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-server me-2" style="color: var(--neon-cyan);"></i> System Diagnostics</h5>
+                <table class="table table-borderless text-light mb-0" style="font-size: 13px;">
+                    <tr><td class="text-muted">Total Generated</td><td class="text-end fw-bold">{{ total }}</td></tr>
+                    <tr><td class="text-muted">Active Vouchers</td><td class="text-end fw-bold" style="color: var(--neon-green);">{{ used }}</td></tr>
+                    <tr><td class="text-muted">Unused Pool</td><td class="text-end fw-bold" style="color: #fbbf24;">{{ unused }}</td></tr>
+                    <tr><td class="text-muted">Expired Sessions</td><td class="text-end fw-bold" style="color: var(--neon-red);">{{ expired }}</td></tr>
+                    <tr><td class="text-muted">Gross Earnings</td><td class="text-end fw-bold" style="color: var(--neon-cyan);">Tsh {{ earnings }}</td></tr>
                     <tr>
-                        <td>MikroTik Status</td>
+                        <td class="text-muted">MikroTik Engine</td>
                         <td class="text-end">
                             {% if router_status == "Connected" %}
-                            <span class="badge bg-success">Online</span>
+                            <span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-30">Online</span>
                             {% else %}
-                            <span class="badge bg-danger">Offline</span>
+                            <span class="badge bg-danger bg-opacity-15 text-danger border border-danger border-opacity-30">Offline</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -595,8 +813,9 @@
         </div>
     </div>
 
-    <footer class="mt-5 text-center text-muted">
-        CORE WISP © 2026 | Powered by FastAPI & MikroTik API Engine
+    <!-- Footer with Venom Company Branding -->
+    <footer>
+        <i class="fa-solid fa-shield-virus me-2" style="color: var(--neon-cyan);"></i> CORE WISP v2.4 | Developed by <span class="venom-brand">Venom Company</span> © 2026
     </footer>
 </div>
 
@@ -604,57 +823,87 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // Traffic Chart
+    // Traffic Simulation Chart
     const ctxTraffic = document.getElementById("trafficChart");
     if (ctxTraffic) {
-        const labels = Array(20).fill('');
-        const data = [12, 15, 14, 19, 24, 22, 18, 26, 34, 42, 38, 45, 52, 48, 41, 39, 46, 58, 62, 55];
+        const labels = Array(30).fill('');
+        const downloadData = [120, 145, 141, 159, 174, 162, 158, 186, 194, 212, 208, 225, 242, 238, 221, 209, 216, 248, 262, 255, 244, 268, 285, 272, 290, 275, 295, 310, 285, 305];
+        const uploadData = [42, 48, 45, 54, 60, 58, 52, 65, 72, 81, 78, 85, 92, 89, 82, 76, 80, 98, 104, 100, 95, 108, 115, 110, 118, 105, 122, 130, 115, 125];
+
         const trafficChart = new Chart(ctxTraffic, {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [{
-                    label: 'Download Mbps',
-                    data: data,
-                    borderColor: '#6366f1',
-                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 4
-                }]
+                datasets: [
+                    {
+                        label: 'Download Mbps',
+                        data: downloadData,
+                        borderColor: '#00f3ff',
+                        backgroundColor: 'rgba(0, 243, 255, 0.12)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2.5,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Upload Mbps',
+                        data: uploadData,
+                        borderColor: '#b537f2',
+                        backgroundColor: 'rgba(181, 55, 242, 0.08)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }
+                ]
             },
             options: {
                 responsive: true,
+                animation: false,
                 plugins: { legend: { display: false } },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        grid: { color: 'rgba(255,255,255,0.05)' },
-                        ticks: { color: '#9ca3af', callback: v => v + ' Mbps' }
+                        grid: { color: 'rgba(0, 243, 255, 0.05)' },
+                        ticks: { color: '#64748b', font: { family: 'Orbitron', size: 10 }, callback: v => v + ' Mbps' }
                     },
-                    x: {
-                        grid: { display: false }
-                    }
+                    x: { grid: { display: false } }
                 }
             }
         });
-        let base = 45;
+
+        let baseDl = 280;
+        let baseUl = 110;
+
         setInterval(() => {
             trafficChart.data.datasets[0].data.shift();
-            let change = (Math.random() - 0.5) * 12;
-            base += change;
-            if (base < 5) base = 10;
-            if (base > 95) base = 85;
-            trafficChart.data.datasets[0].data.push(Math.round(base));
+            trafficChart.data.datasets[1].data.shift();
+
+            let changeDl = (Math.random() - 0.48) * 45;
+            let changeUl = (Math.random() - 0.48) * 25;
+
+            baseDl += changeDl;
+            baseUl += changeUl;
+
+            if (baseDl < 80) baseDl = 120;
+            if (baseDl > 380) baseDl = 320;
+
+            if (baseUl < 30) baseUl = 50;
+            if (baseUl > 180) baseUl = 140;
+
+            let finalDl = Math.round(baseDl);
+            let finalUl = Math.round(baseUl);
+
+            trafficChart.data.datasets[0].data.push(finalDl);
+            trafficChart.data.datasets[1].data.push(finalUl);
             trafficChart.update();
-            document.querySelectorAll('.port-led.active-link').forEach(led => {
-                led.style.animationDuration = base > 50 ? '0.3s' : '0.9s';
-            });
-        }, 1500);
+
+            document.getElementById('currentDl').innerText = finalDl;
+            document.getElementById('currentUl').innerText = finalUl;
+        }, 650);
     }
 
-    // Pie Chart
+    // Voucher Pie Chart
     const ctxPie = document.getElementById('voucherPie');
     if (ctxPie) {
         new Chart(ctxPie, {
@@ -663,21 +912,21 @@
                 labels: ['Unused', 'Used', 'Expired'],
                 datasets: [{
                     data: [{{ unused|default(0) }}, {{ used|default(0) }}, {{ expired|default(0) }}],
-                    backgroundColor: ['#22c55e', '#6366f1', '#ef4444'],
+                    backgroundColor: ['#fbbf24', '#00f3ff', '#ff0055'],
                     borderWidth: 0
                 }]
             },
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { position: 'bottom', labels: { color: '#9ca3af', padding: 15 } }
+                    legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 15, font: { family: 'Orbitron', size: 11 } } }
                 },
                 cutout: '75%'
             }
         });
     }
 
-    // Revenue Chart
+    // Weekly Revenue Chart
     const ctxRevenue = document.getElementById('revenueChart');
     if (ctxRevenue) {
         new Chart(ctxRevenue, {
@@ -685,9 +934,9 @@
             data: {
                 labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
                 datasets: [{
-                    label: 'Revenue',
-                    data: [12000, 18000, 22000, 16000, 27000, 30000, 35000],
-                    backgroundColor: '#6366f1',
+                    label: 'Revenue (Tsh)',
+                    data: [140000, 195000, 240000, 180000, 290000, 340000, 410000],
+                    backgroundColor: '#00f3ff',
                     borderRadius: 6
                 }]
             },
@@ -696,24 +945,24 @@
                 plugins: { legend: { display: false } },
                 scales: {
                     y: {
-                        grid: { color: 'rgba(255,255,255,0.05)' },
-                        ticks: { color: '#9ca3af' }
+                        grid: { color: 'rgba(0, 243, 255, 0.05)' },
+                        ticks: { color: '#64748b', font: { family: 'Orbitron', size: 10 } }
                     },
-                    x: { grid: { display: false }, ticks: { color: '#9ca3af' } }
+                    x: { grid: { display: false }, ticks: { color: '#64748b', font: { family: 'Orbitron', size: 10 } } }
                 }
             }
         });
     }
 
-    // Server health refresh
+    // Server health random fluctuations
     setInterval(() => {
-        const cpu = Math.floor(Math.random() * 35) + 15;
-        const ram = Math.floor(Math.random() * 10) + 40;
+        const cpu = Math.floor(Math.random() * 25) + 15;
+        const ram = Math.floor(Math.random() * 6) + 40;
         document.getElementById('cpuBar').style.width = cpu + '%';
         document.getElementById('cpuValue').innerHTML = cpu + '%';
         document.getElementById('ramBar').style.width = ram + '%';
         document.getElementById('ramValue').innerHTML = ram + '%';
-    }, 3000);
+    }, 2000);
 </script>
 </body>
 </html>
