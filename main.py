@@ -13,19 +13,20 @@ from inspect import iscoroutinefunction as asyncio_iscoroutinefunction
 import requests
 from librouteros import connect
 from fastapi import FastAPI, Request, Form, HTTPException, Depends
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from urllib.parse import quote_plus
+from bson import ObjectId
 
 # ================= SETUP =================
 load_dotenv()
 
-# MongoDB Connection (Inasoma salama hata kama password ina alama maalum)
+# MongoDB Connection
 username = quote_plus("vicentmtiha4_db_user")
-password = quote_plus("sKJFIrbFy4RvjUpZ") # <--- Badilisha hapa uweke password yako halisi ya Atlas kama sio Venom@123
+password = quote_plus("sKJFIrbFy4RvjUpZ")
 MONGO_URL = f"mongodb+srv://{username}:{password}@cluster0.jqljfd3.mongodb.net/?retryWrites=true&w=majority"
 
 client = MongoClient(MONGO_URL)
@@ -199,8 +200,11 @@ async def lipa_page(request: Request):
 class VoucherService:
 
     @staticmethod
-    def generate_code():
-        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    def generate_code(prefix: str = ""):
+        code_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        if prefix:
+            return f"{prefix}-{code_part}"
+        return code_part
 
     @staticmethod
     def convert_to_mikrotik_time(time_str: str) -> str:
@@ -216,12 +220,12 @@ class VoucherService:
         return "01:00:00"
 
     @staticmethod
-    def create_voucher(price: int, uptime: str, data_limit: str, profile_name: str = "default") -> Optional[str]:
+    def create_voucher(price: int, uptime: str, data_limit: str, profile_name: str = "default", prefix: str = "") -> Optional[str]:
         try:
-            code = VoucherService.generate_code()
+            code = VoucherService.generate_code(prefix)
             existing = db.vouchers.find_one({"code": code})
             if existing:
-                return VoucherService.create_voucher(price, uptime, data_limit, profile_name)
+                return VoucherService.create_voucher(price, uptime, data_limit, profile_name, prefix)
 
             expiry_date = datetime.now() + timedelta(days=30)
             voucher_doc = {
@@ -456,6 +460,64 @@ class MikrotikService:
                 except Exception:
                     pass
 
+    @staticmethod
+    def get_active_users():
+        """Inavuta orodha ya wateja wote waliopo hewani muda huu kutoka MikroTik"""
+        api = None
+        try:
+            api = MikrotikService.get_api()
+            if not api:
+                return []
+            
+            active_path = api.path("ip", "hotspot", "active")
+            active_list = list(active_path)
+            
+            formatted_users = []
+            for u in active_list:
+                formatted_users.append({
+                    "id": u.get(".id"),
+                    "user": u.get("user", "Unknown"),
+                    "address": u.get("address", "-"),
+                    "mac": u.get("mac-address", "-"),
+                    "uptime": u.get("uptime", "0s"),
+                    "bytes_in": u.get("bytes-in", "0"),
+                    "bytes_out": u.get("bytes-out", "0"),
+                    "login_by": u.get("login-by", "-")
+                })
+            return formatted_users
+        except Exception as e:
+            logger.error(f"Error fetching active users from Mikrotik: {e}")
+            return []
+        finally:
+            if api:
+                try:
+                    api.close()
+                except Exception:
+                    pass
+
+    @staticmethod
+    def disconnect_user(active_id: str) -> bool:
+        """Inamtoa (Kick) mteja aliyepo hewani kwa kutumia Active ID yake"""
+        api = None
+        try:
+            api = MikrotikService.get_api()
+            if not api:
+                return False
+            
+            active_path = api.path("ip", "hotspot", "active")
+            active_path.remove(active_id)
+            logger.info(f"User with active ID {active_id} disconnected from MikroTik.")
+            return True
+        except Exception as e:
+            logger.error(f"Error disconnecting user {active_id}: {e}")
+            return False
+        finally:
+            if api:
+                try:
+                    api.close()
+                except Exception:
+                    pass
+
 
 # ================= USER SERVICE (MongoDB) =================
 class UserService:
@@ -526,12 +588,14 @@ class UserService:
 class PackageService:
 
     @staticmethod
-    def create_package(name: str, price: int) -> bool:
+    def create_package(name: str, price: int, validity: str = "1 Day", data_limit: str = "Unlimited") -> bool:
         try:
             pkg_doc = {
                 "id": random.randint(10000, 99999),
                 "name": name,
-                "price": price
+                "price": price,
+                "validity": validity,
+                "data_limit": data_limit
             }
             db.packages.insert_one(pkg_doc)
             return True
@@ -540,10 +604,15 @@ class PackageService:
             return False
 
     @staticmethod
-    def get_package(pkg_id: int):
+    def get_package(pkg_id: str):
         try:
+            if str(pkg_id).isdigit():
+                return db.packages.find_one({"id": int(pkg_id)})
+            elif ObjectId.is_valid(pkg_id):
+                return db.packages.find_one({"_id": ObjectId(pkg_id)})
             return db.packages.find_one({"id": pkg_id})
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error fetching package {pkg_id}: {e}")
             return None
 
     @staticmethod
@@ -641,26 +710,29 @@ def logout(request: Request):
 
 
 # ================= HOTSPOT ROUTES =================
-@app.get("/hotspot-login")
-def get_hotspot_login(request: Request):
+@app.get("/hotspot", response_class=HTMLResponse)
+@app.get("/hotspot-login", response_class=HTMLResponse)
+def get_hotspot_page(request: Request, mac: str = ""):
+    """Inaonyesha Ukurasa wa Hotspot Landing Page (hotspot.html)"""
     return templates.TemplateResponse(
         request=request,
         name="hotspot.html",
-        context={"request": request}
+        context={"request": request, "mac": mac}
     )
 
 @app.post("/hotspot-login")
-def hotspot_login(voucher: str = Form(...), mac: str = Form(...)):
-    voucher_obj = VoucherService.get_voucher_by_code(voucher.strip())
+def hotspot_login(voucher: str = Form(...), mac: str = Form("")):
+    """Inashughulikia uwekaji wa vocha kutoka ukurasa wa Hotspot"""
+    voucher_obj = VoucherService.get_voucher_by_code(voucher.strip().upper())
 
     if not voucher_obj:
-        return {"status": "error", "message": "Voucher haipo"}
+        return {"status": "error", "message": "Voucher haipo au ni makosa!"}
 
     if voucher_obj["status"] != "unused":
-        return {"status": "error", "message": "Voucher tayari imetumika"}
+        return {"status": "error", "message": "Voucher tayari imetumika!"}
 
     if voucher_obj["expires_at"] < datetime.now():
-        return {"status": "error", "message": "Voucher muda wake umekwisha"}
+        return {"status": "error", "message": "Voucher muda wake umekwisha!"}
 
     success = VoucherService.mark_used(voucher_obj["id"], mac)
     if not success:
@@ -676,12 +748,40 @@ def hotspot_login(voucher: str = Form(...), mac: str = Form(...)):
     return RedirectResponse("https://www.google.com", status_code=303)
 
 
+# ================= ACTIVE HOTSPOT USERS =================
+@app.get("/active-users")
+@login_required
+def active_users(request: Request):
+    """Inaonyesha ukurasa wa wateja waliopo hewani"""
+    active_list = MikrotikService.get_active_users()
+    return templates.TemplateResponse(
+        request=request,
+        name="active_users.html",
+        context={
+            "request": request,
+            "active_users": active_list,
+            "total_active": len(active_list),
+            "user": get_current_user(request)
+        }
+    )
+
+@app.get("/kick-user/{active_id:path}")
+@login_required
+def kick_user(request: Request, active_id: str):
+    """Inam-disconnect mteja aliyepo hewani"""
+    MikrotikService.disconnect_user(active_id)
+    return RedirectResponse("/active-users", status_code=303)
+
+
 # ================= DASHBOARD =================
 @app.get("/dashboard")
 @login_required
 def dashboard(request: Request):
     all_vouchers = VoucherService.get_all_vouchers()
     expired_vouchers = [v for v in all_vouchers if v.get('status') == 'expired']
+    active_list = MikrotikService.get_active_users()
+    all_packages = PackageService.get_all_packages()
+
     context = {
         "request": request,
         "total": len(all_vouchers),
@@ -689,9 +789,68 @@ def dashboard(request: Request):
         "unused": len([v for v in all_vouchers if v.get('status') == 'unused']),
         "expired": len(expired_vouchers),
         "expired_count": len(expired_vouchers),
+        "total_active": len(active_list),
+        "active_users": active_list,
+        "packages": all_packages,
         "router_status": "Connected" if MikrotikService.check_connection() else "Disconnected"
     }
     return templates.TemplateResponse(request=request, name="dashboard.html", context=context)
+
+
+# ================= QUICK VOUCHER GENERATOR AJAX ROUTE (Updated) =================
+@app.post("/generate-vouchers-fast")
+@login_required
+async def generate_vouchers_fast(
+    request: Request,
+    generation_type: str = Form("package"),  # "package" au "custom"
+    package_id: Optional[str] = Form(None),
+    custom_price: Optional[int] = Form(1000),
+    custom_duration: Optional[str] = Form("1 Day"),
+    custom_data_limit: Optional[str] = Form("Unlimited"),
+    quantity: int = Form(1),
+    prefix: str = Form("")
+):
+    """Inapokea maombi ya kutengeneza vocha kwa kuchagua kifurushi au kuweka bei, GB/Data na Muda moja kwa moja kiotomatiki"""
+    try:
+        if generation_type == "package" and package_id:
+            pkg = PackageService.get_package(package_id)
+            price = pkg.get("price", 1000) if pkg else 1000
+            uptime = pkg.get("validity", "1 Day") if pkg else "1 Day"
+            data_limit = pkg.get("data_limit", "Unlimited") if pkg else "Unlimited"
+            profile_name = pkg.get("name", "default") if pkg else "default"
+        else:
+            price = custom_price if custom_price is not None else 1000
+            uptime = custom_duration if custom_duration else "1 Day"
+            data_limit = custom_data_limit if custom_data_limit else "Unlimited"
+            profile_name = f"{data_limit}_{uptime}"
+
+        generated_codes = []
+        clean_prefix = prefix.strip().upper()
+
+        for _ in range(quantity):
+            code = VoucherService.create_voucher(
+                price=price,
+                uptime=uptime,
+                data_limit=data_limit,
+                profile_name=profile_name,
+                prefix=clean_prefix
+            )
+            if code:
+                generated_codes.append(code)
+
+        if generated_codes:
+            return JSONResponse({
+                "success": True,
+                "message": f"Vocha {len(generated_codes)} zimetengenezwa kikamilifu!",
+                "count": len(generated_codes),
+                "vouchers": generated_codes
+            }, status_code=200)
+
+        return JSONResponse({"success": False, "message": "Imeshindwa kutengeneza vocha!"}, status_code=400)
+
+    except Exception as e:
+        logger.error(f"Error in fast voucher generation: {e}")
+        return JSONResponse({"success": False, "message": f"Kosa la Server: {str(e)}"}, status_code=500)
 
 
 # ================= USERS MANAGEMENT =================
@@ -820,6 +979,31 @@ def expire_voucher(request: Request, voucher_id: int):
 def delete_voucher(request: Request, voucher_id: int):
     VoucherService.delete_voucher(voucher_id)
     return RedirectResponse("/vouchers", status_code=303)
+
+@app.get("/clear-expired-vouchers")
+@login_required
+def clear_expired_vouchers(request: Request):
+    """Inafuta kabisa vocha zote zilizokwisha muda (expired) kutoka kwenye database na MikroTik kwa pamoja"""
+    try:
+        expired_vouchers = list(db.vouchers.find({"status": "expired"}))
+        count = len(expired_vouchers)
+        
+        for v in expired_vouchers:
+            code = v.get("code")
+            if MikrotikConfig.ENABLED and code:
+                threading.Thread(
+                    target=MikrotikService.remove_user_from_mikrotik,
+                    args=(code,),
+                    daemon=True
+                ).start()
+        
+        db.vouchers.delete_many({"status": "expired"})
+        logger.info(f"Imefuta vocha {count} zilizokwisha muda kwa pamoja.")
+        
+        return RedirectResponse("/vouchers?msg=expired_cleaned", status_code=303)
+    except Exception as e:
+        logger.error(f"Kosa wakati wa kufuta expired vouchers: {e}")
+        return RedirectResponse("/vouchers?msg=error", status_code=303)
 
 @app.get("/print-vouchers")
 @login_required

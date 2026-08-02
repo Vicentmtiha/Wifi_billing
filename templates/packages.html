@@ -4,123 +4,253 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tariff Plans — CORE-WISP</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  
+  <!-- Bootstrap 5.3 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+
   <style>
+    :root {
+      --primary: #6366f1;
+      --neon-cyan: #00f3ff;
+      --neon-purple: #b537f2;
+      --neon-green: #00ff88;
+      --neon-red: #ff0055;
+      --neon-orange: #ff9900;
+      
+      --bg: #030611;
+      --card: rgba(10, 16, 31, 0.82);
+      --border: rgba(0, 243, 255, 0.2);
+      --text: #f8fafc;
+      --muted: #64748b;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      background-color: #090d16;
-      font-family: 'JetBrains Mono', monospace;
-      color: #e2e8f0;
-    }
-    /* Sidebar styles */
-    .sidebar {
-      background-color: #020617;
-      border-right: 1px solid #1e293b;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
-      padding: 30px 20px;
+      position: relative;
     }
-    .sidebar h4 {
-      font-size: 1.5rem;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 30px;
+
+    /* Cyber Grid Background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: 
+        radial-gradient(circle at 50% 20%, rgba(0, 243, 255, 0.05) 0%, transparent 70%),
+        linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 40px 40px, 40px 40px;
+      z-index: -2;
     }
+
+    /* Sidebar Styling */
+    .sidebar {
+      background: rgba(2, 6, 23, 0.95);
+      border-right: 1px solid var(--border);
+      min-height: 100vh;
+      padding: 25px 18px;
+      backdrop-filter: blur(15px);
+    }
+
+    .brand-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 1.3rem;
+      letter-spacing: 1px;
+      background: linear-gradient(90deg, #fff, var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
     .nav-link {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 14px 20px;
-      border-radius: 8px;
-      transition: background-color 0.3s, transform 0.2s;
-      font-weight: 500;
+      padding: 12px 16px;
+      border-radius: 10px;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      margin-bottom: 6px;
+      border: 1px solid transparent;
     }
-    .nav-link:hover, .nav-link.active {
-      background-color: #1e1b4b;
-      transform: translateX(2px);
-      color: #38bdf8;
+
+    .nav-link:hover {
+      color: var(--neon-cyan);
+      background: rgba(0, 243, 255, 0.05);
+      border-color: rgba(0, 243, 255, 0.2);
+      transform: translateX(4px);
     }
-    /* Card styles */
+
+    .nav-link.active {
+      color: #fff;
+      background: linear-gradient(90deg, rgba(99, 102, 241, 0.25), rgba(0, 243, 255, 0.1));
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 15px rgba(0, 243, 255, 0.15);
+    }
+
+    /* Cyber Cards */
     .cyber-card {
-      background: #0f172a;
-      border: none;
-      border-radius: 12px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-      margin-bottom: 30px;
+      background: var(--card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      position: relative;
       overflow: hidden;
     }
+
+    .cyber-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+    }
+
     .cyber-card-header {
-      background: linear-gradient(90deg, #1e1b4b, #0f172a);
-      padding: 20px;
-      font-size: 1.2rem;
-      font-weight: 600;
+      padding: 18px 24px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--neon-cyan);
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
-      gap: 12px;
-      border-bottom: 2px solid #3b82f6;
-      color: #38bdf8;
+      gap: 10px;
+      background: rgba(0, 243, 255, 0.02);
     }
-    /* Form styles */
+
+    /* Form Controls */
+    .form-label {
+      font-size: 11px;
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .input-group-text {
+      background: rgba(0, 243, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--neon-cyan);
+      border-right: none;
+    }
+
     .cyber-input {
-      background-color: #020617;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 10px 15px;
-      color: #fff;
-      transition: border-color 0.3s, box-shadow 0.3s;
+      background: rgba(5, 9, 20, 0.8) !important;
+      border: 1px solid var(--border) !important;
+      color: #fff !important;
+      font-size: 14px;
+      padding: 10px 14px;
     }
+
     .cyber-input:focus {
-      outline: none;
-      border-color: #38bdf8;
-      box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+      border-color: var(--neon-cyan) !important;
+      box-shadow: 0 0 15px rgba(0, 243, 255, 0.25) !important;
     }
-    /* Table styles */
-    .cyber-table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0 8px;
+
+    .cyber-input::placeholder {
+      color: var(--muted) !important;
     }
-    .cyber-table th {
-      background-color: #020617;
-      color: #64748b;
-      padding: 14px;
-      text-transform: uppercase;
-      font-size: 0.85rem;
-    }
-    .cyber-table td {
-      background-color: #0f172a;
-      color: #e2e8f0;
-      padding: 14px;
-      border-radius: 8px;
-    }
+
     /* Buttons */
-    .btn-neon-blue {
-      border: 2px solid #38bdf8;
-      color: #38bdf8;
-      background: transparent;
-      transition: all 0.3s;
+    .btn-cyber-primary {
+      background: linear-gradient(135deg, rgba(0, 243, 255, 0.2), rgba(99, 102, 241, 0.4));
+      border: 1px solid var(--neon-cyan);
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      transition: all 0.3s ease;
     }
-    .btn-neon-blue:hover {
-      background-color: #38bdf8;
-      color: #090d16;
-      box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+
+    .btn-cyber-primary:hover {
+      background: linear-gradient(135deg, var(--neon-cyan), var(--primary));
+      color: #000;
+      box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+      transform: translateY(-2px);
     }
-    .btn-neon-red {
-      border: 2px solid #f87171;
-      color: #f87171;
-      background: transparent;
-      transition: all 0.3s;
+
+    .btn-action-delete {
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: rgba(255, 0, 85, 0.1);
+      color: var(--neon-red);
+      border: 1px solid rgba(255, 0, 85, 0.3);
+      transition: all 0.2s ease;
     }
-    .btn-neon-red:hover {
-      background-color: #f87171;
-      color: #090d16;
-      box-shadow: 0 0 15px rgba(248, 113, 113, 0.6);
+
+    .btn-action-delete:hover {
+      background: var(--neon-red);
+      color: #fff;
+      box-shadow: 0 0 12px var(--neon-red);
     }
-    /* Responsive adjustments */
+
+    /* Table Styling */
+    .table-dark {
+      --bs-table-bg: transparent;
+      --bs-table-hover-bg: rgba(0, 243, 255, 0.03);
+      border-color: var(--border);
+    }
+
+    .cyber-table th {
+      font-family: 'Orbitron', sans-serif;
+      color: var(--muted) !important;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .cyber-table td {
+      padding: 16px 18px;
+      font-size: 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .pkg-id-badge {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--neon-cyan);
+      background: rgba(0, 243, 255, 0.08);
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 243, 255, 0.2);
+      font-size: 12px;
+    }
+
+    .price-tag {
+      font-family: 'Orbitron', sans-serif;
+      color: var(--neon-green);
+      font-weight: 700;
+      text-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
+    }
+
     @media(max-width: 768px){
       .sidebar {
         min-height: auto;
-        padding: 20px;
+        padding: 15px;
       }
     }
   </style>
@@ -131,94 +261,162 @@
   <div class="row">
     <!-- Sidebar -->
     <nav class="col-md-3 col-lg-2 sidebar d-flex flex-column">
-      <h4 class="text-white fw-bold mb-4"><i class="fa-solid fa-broadcast-tower text-primary"></i> CORE-WISP</h4>
+      <div class="d-flex align-items-center gap-2 mb-4 px-2">
+        <i class="fa-solid fa-broadcast-tower fa-lg" style="color: var(--neon-cyan);"></i>
+        <h4 class="brand-title mb-0">CORE-WISP</h4>
+      </div>
+      
       <a href="/dashboard" class="nav-link"><i class="fa-solid fa-chart-pie"></i> Overview Dashboard</a>
       <a href="/vouchers" class="nav-link"><i class="fa-solid fa-ticket"></i> Voucher Engine</a>
       <a href="/packages" class="nav-link active"><i class="fa-solid fa-box"></i> Tariff Plans</a>
       <a href="/users" class="nav-link"><i class="fa-solid fa-users"></i> User Control</a>
-      <a href="/logout" class="nav-link mt-auto text-danger"><i class="fa-solid fa-sign-out-alt"></i> Toka (Logout)</a>
+      
+      <a href="/logout" class="nav-link mt-auto text-danger border-danger border-opacity-25">
+        <i class="fa-solid fa-right-from-bracket"></i> Toka (Logout)
+      </a>
     </nav>
+
     <!-- Main Content -->
     <main class="col-md-9 col-lg-10 p-4">
-      <!-- Header -->
-      <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+      
+      <!-- Top Header -->
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 pb-3 border-bottom border-secondary border-opacity-25">
         <div>
-          <h2 class="text-white fw-bold">Package & Tariff Control</h2>
-          <small class="text-muted">Mtumiaji aliyepo ndani: <span class="text-info">@{{ user }}</span></small>
+          <h2 class="font-orbitron fw-bold mb-1" style="font-family: 'Orbitron'; font-size: 24px; color: #fff;">
+            PACKAGE & TARIFF CONTROL
+          </h2>
+          <small class="text-muted">
+            Mtumiaji aliyepo ndani: <span style="color: var(--neon-cyan); font-weight: 600;">@{{ user }}</span>
+          </small>
         </div>
-        <div class="bg-dark p-3 rounded border border-secondary text-center" style="min-width: 150px;">
-          <span class="text-uppercase text-muted d-block" style="font-size: 0.75rem;">Total Profiles</span>
-          <h4 class="text-primary fw-bold mb-0">{{ packages|length }}</h4>
+        
+        <!-- Summary Badge -->
+        <div class="cyber-card px-4 py-2 text-center" style="min-width: 170px;">
+          <span class="text-uppercase text-muted d-block" style="font-size: 10px; font-family: 'Orbitron';">Total Profiles</span>
+          <h3 class="fw-bold mb-0" style="color: var(--neon-cyan); font-family: 'Orbitron';">{{ packages|length }}</h3>
         </div>
       </div>
 
       <!-- Add Tariff Profile Card -->
       <div class="cyber-card mb-4">
-        <div class="cyber-card-header"><i class="fa-solid fa-plus-circle"></i> Unda Kifurushi Kipya</div>
+        <div class="cyber-card-header">
+          <i class="fa-solid fa-square-plus" style="color: var(--neon-green);"></i> UNDA KIFURUSHI KIPYA
+        </div>
         <div class="p-4">
           <form action="/add-package" method="POST" class="row g-3">
             <div class="col-md-3">
-              <label class="form-label text-muted small text-uppercase">Jina la Kifurushi</label>
-              <input type="text" name="name" class="form-control cyber-input" placeholder="Mfano: Siku 1" required>
+              <label class="form-label">JINA LA KIFURUSHI</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fa-solid fa-tag"></i></span>
+                <input type="text" name="name" class="form-control cyber-input" placeholder="Mfano: Siku 1" required>
+              </div>
             </div>
+            
             <div class="col-md-3">
-              <label class="form-label text-muted small text-uppercase">Bei (TSH)</label>
-              <input type="number" name="price" class="form-control cyber-input" placeholder="Mfano: 1000" required>
+              <label class="form-label">BEI (TSH)</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fa-solid fa-money-bill-wave"></i></span>
+                <input type="number" name="price" class="form-control cyber-input" placeholder="Mfano: 1000" required>
+              </div>
             </div>
+
             <div class="col-md-3">
-              <label class="form-label text-muted small text-uppercase">Kikomo cha Muda</label>
-              <input type="text" name="uptime" class="form-control cyber-input" placeholder="Mfano: 24h au 7d">
+              <label class="form-label">KIKOMO CHA MUDA</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fa-solid fa-clock"></i></span>
+                <input type="text" name="uptime" class="form-control cyber-input" placeholder="Mfano: 24h au 7d">
+              </div>
             </div>
+
             <div class="col-md-3">
-              <label class="form-label text-muted small text-uppercase">Kikomo cha Data</label>
-              <input type="text" name="data_limit" class="form-control cyber-input" placeholder="Mfano: 1GB au Unli">
+              <label class="form-label">KIKOMO CHA DATA</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fa-solid fa-database"></i></span>
+                <input type="text" name="data_limit" class="form-control cyber-input" placeholder="Mfano: 1GB au Unli">
+              </div>
             </div>
-            <div class="col-12 mt-3">
-              <button type="submit" class="btn btn-neon-blue w-100 py-2 fw-bold">
-                <i class="fa-solid fa-floppy-disk me-2"></i> Hifadhi Kifurushi
+
+            <div class="col-12 mt-4">
+              <button type="submit" class="btn btn-cyber-primary w-100 py-2 rounded-3">
+                <i class="fa-solid fa-floppy-disk me-2"></i> HIFADHI KIFURUSHI
               </button>
             </div>
           </form>
         </div>
       </div>
       
-      <!-- Orodha ya vifurushi -->
-      <h3 class="text-white mb-3">Orodha ya Kifurushi</h3>
-      <table class="table cyber-table mb-0">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Jina la Mpango</th>
-            <th>Bei</th>
-            <th class="text-center">Kitendo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for pkg in packages %}
-          <tr>
-            <td>#{{ pkg.id }}</td>
-            <td class="fw-bold text-white">{{ pkg.name }}</td>
-            <td class="text-info font-monospace">{{ pkg.price }} TSH</td>
-            <td class="text-center d-flex justify-content-center gap-2">
-              <!-- Kitufe cha kufuta -->
-              <a href="/delete-package/{{ pkg.id }}" class="btn btn-neon-red btn-sm px-3" title="Futa" onclick="return confirm('Unataka kufuta hiki kifurushi?');">
-                <i class="fa-solid fa-trash"></i>
-              </a>
-            </td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="4" class="text-center text-muted py-4">
-              <i class="fa-solid fa-box-open d-block mb-2" style="font-size: 2rem;"></i>
-              Hakuna vifurushi vilivyoundwa bado.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <!-- Orodha ya Vifurushi Card -->
+      <div class="cyber-card">
+        <div class="d-flex justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25">
+          <h6 class="fw-bold mb-0" style="font-family: 'Orbitron'; font-size: 13px; color: #fff;">
+            <i class="fa-solid fa-boxes-packing me-2" style="color: var(--neon-cyan);"></i> ORODHA YA VIFURUSHI
+          </h6>
+          <!-- Quick Filter Input -->
+          <div style="width: 250px;">
+            <input type="text" id="pkgSearch" class="form-control cyber-input form-control-sm" placeholder="Tafuta kifurushi..." onkeyup="filterPackages()">
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-dark table-hover cyber-table mb-0" id="pkgTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>JINA LA MPANGO</th>
+                <th>BEI</th>
+                <th class="text-end">KITENDO</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pkg in packages %}
+              <tr>
+                <td><span class="pkg-id-badge">#{{ pkg.id }}</span></td>
+                <td class="fw-bold text-white">{{ pkg.name }}</td>
+                <td class="price-tag">{{ pkg.price }} TSH</td>
+                <td class="text-end">
+                  <a href="/delete-package/{{ pkg.id }}" class="btn-action-delete" title="Futa Kifurushi" onclick="return confirm('Je, una uhakika unataka kufuta kifurushi hiki?');">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </a>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" class="text-center py-5 text-muted">
+                  <i class="fa-solid fa-box-open fa-2x mb-3 opacity-50 d-block"></i>
+                  Hakuna vifurushi vilivyoundwa kwenye mfumo bado.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </main>
   </div>
 </div>
+
+<!-- Simple Filter Script -->
+<script>
+function filterPackages() {
+  const input = document.getElementById("pkgSearch");
+  const filter = input.value.toUpperCase();
+  const table = document.getElementById("pkgTable");
+  const tr = table.getElementsByTagName("tr");
+
+  for (let i = 1; i < tr.length; i++) {
+    let td = tr[i].getElementsByTagName("td")[1];
+    if (td) {
+      let txtValue = td.textContent || td.innerText;
+      if (txtValue.toUpperCase().indexOf(filter) > -1) {
+        tr[i].style.display = "";
+      } else {
+        tr[i].style.display = "none";
+      }
+    }
+  }
+}
+</script>
 
 </body>
 </html>

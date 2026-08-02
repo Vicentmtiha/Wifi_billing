@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CORE-WISP | Next-Gen Cyber Dashboard</title>
+<title>CORE-WISP | Ultra-Modern Cyber Engine</title>
 
 <!-- Bootstrap CSS -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
@@ -21,11 +21,12 @@
     --neon-purple: #b537f2;
     --neon-green: #00ff88;
     --neon-red: #ff0055;
+    --neon-orange: #ff9900;
     
-    --bg: #040711;
-    --card: rgba(13, 20, 36, 0.75);
-    --sidebar: #060a17;
-    --border: rgba(0, 243, 255, 0.15);
+    --bg: #030611;
+    --card: rgba(10, 16, 31, 0.82);
+    --sidebar: #050914;
+    --border: rgba(0, 243, 255, 0.2);
     --text: #f8fafc;
     --muted: #64748b;
   }
@@ -45,7 +46,7 @@
     position: relative;
   }
 
-  /* Futuristic Wire Grid Background */
+  /* Futuristic Cyber Circuit Grid Background */
   body::before {
     content: '';
     position: fixed;
@@ -54,39 +55,11 @@
     width: 100%;
     height: 100%;
     background: 
+      radial-gradient(circle at 50% 50%, rgba(0, 243, 255, 0.05) 0%, transparent 70%),
       linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px),
       linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px);
-    background-size: 50px 50px;
+    background-size: 100% 100%, 40px 40px, 40px 40px;
     z-index: -2;
-  }
-
-  /* Animated Fiber Cables Background */
-  .cyber-wires {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    pointer-events: none;
-    opacity: 0.6;
-  }
-
-  .wire-line {
-    position: absolute;
-    background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
-    height: 2px;
-    width: 100%;
-    animation: wireFlow 8s linear infinite;
-  }
-
-  .wire-line:nth-child(1) { top: 20%; animation-duration: 6s; }
-  .wire-line:nth-child(2) { top: 55%; background: linear-gradient(90deg, transparent, var(--neon-purple), transparent); animation-duration: 10s; animation-delay: 2s; }
-  .wire-line:nth-child(3) { top: 85%; animation-duration: 7s; animation-delay: 4s; }
-
-  @keyframes wireFlow {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
   }
 
   /* Sidebar styling */
@@ -100,8 +73,8 @@
     border-right: 1px solid var(--border);
     padding: 30px 20px;
     z-index: 999;
-    backdrop-filter: blur(15px);
-    box-shadow: 5px 0 25px rgba(0,0,0,0.5);
+    backdrop-filter: blur(20px);
+    box-shadow: 5px 0 30px rgba(0, 0, 0, 0.7);
   }
 
   .logo {
@@ -118,15 +91,14 @@
   }
   
   .logo i {
-    font-size: 40px;
+    font-size: 42px;
     margin-bottom: 12px;
     background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 18px var(--neon-cyan));
+    filter: drop-shadow(0 0 20px var(--neon-cyan));
   }
 
-  /* Sidebar links */
   .sidebar a {
     display: flex;
     align-items: center;
@@ -145,16 +117,16 @@
   .sidebar a:hover {
     background: rgba(0, 243, 255, 0.05);
     color: var(--neon-cyan);
-    border-color: rgba(0, 243, 255, 0.2);
+    border-color: rgba(0, 243, 255, 0.25);
     transform: translateX(6px);
-    box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.15);
   }
 
   .sidebar a.active {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(181, 55, 242, 0.3));
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(181, 55, 242, 0.35));
     color: #fff;
     border: 1px solid var(--neon-cyan);
-    box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+    box-shadow: 0 0 25px rgba(0, 243, 255, 0.35);
   }
 
   /* Main container */
@@ -163,7 +135,6 @@
     padding: 35px 40px;
   }
 
-  /* Top bar style */
   .topbar {
     display: flex;
     justify-content: space-between;
@@ -183,13 +154,6 @@
     -webkit-text-fill-color: transparent;
   }
 
-  .title p {
-    margin-top: 4px;
-    font-size: 13px;
-    color: var(--muted);
-  }
-
-  /* Status badges */
   .status {
     display: flex;
     align-items: center;
@@ -216,14 +180,13 @@
     box-shadow: 0 0 15px rgba(255, 0, 85, 0.3);
   }
 
-  /* Cards styling */
   .card-box {
     background: var(--card);
     backdrop-filter: blur(20px);
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 24px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
@@ -242,7 +205,7 @@
   .card-box:hover {
     transform: translateY(-5px);
     border-color: var(--neon-cyan);
-    box-shadow: 0 10px 30px rgba(0, 243, 255, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 243, 255, 0.25);
   }
 
   .card-icon {
@@ -265,25 +228,36 @@
     margin-top: 8px;
   }
 
-  /* Network Topology Panel & Matrix */
   .chart-box {
     background: var(--card);
     backdrop-filter: blur(20px);
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 24px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
   }
 
-  /* Visual Router Matrix Container */
+  /* ========================================================
+     ADVANCED NEXT-GEN HARDWARE MATRIX & ULTRA CABLE SYSTEM
+     ======================================================== */
   .matrix-wrapper {
     position: relative;
     width: 100%;
-    height: 220px;
-    background: rgba(4, 7, 17, 0.9);
-    border-radius: 14px;
-    border: 1px solid rgba(0, 243, 255, 0.25);
+    height: 280px;
+    background: radial-gradient(circle at 50% 30%, rgba(6, 12, 28, 0.95), rgba(2, 4, 10, 0.98));
+    border-radius: 16px;
+    border: 1px solid rgba(0, 243, 255, 0.3);
     overflow: hidden;
+    box-shadow: inset 0 0 35px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0, 243, 255, 0.1);
+  }
+
+  .matrix-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(0deg, rgba(0, 243, 255, 0.02) 0px, transparent 1px, transparent 4px);
+    pointer-events: none;
+    z-index: 2;
   }
 
   .port-container-fixed {
@@ -299,59 +273,69 @@
   }
 
   .lan-port {
-    width: 75px;
-    height: 75px;
-    background: #080d1a;
-    border-radius: 10px;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle at 50% 30%, #0d1527, #040712);
+    border-radius: 12px;
     border: 2px solid #1e293b;
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 0;
-    box-shadow: 0 0 15px rgba(0,0,0,0.9);
-    transition: all 0.3s ease;
+    padding: 10px 0;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.9), inset 0 0 10px rgba(0,0,0,0.8);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .lan-port:hover {
     border-color: var(--neon-cyan);
-    box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+    box-shadow: 0 0 25px rgba(0, 243, 255, 0.6), inset 0 0 15px rgba(0, 243, 255, 0.2);
+    transform: translateY(-2px);
   }
 
+  /* RJ45 Port Socket Cutout */
   .lan-port::after {
     content: '';
-    width: 32px;
-    height: 12px;
-    background: #02040a;
-    border-radius: 3px;
+    width: 36px;
+    height: 14px;
+    background: #010308;
+    border-radius: 4px;
     position: absolute;
-    bottom: 6px;
+    bottom: 8px;
     border: 1px solid #334155;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.9);
   }
 
   .port-led {
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: #334155;
+    background: #1e293b;
+    border: 1px solid #000;
   }
 
   .wan-link {
     background: var(--neon-cyan);
-    box-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan);
+    box-shadow: 0 0 12px var(--neon-cyan), 0 0 25px var(--neon-cyan);
     animation: port-blink 0.3s infinite alternate;
   }
 
   .active-link {
     background: var(--neon-green);
-    box-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green);
-    animation: port-blink 0.6s infinite alternate;
+    box-shadow: 0 0 12px var(--neon-green), 0 0 25px var(--neon-green);
+    animation: port-blink 0.5s infinite alternate;
+  }
+
+  .sfp-link {
+    background: var(--neon-purple);
+    box-shadow: 0 0 12px var(--neon-purple), 0 0 25px var(--neon-purple);
+    animation: port-blink 0.4s infinite alternate;
   }
 
   @keyframes port-blink {
-    0% { opacity: 0.3; }
-    100% { opacity: 1; }
+    0% { opacity: 0.3; transform: scale(0.9); }
+    100% { opacity: 1; transform: scale(1.1); }
   }
 
   .port-label {
@@ -360,9 +344,44 @@
     font-weight: 700;
     color: #94a3b8;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
-  /* Dynamic SVG Overlay Layer */
+  /* Dynamic Glassmorphic Hub (Bottom Receive Node) */
+  .cyber-hub {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 85%;
+    height: 45px;
+    background: rgba(13, 22, 45, 0.85);
+    border: 1px solid var(--neon-cyan);
+    border-radius: 30px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 25px;
+    box-shadow: 0 0 25px rgba(0, 243, 255, 0.2), inset 0 0 15px rgba(0, 243, 255, 0.1);
+    z-index: 10;
+    backdrop-filter: blur(10px);
+  }
+
+  .hub-node {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .hub-node i {
+    font-size: 14px;
+  }
+
+  /* SVG Cable Matrix Overlay */
   .svg-wire-overlay {
     position: absolute;
     top: 0;
@@ -373,7 +392,7 @@
     pointer-events: none;
   }
 
-  /* Data table styles */
+  /* Data Table Styles */
   .table-dark {
     --bs-table-bg: transparent;
     --bs-table-hover-bg: rgba(0, 243, 255, 0.03);
@@ -397,7 +416,6 @@
     vertical-align: middle;
   }
 
-  /* Quick action buttons */
   .quick-btn {
     padding: 12px 16px;
     font-weight: 600;
@@ -422,7 +440,6 @@
     color: #fff;
   }
 
-  /* Progress bars */
   .progress {
     background-color: rgba(255, 255, 255, 0.05);
     border-radius: 10px;
@@ -430,7 +447,6 @@
     overflow: hidden;
   }
 
-  /* Pulse Badge */
   .live-pulse {
     width: 8px;
     height: 8px;
@@ -447,7 +463,6 @@
     100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
   }
 
-  /* Venom Company Footer */
   footer {
     margin-top: 60px;
     padding: 25px 0;
@@ -468,22 +483,16 @@
 </head>
 <body>
 
-<!-- Background Fiber Lines -->
-<div class="cyber-wires">
-  <div class="wire-line"></div>
-  <div class="wire-line"></div>
-  <div class="wire-line"></div>
-</div>
-
 <div class="sidebar">
     <div class="logo">
         <i class="fa-solid fa-wifi"></i>
         <span>CORE WISP</span>
     </div>
     <a href="/dashboard" class="active"><i class="fa fa-chart-line"></i> Dashboard</a>
+    <a href="/active-users"><i class="fa fa-users-gear"></i> Active Users</a>
     <a href="/vouchers"><i class="fa fa-ticket"></i> Vouchers</a>
     <a href="/packages"><i class="fa fa-box"></i> Packages</a>
-    <a href="/users"><i class="fa fa-users"></i> Users</a>
+    <a href="/users"><i class="fa fa-users"></i> Staff Users</a>
     <a href="/reports"><i class="fa fa-chart-column"></i> Reports</a>
     <a href="/settings"><i class="fa fa-gear"></i> Settings</a>
 </div>
@@ -498,7 +507,7 @@
         <div class="d-flex align-items-center gap-3">
             <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="background: rgba(0,243,255,0.03); border: 1px solid var(--border);">
                 <span class="live-pulse"></span>
-                <span class="small fw-bold text-success" style="font-family: 'Orbitron'; font-size: 11px;">LIVE MATRIX SYNC</span>
+                <span class="small fw-bold text-success" style="font-family: 'Orbitron'; font-size: 11px;">HIGH-FREQ MATRIX SYNC</span>
             </div>
             <div>
                 {% if router_status == "Connected" %}
@@ -515,10 +524,10 @@
         <div class="col-lg-3 col-md-6">
             <div class="card-box d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Total Vouchers</small>
-                    <div class="number text-light">{{ total|default(0) }}</div>
+                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Active Users</small>
+                    <div class="number text-info">{{ total_active|default(0) }}</div>
                 </div>
-                <div class="card-icon" style="color: var(--neon-cyan);"><i class="fa-solid fa-ticket"></i></div>
+                <div class="card-icon" style="color: var(--neon-cyan);"><i class="fa-solid fa-users-rays"></i></div>
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
@@ -542,68 +551,76 @@
         <div class="col-lg-3 col-md-6">
             <div class="card-box d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Total Revenue</small>
-                    <div class="number" style="color: var(--neon-red);">Tsh {{ earnings|default(0) }}</div>
+                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Total Vouchers</small>
+                    <div class="number" style="color: var(--neon-purple);">{{ total|default(0) }}</div>
                 </div>
-                <div class="card-icon" style="color: var(--neon-red);"><i class="fa-solid fa-money-bill-wave"></i></div>
+                <div class="card-icon" style="color: var(--neon-purple);"><i class="fa-solid fa-ticket"></i></div>
             </div>
         </div>
     </div>
 
-    <!-- Integrated Router Topology & Vibrant SVG Wire Matrix -->
+    <!-- MODERNIZED ULTRA-HIGH-TECH WIRE & ROUTER MATRIX -->
     <div class="row g-4 mb-4">
         <div class="col-12">
             <div class="chart-box">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;">
-                        <i class="fa-solid fa-microchip me-2" style="color: var(--neon-cyan);"></i> Live Integrated Topology & Wire Matrix
+                        <i class="fa-solid fa-network-wired me-2" style="color: var(--neon-cyan);"></i> Active Fiber & Laser Packet Interconnect Matrix
                     </h5>
                     <span class="badge bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2 rounded-pill" style="font-family: 'Orbitron'; font-size: 10px;">
-                        CYBER BUS ONLINE
+                        10 Gbps FIBER BUS
                     </span>
                 </div>
 
                 <div class="matrix-wrapper">
-                    <!-- Top Port Interface Block -->
+                    <!-- Router Ports Top Block -->
                     <div class="port-container-fixed">
                         <div class="lan-port">
                             <div class="port-led wan-link"></div>
-                            <div class="port-label">WAN</div>
+                            <div class="port-label">WAN 1</div>
                         </div>
                         <div class="lan-port">
                             <div class="port-led active-link"></div>
-                            <div class="port-label">eth2</div>
+                            <div class="port-label">ETH 2</div>
                         </div>
                         <div class="lan-port">
                             <div class="port-led active-link"></div>
-                            <div class="port-label">eth3</div>
+                            <div class="port-label">ETH 3</div>
                         </div>
                         <div class="lan-port" style="opacity: 0.35;">
                             <div class="port-led"></div>
-                            <div class="port-label">eth4</div>
+                            <div class="port-label">ETH 4</div>
                         </div>
                         <div class="lan-port">
                             <div class="port-led active-link"></div>
-                            <div class="port-label">eth5</div>
+                            <div class="port-label">ETH 5</div>
                         </div>
                         <div class="lan-port">
-                            <div class="port-led wan-link"></div>
-                            <div class="port-label">sfp1</div>
+                            <div class="port-led sfp-link"></div>
+                            <div class="port-label">SFP+ 1</div>
                         </div>
                     </div>
 
-                    <!-- Vibrant High-Visibility Wire Overlay (SVG) -->
-                    <svg class="svg-wire-overlay" viewBox="0 0 1000 220" preserveAspectRatio="none">
+                    <!-- Modern Circuit & Cable SVG Layer -->
+                    <svg class="svg-wire-overlay" viewBox="0 0 1000 280" preserveAspectRatio="none">
                         <defs>
-                            <filter id="wire-glow-cyan" x="-30%" y="-30%" width="160%" height="160%">
-                                <feGaussianBlur stdDeviation="5" result="blur" />
+                            <!-- High Contrast Neon Glow Filters -->
+                            <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
+                                <feGaussianBlur stdDeviation="6" result="blur" />
                                 <feMerge>
                                     <feMergeNode in="blur" />
                                     <feMergeNode in="SourceGraphic" />
                                 </feMerge>
                             </filter>
-                            <filter id="wire-glow-green" x="-30%" y="-30%" width="160%" height="160%">
-                                <feGaussianBlur stdDeviation="5" result="blur" />
+                            <filter id="glow-green" x="-50%" y="-50%" width="200%" height="200%">
+                                <feGaussianBlur stdDeviation="6" result="blur" />
+                                <feMerge>
+                                    <feMergeNode in="blur" />
+                                    <feMergeNode in="SourceGraphic" />
+                                </feMerge>
+                            </filter>
+                            <filter id="glow-purple" x="-50%" y="-50%" width="200%" height="200%">
+                                <feGaussianBlur stdDeviation="6" result="blur" />
                                 <feMerge>
                                     <feMergeNode in="blur" />
                                     <feMergeNode in="SourceGraphic" />
@@ -611,60 +628,66 @@
                             </filter>
                         </defs>
 
-                        <!-- Main Cyber Bus Line Bar -->
-                        <line x1="50" y1="185" x2="950" y2="185" stroke="#00f3ff" stroke-width="4" opacity="0.4" stroke-dasharray="8,8" />
+                        <!-- Glowing Cable Tracing Paths (Geometric Cyber Lines) -->
+                        <path id="path-wan1" d="M 83 105 L 83 170 L 150 240 L 220 240" fill="none" stroke="#00f3ff" stroke-width="4" filter="url(#glow-cyan)" stroke-linecap="round" />
+                        <path id="path-eth2" d="M 250 105 L 250 190 L 320 240 L 380 240" fill="none" stroke="#00ff88" stroke-width="3.5" filter="url(#glow-green)" stroke-linecap="round" />
+                        <path id="path-eth3" d="M 416 105 L 416 200 L 460 240 L 520 240" fill="none" stroke="#00ff88" stroke-width="3.5" filter="url(#glow-green)" stroke-linecap="round" />
+                        <path id="path-eth5" d="M 750 105 L 750 190 L 680 240 L 620 240" fill="none" stroke="#00ff88" stroke-width="3.5" filter="url(#glow-green)" stroke-linecap="round" />
+                        <path id="path-sfp" d="M 916 105 L 916 170 L 840 240 L 780 240" fill="none" stroke="#b537f2" stroke-width="4" filter="url(#glow-purple)" stroke-linecap="round" />
 
-                        <!-- Plugged Wires with High Contrast & Neon Glow -->
-                        <!-- WAN Wire -->
-                        <path id="path-wan" d="M 83 100 C 83 150, 150 185, 300 185" fill="none" stroke="#00f3ff" stroke-width="3.5" filter="url(#wire-glow-cyan)" />
-                        
-                        <!-- eth2 Wire -->
-                        <path id="path-eth2" d="M 250 100 C 250 145, 320 185, 420 185" fill="none" stroke="#00ff88" stroke-width="3" filter="url(#wire-glow-green)" />
-                        
-                        <!-- eth3 Wire -->
-                        <path id="path-eth3" d="M 416 100 C 416 140, 460 185, 500 185" fill="none" stroke="#00ff88" stroke-width="3" filter="url(#wire-glow-green)" />
-                        
-                        <!-- eth5 Wire -->
-                        <path id="path-eth5" d="M 750 100 C 750 140, 640 185, 580 185" fill="none" stroke="#00ff88" stroke-width="3" filter="url(#wire-glow-green)" />
-                        
-                        <!-- sfp1 Wire -->
-                        <path id="path-sfp1" d="M 916 100 C 916 150, 800 185, 680 185" fill="none" stroke="#00f3ff" stroke-width="3.5" filter="url(#wire-glow-cyan)" />
-
-                        <!-- Data Pulses (Travelling Lights) -->
-                        <circle r="5" fill="#ffffff" filter="url(#wire-glow-cyan)">
-                            <animateMotion dur="2.2s" repeatCount="indefinite">
-                                <mpath href="#path-wan"/>
+                        <!-- Dynamic Travelling Laser Pulses (Live Packets) -->
+                        <circle r="6" fill="#ffffff" filter="url(#glow-cyan)">
+                            <animateMotion dur="1.2s" repeatCount="indefinite">
+                                <mpath href="#path-wan1"/>
                             </animateMotion>
                         </circle>
-                        <circle r="4.5" fill="#00ff88" filter="url(#wire-glow-green)">
-                            <animateMotion dur="1.7s" repeatCount="indefinite">
+                        <circle r="5" fill="#00ff88" filter="url(#glow-green)">
+                            <animateMotion dur="1.5s" repeatCount="indefinite">
                                 <mpath href="#path-eth2"/>
                             </animateMotion>
                         </circle>
-                        <circle r="4.5" fill="#00ff88" filter="url(#wire-glow-green)">
-                            <animateMotion dur="2s" repeatCount="indefinite">
+                        <circle r="5" fill="#00ff88" filter="url(#glow-green)">
+                            <animateMotion dur="1.8s" repeatCount="indefinite">
                                 <mpath href="#path-eth3"/>
                             </animateMotion>
                         </circle>
-                        <circle r="5" fill="#ffffff" filter="url(#wire-glow-cyan)">
-                            <animateMotion dur="2.5s" repeatCount="indefinite">
-                                <mpath href="#path-sfp1"/>
+                        <circle r="5" fill="#00ff88" filter="url(#glow-green)">
+                            <animateMotion dur="1.4s" repeatCount="indefinite">
+                                <mpath href="#path-eth5"/>
+                            </animateMotion>
+                        </circle>
+                        <circle r="6" fill="#ffffff" filter="url(#glow-purple)">
+                            <animateMotion dur="0.9s" repeatCount="indefinite">
+                                <mpath href="#path-sfp"/>
                             </animateMotion>
                         </circle>
                     </svg>
+
+                    <!-- Receiving Cyber Core Hub -->
+                    <div class="cyber-hub">
+                        <div class="hub-node" style="color: var(--neon-cyan);">
+                            <i class="fa-solid fa-globe"></i> ISP BACKBONE
+                        </div>
+                        <div class="hub-node" style="color: var(--neon-green);">
+                            <i class="fa-solid fa-server"></i> HOTSPOT GATEWAY
+                        </div>
+                        <div class="hub-node" style="color: var(--neon-purple);">
+                            <i class="fa-solid fa-bolt"></i> BILLING ENGINE
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Charts and Bandwidth Monitor -->
+    <!-- Charts Section -->
     <div class="row g-4 mb-4">
         <div class="col-lg-8">
             <div class="chart-box">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
-                        <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-network-wired me-2" style="color: var(--neon-cyan);"></i> Real-time Bandwidth Throughput</h5>
-                        <small class="text-muted">Dynamic high-speed ISP packet simulation</small>
+                        <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-chart-line me-2" style="color: var(--neon-cyan);"></i> Real-time Bandwidth Throughput</h5>
+                        <small class="text-muted">Dynamic high-speed ISP packet streaming</small>
                     </div>
                     <div class="d-flex gap-2" style="font-family: 'Orbitron'; font-size: 11px;">
                         <span class="badge bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2">DL: <span id="currentDl" style="color: var(--neon-cyan);">0</span> Mbps</span>
@@ -684,80 +707,67 @@
         </div>
     </div>
 
-    <!-- Server Health -->
+    <!-- ACTIVE HOTSPOT USERS SECTION (WATEJA WALIOPO HEWANI HAPA CHINI) -->
     <div class="row g-4 mb-4">
-        <div class="col-lg-4">
-            <div class="card-box">
-                <div class="d-flex justify-content-between mb-2">
-                    <span class="fw-bold text-muted small" style="font-family: 'Orbitron';">CPU PROCESSOR</span>
-                    <span id="cpuValue" class="fw-bold" style="color: var(--neon-cyan);">24%</span>
-                </div>
-                <div class="progress" style="height:8px;">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="cpuBar" style="width:24%; background: var(--neon-cyan);"></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card-box">
-                <div class="d-flex justify-content-between mb-2">
-                    <span class="fw-bold text-muted small" style="font-family: 'Orbitron';">SYSTEM RAM</span>
-                    <span id="ramValue" class="fw-bold" style="color: var(--neon-green);">45%</span>
-                </div>
-                <div class="progress" style="height:8px;">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="ramBar" style="width:45%; background: var(--neon-green);"></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card-box">
-                <div class="d-flex justify-content-between mb-2">
-                    <span class="fw-bold text-muted small" style="font-family: 'Orbitron';">STORAGE DISK</span>
-                    <span class="fw-bold" style="color: #fbbf24;">18%</span>
-                </div>
-                <div class="progress" style="height:8px;">
-                    <div class="progress-bar" id="diskBar" style="width:18%; background: #fbbf24;"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Recent Vouchers & Quick Actions -->
-    <div class="row g-4 mb-4">
-        <div class="col-lg-8">
+        <div class="col-12">
             <div class="chart-box p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-terminal me-2" style="color: var(--neon-cyan);"></i> Active Hotspot Sessions</h5>
-                    <a href="/vouchers" class="btn btn-outline-info btn-sm px-3 rounded-pill" style="font-size: 11px; font-family: 'Orbitron';">VIEW ARCHIVE</a>
+                    <div>
+                        <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;">
+                            <i class="fa-solid fa-wifi me-2" style="color: var(--neon-green);"></i> Active Hotspot Users (Wateja Waliopo Hewani)
+                        </h5>
+                        <small class="text-muted">Orodha ya wateja waliounganishwa kwenye MikroTik kwa sasa</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2" style="font-family: 'Orbitron';">
+                            JUMLA: {{ total_active|default(0) }} ONLINE
+                        </span>
+                        <a href="/active-users" class="btn btn-outline-info btn-sm px-3 rounded-pill" style="font-size: 11px; font-family: 'Orbitron';">VIEW ALL</a>
+                    </div>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-dark table-hover mb-0">
+                    <table class="table table-dark table-hover mb-0 align-middle">
                         <thead>
                             <tr>
-                                <th>Voucher Code</th>
-                                <th>Profile Package</th>
-                                <th>Status</th>
+                                <th>#</th>
+                                <th>Mteja / Vocha</th>
+                                <th>IP Address</th>
+                                <th>MAC Address</th>
+                                <th>Uptime (Muda)</th>
+                                <th>Data In / Out</th>
+                                <th class="text-end">Kitendo</th>
                             </tr>
                         </thead>
                         <tbody>
-                        {% if recent %}
-                            {% for voucher in recent %}
+                        {% if active_users %}
+                            {% for u in active_users %}
                             <tr>
-                                <td><strong class="font-monospace" style="color: var(--neon-cyan);">{{ voucher.code }}</strong></td>
-                                <td><span class="badge bg-secondary bg-opacity-20 text-light border border-secondary border-opacity-25">{{ voucher.profile }}</span></td>
+                                <td>{{ loop.index }}</td>
                                 <td>
-                                    {% if voucher.status == "unused" %}
-                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2">Unused</span>
-                                    {% elif voucher.status == "used" %}
-                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2">Active</span>
-                                    {% else %}
-                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2">Expired</span>
-                                    {% endif %}
+                                    <strong class="font-monospace" style="color: var(--neon-cyan);">
+                                        <i class="fa-solid fa-user me-1 text-secondary"></i> {{ u.user }}
+                                    </strong>
+                                </td>
+                                <td><span class="badge bg-dark border border-secondary text-light font-monospace">{{ u.address }}</span></td>
+                                <td><code style="color: var(--neon-purple);">{{ u.mac }}</code></td>
+                                <td><span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">{{ u.uptime }}</span></td>
+                                <td class="small text-muted font-monospace">{{ u.bytes_in }} / {{ u.bytes_out }} B</td>
+                                <td class="text-end">
+                                    <a href="/kick-user/{{ u.id }}" 
+                                       class="btn btn-outline-danger btn-sm px-3 rounded-pill" 
+                                       style="font-size: 11px; font-family: 'Orbitron';"
+                                       onclick="return confirm('Je, una uhakika unataka kumtoa {{ u.user }} hewani?')">
+                                        <i class="fa-solid fa-user-slash me-1"></i> KICK / DISCONNECT
+                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="3" class="text-center text-muted py-4">No active sessions detected on network interfaces.</td>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <i class="fa-solid fa-signal-warning d-block mb-2" style="font-size: 24px; color: var(--muted);"></i>
+                                    Hakuna mteja anayetumia intaneti kwa sasa au MikroTik haipo hewani.
+                                </td>
                             </tr>
                         {% endif %}
                         </tbody>
@@ -765,65 +775,167 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Server Health & Quick Actions -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card-box">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="fw-bold text-muted small" style="font-family: 'Orbitron';">CPU PROCESSOR</span>
+                            <span id="cpuValue" class="fw-bold" style="color: var(--neon-cyan);">24%</span>
+                        </div>
+                        <div class="progress" style="height:8px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" id="cpuBar" style="width:24%; background: var(--neon-cyan);"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card-box">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="fw-bold text-muted small" style="font-family: 'Orbitron';">SYSTEM RAM</span>
+                            <span id="ramValue" class="fw-bold" style="color: var(--neon-green);">45%</span>
+                        </div>
+                        <div class="progress" style="height:8px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" id="ramBar" style="width:45%; background: var(--neon-green);"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card-box">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="fw-bold text-muted small" style="font-family: 'Orbitron';">STORAGE DISK</span>
+                            <span class="fw-bold" style="color: #fbbf24;">18%</span>
+                        </div>
+                        <div class="progress" style="height:8px;">
+                            <div class="progress-bar" id="diskBar" style="width:18%; background: #fbbf24;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="col-lg-4">
             <div class="chart-box p-4">
-                <h5 class="mb-4 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-bolt me-2" style="color: #fbbf24;"></i> Quick Actions</h5>
+                <h5 class="mb-3 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-bolt me-2" style="color: #fbbf24;"></i> Quick Actions</h5>
                 <div class="d-grid gap-2">
-                    <a href="/generate" class="quick-btn"><i class="fa-solid fa-plus" style="color: var(--neon-cyan);"></i> Generate Voucher</a>
+                    <!-- Quick Voucher Popup Trigger Button -->
+                    <button type="button" class="quick-btn w-100 border-0" data-bs-toggle="modal" data-bs-target="#quickVoucherModal" style="cursor: pointer;">
+                        <i class="fa-solid fa-bolt" style="color: #fbbf24;"></i> Quick Generate Vouchers
+                    </button>
                     <a href="/vouchers" class="quick-btn"><i class="fa-solid fa-ticket" style="color: var(--neon-green);"></i> Manage Vouchers</a>
                     <a href="/packages" class="quick-btn"><i class="fa-solid fa-box" style="color: #fbbf24;"></i> Packages</a>
                     <a href="/users" class="quick-btn"><i class="fa-solid fa-users" style="color: var(--neon-purple);"></i> Client Accounts</a>
                     <a href="/reports" class="quick-btn"><i class="fa-solid fa-chart-column text-secondary"></i> Financial Reports</a>
-                    <a href="/print-vouchers" class="quick-btn"><i class="fa-solid fa-print" style="color: var(--neon-red);"></i> Print Queue</a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Revenue & System Diagnostics -->
-    <div class="row g-4 mb-4">
-        <div class="col-lg-8">
-            <div class="chart-box">
-                <h5 class="mb-4 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-chart-area me-2" style="color: var(--neon-green);"></i> Weekly Revenue Analytics</h5>
-                <canvas id="revenueChart" height="115"></canvas>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="chart-box p-4 h-100">
-                <h5 class="mb-4 fw-bold" style="font-family: 'Orbitron'; font-size: 16px;"><i class="fa-solid fa-server me-2" style="color: var(--neon-cyan);"></i> System Diagnostics</h5>
-                <table class="table table-borderless text-light mb-0" style="font-size: 13px;">
-                    <tr><td class="text-muted">Total Generated</td><td class="text-end fw-bold">{{ total }}</td></tr>
-                    <tr><td class="text-muted">Active Vouchers</td><td class="text-end fw-bold" style="color: var(--neon-green);">{{ used }}</td></tr>
-                    <tr><td class="text-muted">Unused Pool</td><td class="text-end fw-bold" style="color: #fbbf24;">{{ unused }}</td></tr>
-                    <tr><td class="text-muted">Expired Sessions</td><td class="text-end fw-bold" style="color: var(--neon-red);">{{ expired }}</td></tr>
-                    <tr><td class="text-muted">Gross Earnings</td><td class="text-end fw-bold" style="color: var(--neon-cyan);">Tsh {{ earnings }}</td></tr>
-                    <tr>
-                        <td class="text-muted">MikroTik Engine</td>
-                        <td class="text-end">
-                            {% if router_status == "Connected" %}
-                            <span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-30">Online</span>
-                            {% else %}
-                            <span class="badge bg-danger bg-opacity-15 text-danger border border-danger border-opacity-30">Offline</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Footer with Venom Company Branding -->
+    <!-- Footer -->
     <footer>
         <i class="fa-solid fa-shield-virus me-2" style="color: var(--neon-cyan);"></i> CORE WISP v2.4 | Developed by <span class="venom-brand">Venom Company</span> © 2026
     </footer>
 </div>
 
-<!-- Bootstrap JS -->
+<!-- ========================================================
+     QUICK VOUCHER GENERATOR MODAL (POP-UP) - UPDATED FOR DYNAMIC PACKAGES & CUSTOM CONFIG
+     ======================================================== -->
+<div class="modal fade" id="quickVoucherModal" tabindex="-1" aria-labelledby="quickVoucherModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background: var(--card); backdrop-filter: blur(25px); border: 1px solid var(--neon-cyan); color: var(--text); border-radius: 16px; box-shadow: 0 0 30px rgba(0, 243, 255, 0.25);">
+      
+      <div class="modal-header border-bottom border-secondary border-opacity-25">
+        <h5 class="modal-title fw-bold" id="quickVoucherModalLabel" style="font-family: 'Orbitron'; color: var(--neon-cyan);">
+          <i class="fa-solid fa-bolt me-2" style="color: #fbbf24;"></i> Quick Voucher Generator
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      
+      <form id="quickVoucherForm">
+        <div class="modal-body p-4">
+          <!-- Notification Alert Area -->
+          <div id="modalAlert" class="alert d-none" role="alert"></div>
+
+          <!-- Generation Mode Selection (Package vs Custom) -->
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; letter-spacing: 0.5px;">Aina ya Utengenezaji</label>
+            <div class="btn-group w-100" role="group" aria-label="Generation Type">
+              <input type="radio" class="btn-check" name="generation_type" id="genTypePackage" value="package" checked autocomplete="off">
+              <label class="btn btn-outline-info btn-sm" for="genTypePackage" style="font-family: 'Orbitron'; font-size: 11px;">Kutumia Kifurushi</label>
+
+              <input type="radio" class="btn-check" name="generation_type" id="genTypeCustom" value="custom" autocomplete="off">
+              <label class="btn btn-outline-info btn-sm" for="genTypeCustom" style="font-family: 'Orbitron'; font-size: 11px;">Weka Bei na GB Maalum</label>
+            </div>
+          </div>
+
+          <!-- SECTION A: Package Selection Mode -->
+          <div class="mb-3" id="packageSection">
+            <label for="packageSelect" class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; letter-spacing: 0.5px;">Chagua Kifurushi (Package)</label>
+            <select class="form-select bg-dark text-light border-secondary" id="packageSelect" name="package_id" style="border-radius: 10px;">
+              <option value="" disabled selected>-- Chagua Kifurushi --</option>
+              {% if packages %}
+                {% for pkg in packages %}
+                  <option value="{{ pkg.id }}">{{ pkg.name }} - TZS {{ pkg.price }} ({{ pkg.validity }} | {{ pkg.data_limit }})</option>
+                {% endfor %}
+              {% else %}
+                <option value="1">1 Hour Unlimited - TZS 500</option>
+                <option value="2">24 Hours Unlimited - TZS 2,000</option>
+                <option value="3">7 Days Pass - TZS 10,000</option>
+              {% endif %}
+            </select>
+          </div>
+
+          <!-- SECTION B: Custom Pricing & Data / Validity Config (Hidden by default) -->
+          <div id="customSection" class="d-none">
+            <div class="row g-2">
+              <div class="col-md-6 mb-3">
+                <label for="customPrice" class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; font-size: 10px;">Bei (TZS)</label>
+                <input type="number" class="form-control bg-dark text-light border-secondary" id="customPrice" name="custom_price" min="100" value="1000" style="border-radius: 10px;">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="customDuration" class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; font-size: 10px;">Muda (Validity / Uptime)</label>
+                <input type="text" class="form-control bg-dark text-light border-secondary" id="customDuration" name="custom_duration" placeholder="Mf: 1 Day, 12h" value="1 Day" style="border-radius: 10px;">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="customDataLimit" class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; font-size: 10px;">Kikomo cha GB (Data Limit)</label>
+              <input type="text" class="form-control bg-dark text-light border-secondary" id="customDataLimit" name="custom_data_limit" placeholder="Mf: 5GB, Unlimited" value="Unlimited" style="border-radius: 10px;">
+            </div>
+          </div>
+
+          <!-- Quantity -->
+          <div class="mb-3">
+            <label for="voucherQty" class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; letter-spacing: 0.5px;">Idadi ya Vocha (Quantity)</label>
+            <input type="number" class="form-control bg-dark text-light border-secondary" id="voucherQty" name="quantity" min="1" max="100" value="1" style="border-radius: 10px;" required>
+          </div>
+
+          <!-- Voucher Prefix / Custom Tag (Optional) -->
+          <div class="mb-3">
+            <label for="voucherPrefix" class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; letter-spacing: 0.5px;">Prefix / Tag (Hiari)</label>
+            <input type="text" class="form-control bg-dark text-light border-secondary" id="voucherPrefix" name="prefix" placeholder="Mfano: VIP, GUEST" style="border-radius: 10px;">
+          </div>
+        </div>
+
+        <div class="modal-footer border-top border-secondary border-opacity-25">
+          <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" data-bs-dismiss="modal" style="font-family: 'Orbitron'; font-size: 12px;">Funga</button>
+          <button type="submit" id="btnGenerateSubmit" class="btn btn-info px-4 rounded-pill font-monospace" style="background: linear-gradient(135deg, var(--neon-cyan), var(--primary)); border: none; font-weight: bold; color: #000;">
+            <i class="fa-solid fa-ticket me-1"></i> TENGENEZA SASA
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<!-- JS Charts & Bootstrap -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // Traffic Simulation Chart
+    // Traffic Chart JS
     const ctxTraffic = document.getElementById("trafficChart");
     if (ctxTraffic) {
         const labels = Array(30).fill('');
@@ -903,7 +1015,7 @@
         }, 650);
     }
 
-    // Voucher Pie Chart
+    // Pie Chart JS
     const ctxPie = document.getElementById('voucherPie');
     if (ctxPie) {
         new Chart(ctxPie, {
@@ -926,35 +1038,7 @@
         });
     }
 
-    // Weekly Revenue Chart
-    const ctxRevenue = document.getElementById('revenueChart');
-    if (ctxRevenue) {
-        new Chart(ctxRevenue, {
-            type: 'bar',
-            data: {
-                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                datasets: [{
-                    label: 'Revenue (Tsh)',
-                    data: [140000, 195000, 240000, 180000, 290000, 340000, 410000],
-                    backgroundColor: '#00f3ff',
-                    borderRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        grid: { color: 'rgba(0, 243, 255, 0.05)' },
-                        ticks: { color: '#64748b', font: { family: 'Orbitron', size: 10 } }
-                    },
-                    x: { grid: { display: false }, ticks: { color: '#64748b', font: { family: 'Orbitron', size: 10 } } }
-                }
-            }
-        });
-    }
-
-    // Server health random fluctuations
+    // Health simulation
     setInterval(() => {
         const cpu = Math.floor(Math.random() * 25) + 15;
         const ram = Math.floor(Math.random() * 6) + 40;
@@ -963,6 +1047,85 @@
         document.getElementById('ramBar').style.width = ram + '%';
         document.getElementById('ramValue').innerHTML = ram + '%';
     }, 2000);
+
+    // Toggle between Package Mode and Custom Config Mode inside Quick Voucher Modal
+    const radioPackage = document.getElementById('genTypePackage');
+    const radioCustom = document.getElementById('genTypeCustom');
+    const packageSection = document.getElementById('packageSection');
+    const customSection = document.getElementById('customSection');
+    const packageSelect = document.getElementById('packageSelect');
+
+    if (radioPackage && radioCustom) {
+      radioPackage.addEventListener('change', function() {
+        if (this.checked) {
+          packageSection.classList.remove('d-none');
+          customSection.classList.add('d-none');
+          packageSelect.setAttribute('required', 'required');
+        }
+      });
+
+      radioCustom.addEventListener('change', function() {
+        if (this.checked) {
+          customSection.classList.remove('d-none');
+          packageSection.classList.add('d-none');
+          packageSelect.removeAttribute('required');
+        }
+      });
+    }
+
+    // ==========================================
+    // SCRIPT YA QUICK VOUCHER GENERATOR AJAX
+    // ==========================================
+    document.getElementById('quickVoucherForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const submitBtn = document.getElementById('btnGenerateSubmit');
+      const alertBox = document.getElementById('modalAlert');
+      
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> Inatengeneza...`;
+      
+      alertBox.classList.add('d-none');
+      alertBox.className = 'alert d-none';
+
+      const formData = new FormData(this);
+
+      try {
+        const response = await fetch('/generate-vouchers-fast', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          alertBox.className = 'alert alert-success d-block bg-success bg-opacity-25 text-success border-success';
+          alertBox.innerHTML = `<i class="fa-solid fa-circle-check me-2"></i> Imefanikiwa! Vocha <strong>${result.count}</strong> zimetengenezwa kikamilifu.`;
+          
+          document.getElementById('quickVoucherForm').reset();
+          // Reset to default package mode view after reset
+          packageSection.classList.remove('d-none');
+          customSection.classList.add('d-none');
+          packageSelect.setAttribute('required', 'required');
+
+          setTimeout(() => {
+            const modalEl = document.getElementById('quickVoucherModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+            window.location.reload(); 
+          }, 1800);
+        } else {
+          alertBox.className = 'alert alert-danger d-block bg-danger bg-opacity-25 text-danger border-danger';
+          alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-2"></i> ${result.message || 'Kuna tatizo limetokea!'}`;
+        }
+      } catch (err) {
+        alertBox.className = 'alert alert-danger d-block bg-danger bg-opacity-25 text-danger border-danger';
+        alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-2"></i> Imeshindwa kuunganisha na Server!`;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fa-solid fa-ticket me-1"></i> TENGENEZA SASA`;
+      }
+    });
 </script>
 </body>
 </html>

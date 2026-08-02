@@ -1,20 +1,262 @@
 <!DOCTYPE html>
-<html>
+<html lang="sw">
 <head>
-    <title>Karibu WiFi Mtaani</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Karibu WiFi Mtaani — CORE-WISP</title>
+
+  <!-- Bootstrap 5.3 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --neon-cyan: #00f3ff;
+      --neon-green: #00ff88;
+      --bg: #030611;
+      --card-bg: rgba(10, 16, 31, 0.88);
+      --border: rgba(0, 243, 255, 0.25);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 20px 15px;
+      overflow-x: hidden;
+    }
+
+    /* Cyber Background Glow */
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: 
+        radial-gradient(circle at 50% 30%, rgba(0, 243, 255, 0.1) 0%, transparent 70%),
+        linear-gradient(90deg, rgba(0, 243, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(rgba(0, 243, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 30px 30px, 30px 30px;
+      z-index: -1;
+    }
+
+    /* Portal Card */
+    .portal-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 243, 255, 0.15);
+      width: 100%;
+      max-width: 400px;
+      padding: 30px 24px;
+      position: relative;
+    }
+
+    .portal-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+    }
+
+    /* Glowing WiFi Icon */
+    .wifi-icon-box {
+      width: 70px;
+      height: 70px;
+      background: rgba(0, 243, 255, 0.08);
+      border: 1px solid var(--neon-cyan);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 15px auto;
+      color: var(--neon-cyan);
+      font-size: 28px;
+      box-shadow: 0 0 25px rgba(0, 243, 255, 0.3);
+      animation: pulseGlow 2s infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 15px rgba(0, 243, 255, 0.2); transform: scale(1); }
+      100% { box-shadow: 0 0 30px rgba(0, 243, 255, 0.5); transform: scale(1.05); }
+    }
+
+    .wifi-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: 1px;
+      background: linear-gradient(90deg, #fff, var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+    }
+
+    .wifi-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    /* Voucher Input Styling */
+    .voucher-input-group {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .voucher-input {
+      background: rgba(5, 9, 20, 0.9) !important;
+      border: 2px solid var(--border) !important;
+      color: #fff !important;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-align: center;
+      padding: 14px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      transition: all 0.3s ease;
+    }
+
+    .voucher-input:focus {
+      border-color: var(--neon-cyan) !important;
+      box-shadow: 0 0 20px rgba(0, 243, 255, 0.3) !important;
+      outline: none;
+    }
+
+    .voucher-input::placeholder {
+      color: #475569 !important;
+      font-size: 0.95rem;
+      letter-spacing: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 400;
+    }
+
+    /* Connect Button */
+    .btn-connect {
+      background: linear-gradient(135deg, #00ff88, #00b359);
+      border: none;
+      color: #030611;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      padding: 14px;
+      border-radius: 12px;
+      width: 100%;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+    }
+
+    .btn-connect:hover {
+      background: linear-gradient(135deg, #00ff88, #00ffaa);
+      color: #000;
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.6);
+      transform: translateY(-2px);
+    }
+
+    /* Steps / Guide */
+    .guide-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 12px 15px;
+      margin-top: 25px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .guide-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .guide-step:last-child {
+      margin-bottom: 0;
+    }
+
+    .guide-step i {
+      color: var(--neon-cyan);
+    }
+  </style>
 </head>
-<body class="bg-light">
-<div class="container mt-5 text-center">
-    <h3>WiFi Mtaani</h3>
-    <p>Ingiza vocha uliyopata ili uunganishe internet</p>
-    <form method="post" action="/hotspot-login">
-        <div class="mb-3">
-            <input type="text" name="voucher" class="form-control" placeholder="Weka Vocha Hapa" required>
-            <input type="hidden" name="mac" value="$(mac)">
-        </div>
-        <button type="submit" class="btn btn-success w-100">Unganisha Sasa</button>
-    </form>
+<body>
+
+<div class="portal-card">
+  
+  <!-- Glowing Icon & Title -->
+  <div class="wifi-icon-box">
+    <i class="fa-solid fa-wifi"></i>
+  </div>
+  <h3 class="wifi-title">WiFi Mtaani</h3>
+  <p class="wifi-subtitle">Ingiza vocha uliyopata ili uunganishe internet</p>
+
+  <!-- Login Form -->
+  <form method="post" action="/hotspot-login">
+    
+    <div class="voucher-input-group">
+      <input 
+        type="text" 
+        name="voucher" 
+        class="form-control voucher-input" 
+        placeholder="WEKA VOCHA HAPA" 
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="characters"
+        required
+        oninput="this.value = this.value.toUpperCase()">
+      
+      <!-- Hidden Parameters for MikroTik Router OS -->
+      <input type="hidden" name="mac" value="$(mac)">
+      <input type="hidden" name="dst" value="$(dst)">
+    </div>
+
+    <button type="submit" class="btn btn-connect">
+      <i class="fa-solid fa-bolt me-2"></i> UNGANISHA SASA
+    </button>
+  </form>
+
+  <!-- Helper Steps -->
+  <div class="guide-box">
+    <div class="guide-step">
+      <i class="fa-solid fa-circle-check"></i>
+      <span>Nunua vocha kwa muuzaji au mtaani kwako</span>
+    </div>
+    <div class="guide-step">
+      <i class="fa-solid fa-key"></i>
+      <span>Jaza tarakimu za vocha kwenye kisanduku hapo juu</span>
+    </div>
+    <div class="guide-step">
+      <i class="fa-solid fa-rocket"></i>
+      <span>Bonyeza Unganisha Sasa ufurahie internet ya kasi!</span>
+    </div>
+  </div>
+
+  <div class="text-center mt-3">
+    <small style="font-size: 10px; color: var(--muted);">&copy; Powered by CORE-WISP</small>
+  </div>
+
 </div>
+
 </body>
 </html>

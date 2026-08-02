@@ -3,183 +3,405 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Usimamizi wa Vocha</title>
+<title>CORE-WISP | Usimamizi wa Vocha</title>
+
 <!-- Bootstrap CSS -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <!-- Font Awesome -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-<!-- Font -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+
 <style>
+  :root {
+    --primary: #6366f1;
+    --neon-cyan: #00f3ff;
+    --neon-purple: #b537f2;
+    --neon-green: #00ff88;
+    --neon-red: #ff0055;
+    --neon-orange: #ff9900;
+    
+    --bg: #030611;
+    --card: rgba(10, 16, 31, 0.82);
+    --border: rgba(0, 243, 255, 0.2);
+    --text: #f8fafc;
+    --muted: #64748b;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
   body {
-    background-color: #090d16;
-    font-family: 'Inter', sans-serif;
-    color: #e2e8f0;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    position: relative;
+    padding-bottom: 40px;
   }
 
-  /* Header & Buttons */
-  .btn-outline-secondary {
-    border-color: #38bdf8;
-    color: #38bdf8;
+  /* Cyber Grid Background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: 
+      radial-gradient(circle at 50% 20%, rgba(0, 243, 255, 0.05) 0%, transparent 70%),
+      linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+    background-size: 100% 100%, 40px 40px, 40px 40px;
+    z-index: -2;
   }
 
-  .btn-outline-secondary:hover {
-    background-color: #38bdf8;
-    color: #090d16;
+  /* Header Title */
+  .page-title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: 24px;
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, #fff, var(--neon-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
-  /* Card Style */
-  .card {
-    background-color: #0f172a;
-    border: 1px solid #1e293b;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  /* Cyber Card Glassmorphism */
+  .card-cyber {
+    background: var(--card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .card-cyber::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+  }
+
+  /* Neon Inputs */
+  .input-group-text {
+    background: rgba(0, 243, 255, 0.05);
+    border: 1px solid var(--border);
+    color: var(--neon-cyan);
+    border-right: none;
+  }
+
+  .form-control {
+    background: rgba(5, 9, 20, 0.8);
+    border: 1px solid var(--border);
+    color: #fff;
+    font-size: 14px;
+    padding: 12px;
+  }
+
+  .form-control:focus {
+    background: rgba(5, 9, 20, 0.95);
+    border-color: var(--neon-cyan);
+    color: #fff;
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.25);
+  }
+
+  .form-control::placeholder {
+    color: var(--muted);
+  }
+
+  /* Cyber Buttons */
+  .btn-cyber-primary {
+    background: linear-gradient(135deg, rgba(0, 243, 255, 0.2), rgba(99, 102, 241, 0.4));
+    border: 1px solid var(--neon-cyan);
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+  }
+
+  .btn-cyber-primary:hover {
+    background: linear-gradient(135deg, var(--neon-cyan), var(--primary));
+    color: #000;
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+    transform: translateY(-2px);
+  }
+
+  .btn-cyber-outline {
+    border: 1px solid var(--border);
+    color: var(--neon-cyan);
+    background: rgba(0, 243, 255, 0.03);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .btn-cyber-outline:hover {
+    background: var(--neon-cyan);
+    color: #000;
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
   }
 
   /* Table Styling */
-  .table {
-    color: #e2e8f0;
-  }
-
-  .table thead {
-    background-color: #111827;
+  .table-dark {
+    --bs-table-bg: transparent;
+    --bs-table-hover-bg: rgba(0, 243, 255, 0.03);
+    border-color: var(--border);
   }
 
   .table th {
-    padding: 12px;
-    font-size: 13px;
-    font-weight: 600;
+    font-family: 'Orbitron', sans-serif;
+    color: var(--muted) !important;
+    font-size: 11px;
+    font-weight: 700;
     text-transform: uppercase;
-    color: #38bdf8;
+    letter-spacing: 1px;
+    padding: 16px 14px;
+    border-bottom: 1px solid var(--border);
   }
 
-  .table tbody tr:nth-child(even) {
-    background-color: #1a2238;
+  .table td {
+    padding: 14px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
   }
 
   /* Voucher Code Badge */
   .voucher-code {
-    background-color: #1e293b;
-    padding: 4px 10px;
-    border-radius: 4px;
-    color: #38bdf8;
+    background: rgba(0, 243, 255, 0.08);
+    border: 1px solid rgba(0, 243, 255, 0.3);
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: var(--neon-cyan);
     font-family: monospace;
+    font-weight: 700;
     font-size: 14px;
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px rgba(0, 243, 255, 0.3);
   }
 
-  /* Form Controls */
-  .form-control {
-    background-color: #1e293b;
-    border: 1px solid #334155;
-    color: #fff;
-  }
-
-  .form-control:focus {
-    border-color: #38bdf8;
-    box-shadow: none;
-  }
-
-  /* Badge Styles for Status */
-  .badge {
-    font-size: 11px;
-    padding: 6px 10px;
-    border-radius: 50px;
-    font-weight: 600;
-  }
-
-  .bg-success { background-color: #4ade80; color: #fff; }
-  .bg-primary { background-color: #3b82f6; color: #fff; }
-  .bg-danger { background-color: #f87171; color: #fff; }
-
-  /* Action Buttons */
-  .btn-sm {
-    padding: 4px 8px;
+  /* Action Buttons in Table */
+  .btn-action {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    text-decoration: none;
     font-size: 12px;
+  }
+
+  .btn-action-activate {
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--neon-green);
+    border-color: rgba(0, 255, 136, 0.3);
+  }
+  .btn-action-activate:hover {
+    background: var(--neon-green);
+    color: #000;
+    box-shadow: 0 0 12px var(--neon-green);
+  }
+
+  .btn-action-expire {
+    background: rgba(255, 153, 0, 0.1);
+    color: var(--neon-orange);
+    border-color: rgba(255, 153, 0, 0.3);
+  }
+  .btn-action-expire:hover {
+    background: var(--neon-orange);
+    color: #000;
+    box-shadow: 0 0 12px var(--neon-orange);
+  }
+
+  .btn-action-delete {
+    background: rgba(255, 0, 85, 0.1);
+    color: var(--neon-red);
+    border-color: rgba(255, 0, 85, 0.3);
+  }
+  .btn-action-delete:hover {
+    background: var(--neon-red);
+    color: #fff;
+    box-shadow: 0 0 12px var(--neon-red);
+  }
+
+  /* Cyber Status Badges */
+  .badge-cyber {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    padding: 6px 12px;
+    border-radius: 50px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-unused {
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--neon-green);
+    border: 1px solid var(--neon-green);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+  }
+
+  .badge-used {
+    background: rgba(0, 243, 255, 0.1);
+    color: var(--neon-cyan);
+    border: 1px solid var(--neon-cyan);
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+  }
+
+  .badge-expired {
+    background: rgba(255, 0, 85, 0.1);
+    color: var(--neon-red);
+    border: 1px solid var(--neon-red);
+    box-shadow: 0 0 10px rgba(255, 0, 85, 0.2);
   }
 </style>
 </head>
 <body>
+
 <div class="container py-4">
-    <!-- Header & Button -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3><i class="fa fa-ticket"></i> Usimamizi wa Vocha</h3>
-        <a href="/dashboard" class="btn btn-outline-secondary"><i class="fa fa-home"></i> Dashboard</a>
-    </div>
-
-    <!-- Tengeneza Vocha -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <form action="/generate-voucher" method="POST" class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <div class="form-floating">
-                        <input class="form-control" type="number" name="price" id="price" placeholder="Bei (TSH)" required>
-                        <label for="price">Bei (TSH)</label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-floating">
-                        <input class="form-control" type="text" name="duration" id="duration" placeholder="Muda (mfano: 1h, 24h)" required>
-                        <label for="duration">Muda (mfano: 1h, 24h)</label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-floating">
-                        <input class="form-control" type="text" name="data_limit" id="data_limit" placeholder="Data Limit" required>
-                        <label for="data_limit">Data Limit</label>
-                    </div>
-                </div>
-                <div class="col-md-3 d-grid">
-                    <button type="submit" class="btn btn-success btn-lg"><i class="fa fa-plus"></i> Tengeneza Vocha</button>
-                </div>
-            </form>
+    <!-- Top Header Navigation -->
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary border-opacity-25">
+        <div>
+            <h3 class="page-title mb-1"><i class="fa-solid fa-ticket me-2" style="color: var(--neon-cyan);"></i> USIMAMIZI WA VOCHA</h3>
+            <p class="text-muted small mb-0">Tengeneza na udhibiti mzunguko wa vocha za mtandao</p>
         </div>
+        <a href="/dashboard" class="btn btn-cyber-outline px-3 py-2 rounded-pill">
+            <i class="fa-solid fa-house me-1"></i> Dashboard
+        </a>
     </div>
 
-    <!-- Orodha ya Vocha -->
-    <div class="card">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-dark table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Code</th>
-                            <th>Bei</th>
-                            <th>Muda</th>
-                            <th>Data</th>
-                            <th>Status</th>
-                            <th>Kitendo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for voucher in vouchers %}
-                        <tr>
-                            <td><span class="voucher-code">{{ voucher.code }}</span></td>
-                            <td>{{ voucher.price }} TSH</td>
-                            <td>{{ voucher.uptime }}</td>
-                            <td>{{ voucher.data_limit }}</td>
-                            <td>
-                                {% if voucher.status=="unused" %}
-                                <span class="badge bg-success">Unused</span>
-                                {% elif voucher.status=="used" %}
-                                <span class="badge bg-primary">Used</span>
-                                {% else %}
-                                <span class="badge bg-danger">Expired</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="/activate-voucher/{{ voucher.id }}" class="btn btn-sm btn-primary"><i class="fa fa-check"></i></a>
-                                <a href="/expire-voucher/{{ voucher.id }}" class="btn btn-sm btn-warning"><i class="fa fa-clock"></i></a>
-                                <a href="/delete-voucher/{{ voucher.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Futa vocha hii?')"><i class="fa fa-trash"></i></a>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="6" class="text-center py-4">Hakuna vocha zilizopatikana.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <!-- Tengeneza Vocha Card -->
+    <div class="card-cyber p-4 mb-4">
+        <h6 class="fw-bold mb-3" style="font-family: 'Orbitron'; font-size: 13px; color: var(--neon-cyan);">
+            <i class="fa-solid fa-plus-circle me-1"></i> TENGENEZA VOCHA MPYA
+        </h6>
+        <form action="/generate-voucher" method="POST" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label text-muted small fw-bold">BEI (TSH)</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fa-solid fa-money-bill-wave"></i></span>
+                    <input class="form-control" type="number" name="price" placeholder="Mfano: 1000" required>
+                </div>
             </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small fw-bold">MUDA</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fa-solid fa-clock"></i></span>
+                    <input class="form-control" type="text" name="duration" placeholder="Mfano: 1h, 24h" required>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small fw-bold">DATA LIMIT</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fa-solid fa-database"></i></span>
+                    <input class="form-control" type="text" name="data_limit" placeholder="Mfano: 1GB, Unlimited" required>
+                </div>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-cyber-primary w-100 py-2 rounded-3">
+                    <i class="fa-solid fa-bolt me-1"></i> TENGENEZA
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Orodha ya Vocha Table -->
+    <div class="card-cyber p-0">
+        <div class="d-flex justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25">
+            <h6 class="fw-bold mb-0" style="font-family: 'Orbitron'; font-size: 13px; color: #fff;">
+                <i class="fa-solid fa-list me-2" style="color: var(--neon-green);"></i> ORODHA YA VOCHA
+            </h6>
+            <!-- Quick Search Input -->
+            <div style="width: 250px;">
+                <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Tafuta vocha code..." onkeyup="filterTable()">
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0" id="voucherTable">
+                <thead>
+                    <tr>
+                        <th>CODE</th>
+                        <th>BEI</th>
+                        <th>MUDA</th>
+                        <th>DATA LIMIT</th>
+                        <th>STATUS</th>
+                        <th class="text-end">VITENDO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for voucher in vouchers %}
+                    <tr>
+                        <td><span class="voucher-code">{{ voucher.code }}</span></td>
+                        <td class="fw-bold text-light">Tsh {{ voucher.price }}</td>
+                        <td><i class="fa-regular fa-clock text-muted me-1"></i> {{ voucher.uptime }}</td>
+                        <td><i class="fa-solid fa-database text-muted me-1"></i> {{ voucher.data_limit }}</td>
+                        <td>
+                            {% if voucher.status=="unused" %}
+                            <span class="badge-cyber badge-unused"><i class="fa-solid fa-circle-check me-1"></i> Unused</span>
+                            {% elif voucher.status=="used" %}
+                            <span class="badge-cyber badge-used"><i class="fa-solid fa-wifi me-1"></i> Used</span>
+                            {% else %}
+                            <span class="badge-cyber badge-expired"><i class="fa-solid fa-triangle-exclamation me-1"></i> Expired</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="/activate-voucher/{{ voucher.id }}" class="btn-action btn-action-activate me-1" title="Washa Vocha">
+                                <i class="fa-solid fa-check"></i>
+                            </a>
+                            <a href="/expire-voucher/{{ voucher.id }}" class="btn-action btn-action-expire me-1" title="Ekesipaya Vocha">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                            </a>
+                            <a href="/delete-voucher/{{ voucher.id }}" class="btn-action btn-action-delete" title="Futa Vocha" onclick="return confirm('Je, una uhakika unataka kufuta vocha hii?')">
+                                <i class="fa-solid fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-ticket-simple fa-2x mb-3 opacity-50 d-block"></i>
+                            Hakuna vocha zilizopatikana kwenye mfumo.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
+
+<!-- Simple Live Search Script -->
+<script>
+function filterTable() {
+  const input = document.getElementById("searchInput");
+  const filter = input.value.toUpperCase();
+  const table = document.getElementById("voucherTable");
+  const tr = table.getElementsByTagName("tr");
+
+  for (let i = 1; i < tr.length; i++) {
+    let td = tr[i].getElementsByTagName("td")[0];
+    if (td) {
+      let txtValue = td.textContent || td.innerText;
+      if (txtValue.toUpperCase().indexOf(filter) > -1) {
+        tr[i].style.display = "";
+      } else {
+        tr[i].style.display = "none";
+      }
+    }
+  }
+}
+</script>
+
 </body>
 </html>
