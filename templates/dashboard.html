@@ -491,6 +491,7 @@
     <a href="/dashboard" class="active"><i class="fa fa-chart-line"></i> Dashboard</a>
     <a href="/active-users"><i class="fa fa-users-gear"></i> Active Users</a>
     <a href="/vouchers"><i class="fa fa-ticket"></i> Vouchers</a>
+    <a href="/print" target="_blank"><i class="fa fa-print"></i> Printing Page</a>
     <a href="/packages"><i class="fa fa-box"></i> Packages</a>
     <a href="/users"><i class="fa fa-users"></i> Staff Users</a>
     <a href="/reports"><i class="fa fa-chart-column"></i> Reports</a>
@@ -826,9 +827,9 @@
                         <i class="fa-solid fa-bolt" style="color: #fbbf24;"></i> Quick Generate Vouchers
                     </button>
                     <a href="/vouchers" class="quick-btn"><i class="fa-solid fa-ticket" style="color: var(--neon-green);"></i> Manage Vouchers</a>
+                    <a href="/print" target="_blank" class="quick-btn"><i class="fa-solid fa-print" style="color: var(--neon-cyan);"></i> Print Vouchers Page</a>
                     <a href="/packages" class="quick-btn"><i class="fa-solid fa-box" style="color: #fbbf24;"></i> Packages</a>
                     <a href="/users" class="quick-btn"><i class="fa-solid fa-users" style="color: var(--neon-purple);"></i> Client Accounts</a>
-                    <a href="/reports" class="quick-btn"><i class="fa-solid fa-chart-column text-secondary"></i> Financial Reports</a>
                 </div>
             </div>
         </div>
@@ -1103,7 +1104,6 @@
           alertBox.innerHTML = `<i class="fa-solid fa-circle-check me-2"></i> Imefanikiwa! Vocha <strong>${result.count}</strong> zimetengenezwa kikamilifu.`;
           
           document.getElementById('quickVoucherForm').reset();
-          // Reset to default package mode view after reset
           packageSection.classList.remove('d-none');
           customSection.classList.add('d-none');
           packageSelect.setAttribute('required', 'required');

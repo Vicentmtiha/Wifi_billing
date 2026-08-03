@@ -55,7 +55,6 @@ class MikrotikConfig:
 AZAMPAY_BASE_URL = os.getenv("AZAMPAY_BASE_URL", "https://sandbox.azampay.co.tz")
 
 def detect_provider(phone: str) -> str:
-    """Inatambua mtandao wa simu nchini Tanzania kulingana na namba"""
     clean = phone.strip().replace("+", "")
     if clean.startswith("255"):
         clean = "0" + clean[3:]
@@ -73,7 +72,7 @@ def detect_provider(phone: str) -> str:
     elif prefix in ["073"]:
         return "Azampesa"
     
-    return "Airtel"  # Fallback
+    return "Airtel"
 
 
 def get_access_token():
@@ -108,93 +107,6 @@ def get_access_token():
         logger.error(f"AzamPay Token Exception: {e}")
         return None
 
-
-@app.api_route("/lipa", methods=["GET", "POST"])
-async def lipa_internet(amount: int = 1000, phone: str = "0712345678"):
-    token = get_access_token()
-    if not token:
-        return {
-            "status": "error", 
-            "message": "Imeshindwa kupata Token. Hakikisha AZAMPAY credentials ziko sahihi kwenye .env"
-        }
-
-    url = f"{AZAMPAY_BASE_URL}/azampay/mno/checkout"
-    
-    clean_phone = phone.strip().replace("+", "")
-    if clean_phone.startswith("0"):
-        clean_phone = "255" + clean_phone[1:]
-
-    provider = detect_provider(phone)
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    
-    payload = {
-        "accountNumber": clean_phone,
-        "amount": str(amount),
-        "currency": "TZS",
-        "externalId": f"order_{random.randint(100000, 999999)}",
-        "provider": provider
-    }
-    
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=20)
-        logger.info(f"Checkout Response Status: {response.status_code}")
-        
-        if response.status_code == 200:
-            try:
-                return response.json()
-            except Exception:
-                return {"status": "success", "raw": response.text}
-        else:
-            return {
-                "status": "error",
-                "http_code": response.status_code,
-                "message": response.text
-            }
-            
-    except requests.exceptions.ConnectionError:
-        return {
-            "status": "error",
-            "message": "AzamPay server imefunga connection. Jaribu tena au kagua kama Sandbox ya AzamPay iko hewani."
-        }
-    except Exception as e:
-        logger.error(f"Checkout Error: {e}")
-        return {"status": "error", "message": str(e)}
-
-@app.get("/lipa-page", response_class=HTMLResponse)
-async def lipa_page(request: Request):
-    return """
-    <!DOCTYPE html>
-    <html lang="sw">
-    <head>
-        <meta charset="UTF-8">
-        <title>CORE-WISP - Lipa</title>
-        <style>
-            body { font-family: Arial; background: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-            .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 350px; text-align: center; }
-            input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-            button { width: 100%; background: #28a745; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
-        </style>
-    </head>
-    <body>
-        <div class="card">
-            <h2>Lipa Intaneti</h2>
-            <form action="/lipa" method="GET">
-                <input type="text" name="phone" placeholder="Namba ya Simu (Mf: 0712345678)" required>
-                <select name="amount">
-                    <option value="1000">TZS 1,000 - Siku 1</option>
-                    <option value="5000">TZS 5,000 - Wiki 1</option>
-                </select>
-                <button type="submit">LIPA SASA</button>
-            </form>
-        </div>
-    </body>
-    </html>
-    """
 
 # ================= VOUCHER SERVICE (MongoDB) =================
 class VoucherService:
@@ -462,7 +374,6 @@ class MikrotikService:
 
     @staticmethod
     def get_active_users():
-        """Inavuta orodha ya wateja wote waliopo hewani muda huu kutoka MikroTik"""
         api = None
         try:
             api = MikrotikService.get_api()
@@ -497,7 +408,6 @@ class MikrotikService:
 
     @staticmethod
     def disconnect_user(active_id: str) -> bool:
-        """Inamtoa (Kick) mteja aliyepo hewani kwa kutumia Active ID yake"""
         api = None
         try:
             api = MikrotikService.get_api()
@@ -713,7 +623,6 @@ def logout(request: Request):
 @app.get("/hotspot", response_class=HTMLResponse)
 @app.get("/hotspot-login", response_class=HTMLResponse)
 def get_hotspot_page(request: Request, mac: str = ""):
-    """Inaonyesha Ukurasa wa Hotspot Landing Page (hotspot.html)"""
     return templates.TemplateResponse(
         request=request,
         name="hotspot.html",
@@ -722,7 +631,6 @@ def get_hotspot_page(request: Request, mac: str = ""):
 
 @app.post("/hotspot-login")
 def hotspot_login(voucher: str = Form(...), mac: str = Form("")):
-    """Inashughulikia uwekaji wa vocha kutoka ukurasa wa Hotspot"""
     voucher_obj = VoucherService.get_voucher_by_code(voucher.strip().upper())
 
     if not voucher_obj:
@@ -752,7 +660,6 @@ def hotspot_login(voucher: str = Form(...), mac: str = Form("")):
 @app.get("/active-users")
 @login_required
 def active_users(request: Request):
-    """Inaonyesha ukurasa wa wateja waliopo hewani"""
     active_list = MikrotikService.get_active_users()
     return templates.TemplateResponse(
         request=request,
@@ -768,7 +675,6 @@ def active_users(request: Request):
 @app.get("/kick-user/{active_id:path}")
 @login_required
 def kick_user(request: Request, active_id: str):
-    """Inam-disconnect mteja aliyepo hewani"""
     MikrotikService.disconnect_user(active_id)
     return RedirectResponse("/active-users", status_code=303)
 
@@ -797,12 +703,12 @@ def dashboard(request: Request):
     return templates.TemplateResponse(request=request, name="dashboard.html", context=context)
 
 
-# ================= QUICK VOUCHER GENERATOR AJAX ROUTE (Updated) =================
+# ================= QUICK VOUCHER GENERATOR AJAX ROUTE =================
 @app.post("/generate-vouchers-fast")
 @login_required
 async def generate_vouchers_fast(
     request: Request,
-    generation_type: str = Form("package"),  # "package" au "custom"
+    generation_type: str = Form("package"),
     package_id: Optional[str] = Form(None),
     custom_price: Optional[int] = Form(1000),
     custom_duration: Optional[str] = Form("1 Day"),
@@ -810,7 +716,6 @@ async def generate_vouchers_fast(
     quantity: int = Form(1),
     prefix: str = Form("")
 ):
-    """Inapokea maombi ya kutengeneza vocha kwa kuchagua kifurushi au kuweka bei, GB/Data na Muda moja kwa moja kiotomatiki"""
     try:
         if generation_type == "package" and package_id:
             pkg = PackageService.get_package(package_id)
@@ -851,6 +756,99 @@ async def generate_vouchers_fast(
     except Exception as e:
         logger.error(f"Error in fast voucher generation: {e}")
         return JSONResponse({"success": False, "message": f"Kosa la Server: {str(e)}"}, status_code=500)
+
+
+# ================= AZAMPAY CHECKOUT & MOCK PAYMENT ROUTE =================
+@app.api_route("/lipa", methods=["GET", "POST"])
+async def lipa_internet(amount: int = 1000, phone: str = "0712345678"):
+    duration_map = {
+        500: {"uptime": "1h", "data": "500MB", "name": "Saa_1"},
+        1000: {"uptime": "1d", "data": "Unlimited", "name": "Siku_1"},
+        2000: {"uptime": "2d", "data": "Unlimited", "name": "Siku_2"},
+        3000: {"uptime": "3d", "data": "Unlimited", "name": "Siku_3"},
+        5000: {"uptime": "7d", "data": "Unlimited", "name": "Wiki_1"},
+        10000: {"uptime": "30d", "data": "Unlimited", "name": "Mwezi_1"}
+    }
+    
+    package_info = duration_map.get(amount, {
+        "uptime": "1d", 
+        "data": "Unlimited", 
+        "name": f"Kifurushi_TZS_{amount}"
+    })
+    
+    voucher_code = VoucherService.create_voucher(
+        price=amount,
+        uptime=package_info["uptime"],
+        data_limit=package_info["data"],
+        profile_name=package_info["name"],
+        prefix="MOCK"
+    )
+    
+    logger.info(f"Mock Voucher Generated for {phone} (Amount: {amount}): {voucher_code}")
+
+    return {
+        "status": "success",
+        "message": "Mock Payment Successful (Sandbox offline)",
+        "voucher_code": voucher_code,
+        "package": package_info["name"],
+        "phone": phone,
+        "amount": amount
+    }
+
+
+# ================= AZAMPAY CALLBACK / WEBHOOK ROUTE =================
+@app.post("/azampay-callback")
+async def azampay_callback(request: Request):
+    try:
+        data = await request.json()
+        logger.info(f"AzamPay Callback Received: {data}")
+        
+        status = data.get("status") or data.get("success")
+        external_id = data.get("externalId")
+        amount = data.get("amount")
+        
+        if status in [True, "success", "completed", "successful"]:
+            logger.info(f"Malipo yamethibitishwa kikamilifu kwa External ID: {external_id}, Kiasi: {amount}")
+            
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Error handling AzamPay callback: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/lipa-page", response_class=HTMLResponse)
+async def lipa_page(request: Request):
+    return """
+    <!DOCTYPE html>
+    <html lang="sw">
+    <head>
+        <meta charset="UTF-8">
+        <title>CORE-WISP - Lipa</title>
+        <style>
+            body { font-family: Arial; background: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 350px; text-align: center; }
+            input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+            button { width: 100%; background: #28a745; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h2>Lipa Intaneti</h2>
+            <form action="/lipa" method="GET">
+                <input type="text" name="phone" placeholder="Namba ya Simu (Mf: 0712345678)" required>
+                <select name="amount">
+                    <option value="500">TZS 500 - Saa 1</option>
+                    <option value="1000">TZS 1,000 - Siku 1</option>
+                    <option value="2000">TZS 2,000 - Siku 2</option>
+                    <option value="5000">TZS 5,000 - Wiki 1</option>
+                    <option value="10000">TZS 10,000 - Mwezi 1</option>
+                </select>
+                <button type="submit">LIPA SASA</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    """
 
 
 # ================= USERS MANAGEMENT =================
@@ -983,7 +981,6 @@ def delete_voucher(request: Request, voucher_id: int):
 @app.get("/clear-expired-vouchers")
 @login_required
 def clear_expired_vouchers(request: Request):
-    """Inafuta kabisa vocha zote zilizokwisha muda (expired) kutoka kwenye database na MikroTik kwa pamoja"""
     try:
         expired_vouchers = list(db.vouchers.find({"status": "expired"}))
         count = len(expired_vouchers)
@@ -1005,7 +1002,8 @@ def clear_expired_vouchers(request: Request):
         logger.error(f"Kosa wakati wa kufuta expired vouchers: {e}")
         return RedirectResponse("/vouchers?msg=error", status_code=303)
 
-@app.get("/print-vouchers")
+@app.get("/print", response_class=HTMLResponse)
+@app.get("/print-vouchers", response_class=HTMLResponse)
 @login_required
 def print_vouchers(request: Request):
     return templates.TemplateResponse(
