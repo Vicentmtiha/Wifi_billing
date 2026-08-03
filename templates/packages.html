@@ -364,6 +364,8 @@
                 <th>ID</th>
                 <th>JINA LA MPANGO</th>
                 <th>BEI</th>
+                <th>MUDA</th>
+                <th>DATA</th>
                 <th class="text-end">KITENDO</th>
               </tr>
             </thead>
@@ -373,6 +375,8 @@
                 <td><span class="pkg-id-badge">#{{ pkg.id }}</span></td>
                 <td class="fw-bold text-white">{{ pkg.name }}</td>
                 <td class="price-tag">{{ pkg.price }} TSH</td>
+                <td><span class="text-info" style="font-family: 'JetBrains Mono'; font-size: 13px;">{{ pkg.uptime }}</span></td>
+                <td><span class="text-warning" style="font-family: 'JetBrains Mono'; font-size: 13px;">{{ pkg.data_limit }}</span></td>
                 <td class="text-end">
                   <a href="/delete-package/{{ pkg.id }}" class="btn-action-delete" title="Futa Kifurushi" onclick="return confirm('Je, una uhakika unataka kufuta kifurushi hiki?');">
                     <i class="fa-solid fa-trash-can"></i>
@@ -381,7 +385,7 @@
               </tr>
               {% else %}
               <tr>
-                <td colspan="4" class="text-center py-5 text-muted">
+                <td colspan="6" class="text-center py-5 text-muted">
                   <i class="fa-solid fa-box-open fa-2x mb-3 opacity-50 d-block"></i>
                   Hakuna vifurushi vilivyoundwa kwenye mfumo bado.
                 </td>

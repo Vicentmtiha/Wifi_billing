@@ -238,6 +238,14 @@ class VoucherService:
             return []
 
     @staticmethod
+    def get_recent_vouchers(limit: int = 10):
+        try:
+            return list(db.vouchers.find().sort("created_at", -1).limit(limit))
+        except Exception as e:
+            logger.error(f"Error fetching recent vouchers: {e}")
+            return []
+
+    @staticmethod
     def check_and_expire_vouchers() -> int:
         expired_count = 0
         try:
@@ -263,7 +271,6 @@ class MikrotikService:
     @staticmethod
     def get_api():
         try:
-            # Added timeout (seconds) to prevent hanging the worker indefinitely
             return connect(
                 host=MikrotikConfig.HOST,
                 username=MikrotikConfig.USER,
@@ -500,13 +507,13 @@ class UserService:
 class PackageService:
 
     @staticmethod
-    def create_package(name: str, price: int, validity: str = "1 Day", data_limit: str = "Unlimited") -> bool:
+    def create_package(name: str, price: int, uptime: str = "1 Day", data_limit: str = "Unlimited") -> bool:
         try:
             pkg_doc = {
                 "id": random.randint(10000, 99999),
                 "name": name,
                 "price": price,
-                "validity": validity,
+                "uptime": uptime,
                 "data_limit": data_limit
             }
             db.packages.insert_one(pkg_doc)
@@ -528,11 +535,11 @@ class PackageService:
             return None
 
     @staticmethod
-    def update_package(pkg_id: int, name: str, price: int) -> bool:
+    def update_package(pkg_id: int, name: str, price: int, uptime: str, data_limit: str) -> bool:
         try:
             result = db.packages.update_one(
                 {"id": pkg_id},
-                {"$set": {"name": name, "price": price}}
+                {"$set": {"name": name, "price": price, "uptime": uptime, "data_limit": data_limit}}
             )
             return result.modified_count > 0
         except Exception as e:
@@ -689,6 +696,8 @@ def dashboard(request: Request):
     expired_vouchers = [v for v in all_vouchers if v.get('status') == 'expired']
     active_list = MikrotikService.get_active_users()
     all_packages = PackageService.get_all_packages()
+    
+    recent_vouchers = VoucherService.get_recent_vouchers(10)
 
     context = {
         "request": request,
@@ -700,6 +709,7 @@ def dashboard(request: Request):
         "total_active": len(active_list),
         "active_users": active_list,
         "packages": all_packages,
+        "recent_vouchers": recent_vouchers,
         "router_status": "Connected" if MikrotikService.check_connection() else "Disconnected"
     }
     return templates.TemplateResponse(request=request, name="dashboard.html", context=context)
@@ -722,7 +732,7 @@ async def generate_vouchers_fast(
         if generation_type == "package" and package_id:
             pkg = PackageService.get_package(package_id)
             price = pkg.get("price", 1000) if pkg else 1000
-            uptime = pkg.get("validity", "1 Day") if pkg else "1 Day"
+            uptime = pkg.get("uptime", "1 Day") if pkg else "1 Day"
             data_limit = pkg.get("data_limit", "Unlimited") if pkg else "Unlimited"
             profile_name = pkg.get("name", "default") if pkg else "default"
         else:
@@ -910,8 +920,14 @@ def packages(request: Request):
 
 @app.post("/add-package")
 @login_required
-def add_package(request: Request, name: str = Form(...), price: int = Form(...)):
-    PackageService.create_package(name, price)
+def add_package(
+    request: Request, 
+    name: str = Form(...), 
+    price: int = Form(...), 
+    uptime: str = Form(""), 
+    data_limit: str = Form("")
+):
+    PackageService.create_package(name, price, uptime, data_limit)
     return RedirectResponse("/packages", status_code=303)
 
 @app.get("/edit-package/{pkg_id}")
@@ -928,8 +944,15 @@ def edit_package_form(request: Request, pkg_id: int):
 
 @app.post("/edit-package/{pkg_id}")
 @login_required
-def update_package(request: Request, pkg_id: int, name: str = Form(...), price: int = Form(...)):
-    PackageService.update_package(pkg_id, name, price)
+def update_package(
+    request: Request, 
+    pkg_id: int, 
+    name: str = Form(...), 
+    price: int = Form(...),
+    uptime: str = Form(""),
+    data_limit: str = Form("")
+):
+    PackageService.update_package(pkg_id, name, price, uptime, data_limit)
     return RedirectResponse("/packages", status_code=303)
 
 @app.get("/delete-package/{pkg_id}")
@@ -955,9 +978,10 @@ def generate_voucher(
     request: Request,
     price: int = Form(...),
     duration: str = Form(...),
-    data_limit: str = Form(...)
+    data_limit: str = Form(...),
+    profile_name: Optional[str] = Form("Standard")
 ):
-    code = VoucherService.create_voucher(price, duration, data_limit)
+    code = VoucherService.create_voucher(price, duration, data_limit, profile_name=profile_name)
     if not code:
         logger.error("Failed to generate voucher")
     return RedirectResponse("/vouchers", status_code=303)
@@ -1016,7 +1040,7 @@ def print_vouchers(request: Request):
 
 
 # ================= REPORTS =================
-@app.get("/reports")
+@app.reports if False else app.get("/reports")
 @login_required
 def reports(request: Request):
     all_vouchers = VoucherService.get_all_vouchers()

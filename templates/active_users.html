@@ -1,96 +1,336 @@
 <!DOCTYPE html>
-<html lang="sw">
+<html lang="sw" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CORE-WISP - Wateja Waliopo Hewani</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome Icons -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <title>CORE-WISP | Wateja Waliopo Hewani - Pro Ultra</title>
+    <!-- Bootstrap 5.3.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 6.5.2 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Google Fonts (Orbitron & Plus Jakarta Sans) -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
-        body {
-            background-color: #f8f9fa;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .card {
-            border: none;
-            border-radius: 12px;
-        }
-        .table-hover tbody tr:hover {
-            background-color: #f1f3f5;
-        }
-        .badge-active {
-            background-color: #e6fcf5;
-            color: #0ca678;
-            font-weight: 500;
-            padding: 6px 12px;
-            border-radius: 20px;
-        }
+      :root {
+        --primary: #6366f1;
+        --neon-cyan: #00f3ff;
+        --neon-purple: #b537f2;
+        --neon-green: #00ff88;
+        --neon-red: #ff0055;
+        
+        --bg-core: #02040a;
+        --bg-surface: rgba(8, 14, 28, 0.85);
+        --bg-sidebar: #040710;
+        --border-cyber: rgba(0, 243, 255, 0.18);
+        --text-main: #f1f5f9;
+        --text-muted: #64748b;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: var(--bg-core);
+        color: var(--text-main);
+        overflow-x: hidden;
+        min-height: 100vh;
+        position: relative;
+      }
+
+      /* Holographic Grid Background */
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-image: 
+          radial-gradient(circle at 50% 20%, rgba(0, 243, 255, 0.07) 0%, transparent 60%),
+          linear-gradient(90deg, rgba(0, 243, 255, 0.015) 1px, transparent 1px),
+          linear-gradient(rgba(0, 243, 255, 0.015) 1px, transparent 1px);
+        background-size: 100% 100%, 50px 50px, 50px 50px;
+        z-index: -2;
+        pointer-events: none;
+      }
+
+      /* Sidebar */
+      .sidebar {
+        position: fixed;
+        left: 0; top: 0; bottom: 0;
+        width: 280px;
+        background-color: var(--bg-sidebar);
+        border-right: 1px solid var(--border-cyber);
+        padding: 30px 20px;
+        z-index: 999;
+        backdrop-filter: blur(25px);
+        box-shadow: 10px 0 40px rgba(0, 0, 0, 0.8);
+      }
+
+      .logo {
+        text-align: center;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 20px;
+        font-weight: 900;
+        color: #fff;
+        margin-bottom: 35px;
+        letter-spacing: 2px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .logo i {
+        font-size: 38px;
+        margin-bottom: 10px;
+        background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 15px rgba(0, 243, 255, 0.6));
+      }
+
+      .sidebar a {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 13px 18px;
+        margin: 6px 0;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        color: var(--text-muted);
+        border: 1px solid transparent;
+      }
+
+      .sidebar a:hover {
+        background: rgba(0, 243, 255, 0.04);
+        color: var(--neon-cyan);
+        border-color: rgba(0, 243, 255, 0.2);
+        transform: translateX(5px);
+        box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+      }
+
+      .sidebar a.active {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(181, 55, 242, 0.25));
+        color: #fff;
+        border: 1px solid var(--neon-cyan);
+        box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+      }
+
+      /* Main Workspace */
+      .main {
+        margin-left: 280px;
+        padding: 35px 45px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 35px;
+        border-bottom: 1px solid var(--border-cyber);
+        padding-bottom: 20px;
+      }
+
+      .title h2 {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        color: #fff;
+      }
+
+      /* Glass Box Container */
+      .chart-box {
+        background: var(--bg-surface);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--border-cyber);
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .chart-box::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+        opacity: 0.6;
+      }
+
+      /* Tables */
+      .table-dark {
+        --bs-table-bg: transparent;
+        --bs-table-hover-bg: rgba(0, 243, 255, 0.025);
+        border-color: var(--border-cyber);
+      }
+
+      .table th {
+        color: var(--text-muted) !important;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 14px 12px;
+        border-bottom: 1px solid var(--border-cyber);
+        font-family: 'Orbitron', sans-serif;
+      }
+
+      .table td {
+        padding: 14px 12px;
+        font-size: 12px;
+        border-bottom: 1px solid var(--border-cyber);
+        vertical-align: middle;
+      }
+
+      .live-pulse {
+        width: 7px; height: 7px;
+        background-color: var(--neon-green);
+        border-radius: 50%;
+        display: inline-block;
+        box-shadow: 0 0 8px var(--neon-green);
+        animation: pulse 1.2s infinite;
+      }
+
+      @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.6); }
+        70% { box-shadow: 0 0 0 8px rgba(0, 255, 136, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+      }
+
+      footer {
+        margin-top: 50px;
+        padding: 20px 0;
+        border-top: 1px solid var(--border-cyber);
+        text-align: center;
+        font-size: 12px;
+        color: var(--text-muted);
+        font-family: 'Orbitron', sans-serif;
+        letter-spacing: 1px;
+      }
+
+      .venom-brand {
+        color: var(--neon-cyan);
+        font-weight: 700;
+        text-shadow: 0 0 8px rgba(0, 243, 255, 0.4);
+      }
     </style>
 </head>
 <body>
-    <div class="container py-5">
-        <!-- Header Section -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h2><i class="fa-solid fa-users-gear text-primary me-2"></i>Wateja Waliopo Hewani</h2>
-                <p class="text-muted mb-0">Orodha ya vifaa na watumiaji waliounganishwa na mtandao kwa sasa.</p>
-            </div>
-            <a href="/dashboard" class="btn btn-outline-secondary shadow-sm">
-                <i class="fa-solid fa-arrow-left me-1"></i> Rudi Dashboard
-            </a>
-        </div>
 
-        <!-- Main Content Card -->
-        <div class="card shadow-sm">
-            <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <span class="badge-active">
-                        <i class="fa-solid fa-signal me-1"></i> Jumla Active: {{ total_active }}
-                    </span>
-                </div>
-                
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th><i class="fa-solid fa-user me-1"></i> Username</th>
-                                <th><i class="fa-solid fa-network-wired me-1"></i> IP Address</th>
-                                <th><i class="fa-solid fa-fingerprint me-1"></i> MAC Address</th>
-                                <th><i class="fa-solid fa-clock me-1"></i> Uptime</th>
-                                <th class="text-center">Kitendo</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for user in active_users %}
-                            <tr>
-                                <td><span class="fw-semibold text-dark">{{ user.user }}</span></td>
-                                <td><code>{{ user.address }}</code></td>
-                                <td><span class="text-muted">{{ user.mac }}</span></td>
-                                <td><span class="badge bg-light text-dark border">{{ user.uptime }}</span></td>
-                                <td class="text-center">
-                                    <a href="/kick-user/{{ user.id }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('Una hakika unataka kumkata mteja huyu kutoka mtandaoni?')" title="Katiza Mteja">
-                                        <i class="fa-solid fa-power-off me-1"></i> Katiza (Kick)
-                                    </a>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-4">
-                                    <i class="fa-solid fa-box-open fa-2x mb-2 d-block"></i>
-                                    Hakuna wateja waliopo hewani kwa sasa.
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+<!-- SIDEBAR MENU -->
+<div class="sidebar">
+    <div class="logo">
+        <i class="fa-solid fa-network-wired"></i>
+        <span>CORE WISP</span>
+    </div>
+    <a href="/dashboard"><i class="fa fa-chart-line"></i> Dashboard</a>
+    <a href="/active-users" class="active"><i class="fa fa-users-gear"></i> Active Users</a>
+    <a href="/vouchers"><i class="fa fa-ticket"></i> Vouchers</a>
+    <a href="/print" target="_blank"><i class="fa fa-print"></i> Printing Page</a>
+    <a href="/packages"><i class="fa fa-box"></i> Packages</a>
+    <a href="/users"><i class="fa fa-users"></i> Staff Users</a>
+    <a href="/reports"><i class="fa fa-chart-column"></i> Reports</a>
+    <a href="/settings"><i class="fa fa-gear"></i> Settings</a>
+</div>
+
+<!-- MAIN WORKSPACE -->
+<div class="main">
+    <!-- Top Bar -->
+    <div class="topbar">
+        <div class="title">
+            <h2><i class="fa-solid fa-users-gear text-info me-2"></i> Wateja Waliopo Hewani</h2>
+            <p class="text-muted small mb-0">Orodha ya vifaa na watumiaji waliounganishwa na mtandao kwa sasa.</p>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <a href="/dashboard" class="btn btn-outline-info btn-sm px-3 rounded-pill" style="font-family: 'Orbitron'; font-size: 10px;">
+                <i class="fa-solid fa-arrow-left me-1"></i> RUDI DASHBOARD
+            </a>
         </div>
     </div>
 
-    <!-- Bootstrap JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Main Content Card -->
+    <div class="chart-box">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.3);">
+                <span class="live-pulse"></span>
+                <span class="small fw-bold text-success" style="font-family: 'Orbitron'; font-size: 10px;">JUMLA ACTIVE: {{ total_active|default(0) }}</span>
+            </div>
+            
+            <!-- Search Filter Input -->
+            <div style="width: 280px;">
+                <input type="text" id="userSearchInput" class="form-control bg-dark text-light border-secondary form-control-sm" placeholder="Tafuta mteja au IP..." style="border-radius: 8px; font-size: 12px;">
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle mb-0" id="activeUsersTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th><i class="fa-solid fa-user me-1 text-info"></i> Username / Vocha</th>
+                        <th><i class="fa-solid fa-network-wired me-1 text-success"></i> IP Address</th>
+                        <th><i class="fa-solid fa-fingerprint me-1" style="color: var(--neon-purple);"></i> MAC Address</th>
+                        <th><i class="fa-solid fa-clock me-1 text-warning"></i> Uptime</th>
+                        <th class="text-end">Kitendo (Action)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if active_users %}
+                        {% for user in active_users %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td><strong class="font-monospace text-info">{{ user.user }}</strong></td>
+                            <td><span class="badge bg-dark border border-secondary text-light font-monospace">{{ user.address }}</span></td>
+                            <td><code style="color: var(--neon-purple);">{{ user.mac }}</code></td>
+                            <td><span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">{{ user.uptime }}</span></td>
+                            <td class="text-end">
+                                <a href="/kick-user/{{ user.id }}" class="btn btn-outline-danger btn-sm px-3 rounded-pill" style="font-size: 10px; font-family: 'Orbitron';" onclick="return confirm('Una hakika unataka kumkata mteja huyu kutoka mtandaoni?')">
+                                    <i class="fa-solid fa-user-slash me-1"></i> DISCONNECT
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-5">
+                                <i class="fa-solid fa-box-open fa-2x mb-2 d-block text-warning"></i>
+                                Hakuna wateja waliopo hewani kwa sasa au mfumo haujasoma vifaa vya MikroTik.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <i class="fa-solid fa-shield-virus me-2 text-info"></i> CORE WISP v2.5 Ultra Engine | Developed by <span class="venom-brand">Venom Company</span> © 2026[cite: 2]
+    </footer>
+</div>
+
+<!-- Bootstrap JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Simple live search/filter for active users table
+    const searchInput = document.getElementById('userSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            let filter = this.value.toLowerCase();
+            let rows = document.querySelectorAll('#activeUsersTable tbody tr');
+            rows.forEach(row => {
+                let text = row.innerText.toLowerCase();
+                row.style.display = text.includes(filter) ? '' : 'none';
+            });
+        });
+    }
+</script>
 </body>
 </html>
