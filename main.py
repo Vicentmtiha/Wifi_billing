@@ -257,17 +257,19 @@ class VoucherService:
         return expired_count
 
 
-# ================= MIKROTIK SERVICE =================
+# ================= MIKROTIK SERVICE (Updated with Timeout & Safe Handling) =================
 class MikrotikService:
 
     @staticmethod
     def get_api():
         try:
+            # Added timeout (seconds) to prevent hanging the worker indefinitely
             return connect(
                 host=MikrotikConfig.HOST,
                 username=MikrotikConfig.USER,
                 password=MikrotikConfig.PASS,
-                port=MikrotikConfig.PORT
+                port=MikrotikConfig.PORT,
+                timeout=5
             )
         except Exception as e:
             logger.error(f"Mikrotik connection error: {e}")
