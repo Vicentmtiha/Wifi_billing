@@ -42,9 +42,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ================= MIKROTIK CONFIG =================
+# ================= MIKROTIK CONFIG (Updated with ZeroTier IP) =================
 class MikrotikConfig:
-    HOST = os.getenv("MIKROTIK_HOST", "192.168.122.209")
+    HOST = os.getenv("MIKROTIK_HOST", "10.176.235.121")  # Imewekwa IP ya ZeroTier ya Ubuntu host / CHR
     PORT = int(os.getenv("MIKROTIK_PORT", 8728))
     USER = os.getenv("MIKROTIK_USER", "admin")
     PASS = os.getenv("MIKROTIK_PASS", "Venom@123")
@@ -265,7 +265,7 @@ class VoucherService:
         return expired_count
 
 
-# ================= MIKROTIK SERVICE (Updated with Timeout & Safe Handling) =================
+# ================= MIKROTIK SERVICE =================
 class MikrotikService:
 
     @staticmethod
