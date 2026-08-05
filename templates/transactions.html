@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORE-WISP | Orodha ya Miamala</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .page-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
+        }
+        .card-custom {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+            background: #ffffff;
+            overflow: hidden;
+        }
+        .table > :not(caption) > * > * {
+            padding: 16px 20px;
+            vertical-align: middle;
+        }
+        .table thead th {
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            border-bottom: none;
+        }
+        .badge-code {
+            background-color: #e0f2fe;
+            color: #0369a1;
+            font-family: monospace;
+            font-size: 0.85rem;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .btn-custom-back {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        .btn-custom-back:hover {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            transform: translateY(-2px);
+        }
+        .table-hover tbody tr:hover {
+            background-color: #f8fafc;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container py-5">
+        <!-- Header Section -->
+        <div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            <div>
+                <h<span class="fw-bold"><i class="fas fa-receipt text-info me-2"></i> Miamala & Vocha Zilizotumika</i></span></h2>
+                <p class="text-slate-300 mb-0 opacity-75">Fuatilia historia yote ya mauzo ya mtandao na vocha zilizotumika kwa urahisi.</p>
+            </div>
+            <div>
+                <a href="/dashboard" class="btn btn-custom-back px-4 py-2 rounded-pill fw-semibold">
+                    <i class="fas fa-arrow-left me-2"></i> Rudi Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Table Card Section -->
+        <div class="card card-custom">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th># ID</th>
+                                <th>Msimbo (Code)</th>
+                                <th>Bei (TZS)</th>
+                                <th>Kifurushi</th>
+                                <th>Tarehe Iliyotumika</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in transactions %}
+                            <tr>
+                                <td class="fw-bold text-secondary">#{{ tx.id }}</td>
+                                <td><span class="badge-code">{{ tx.code }}</span></td>
+                                <td class="fw-semibold text-success">TZS {{ "{:,}".format(tx.price) }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-medium">
+                                        <i class="fas fa-wifi text-primary me-1"></i> {{ tx.profile }}
+                                    </span>
+                                </td>
+                                <td class="text-muted small">
+                                    <i class="far fa-clock me-1"></i> {{ tx.get('used_at', '-') }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5">
+                                    <div class="text-muted py-4">
+                                        <i class="fas fa-folder-open fa-3x mb-3 text-secondary opacity-50"></i>
+                                        <p class="mb-0 fw-medium">Hakuna miamala iliyorekodiwa bado.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
