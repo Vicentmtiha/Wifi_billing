@@ -42,9 +42,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ================= MIKROTIK CONFIG (Updated with ZeroTier IP) =================
+# ================= MIKROTIK CONFIG =================
 class MikrotikConfig:
-    HOST = os.getenv("MIKROTIK_HOST", "10.176.235.121")  # Imewekwa IP ya ZeroTier ya Ubuntu host / CHR
+    HOST = os.getenv("MIKROTIK_HOST", "10.176.235.121")
     PORT = int(os.getenv("MIKROTIK_PORT", 8728))
     USER = os.getenv("MIKROTIK_USER", "admin")
     PASS = os.getenv("MIKROTIK_PASS", "Venom@123")
@@ -250,6 +250,7 @@ class VoucherService:
         expired_count = 0
         try:
             now = datetime.now()
+            # 1. Cheki vocha ambazo hazijatumiwa na zimepitiliza siku 30
             vouchers = list(db.vouchers.find({"status": "unused", "expires_at": {"$lt": now}}))
             for v in vouchers:
                 db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "expired"}})
@@ -260,6 +261,11 @@ class VoucherService:
                         args=(v["code"],),
                         daemon=True
                     ).start()
+            
+            # 2. Sync na MikroTik Live Users kubaini zilizotumika au zilizoisha muda
+            if MikrotikConfig.ENABLED:
+                MikrotikService.sync_live_voucher_statuses()
+
         except Exception as e:
             logger.error(f"Error checking expiry: {e}")
         return expired_count
@@ -437,6 +443,63 @@ class MikrotikService:
                 except Exception:
                     pass
 
+    @staticmethod
+    def sync_live_voucher_statuses():
+        """
+        Kazi ya method hii:
+        1. Inasoma wateja wote kutoka MikroTik (/ip/hotspot/user).
+        2. Inasoma active users wote (/ip/hotspot/active).
+        3. Kama vocha haipo kabisa MikroTik lakini kwenye DB ipo 'used' au 'unused' na mteja alishatumia uptime -> inabadilishwa kuwa 'expired'.
+        4. Kama mteja yupo online au anatumia vocha -> status inabadilika kuwa 'used'.
+        """
+        api = None
+        try:
+            api = MikrotikService.get_api()
+            if not api:
+                return
+
+            mt_users = {u.get("name"): u for u in list(api.path("ip", "hotspot", "user"))}
+            mt_active = [u.get("user") for u in list(api.path("ip", "hotspot", "active"))]
+
+            db_vouchers = list(db.vouchers.find({"status": {"$in": ["unused", "used"]}}))
+
+            for v in db_vouchers:
+                code = v.get("code")
+                mt_u = mt_users.get(code)
+
+                # Kama vocha ipo kwenye Active List -> Badilisha status kuwa 'used'
+                if code in mt_active:
+                    if v.get("status") != "used":
+                        db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "used", "used_at": datetime.now()}})
+                    continue
+
+                if mt_u:
+                    uptime = mt_u.get("uptime", "0s")
+                    limit_uptime = mt_u.get("limit-uptime", "")
+                    bytes_out = int(mt_u.get("bytes-out", 0))
+
+                    # Ukaguzi 1: Kama uptime umefikia limit -> Expired
+                    if limit_uptime and uptime == limit_uptime:
+                        db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "expired"}})
+                        MikrotikService.remove_user_from_mikrotik(code)
+                    # Ukaguzi 2: Kama bytes zimeanza kutoka/kuingia -> Mark as used
+                    elif bytes_out > 0 or uptime != "0s":
+                        if v.get("status") != "used":
+                            db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "used"}})
+                else:
+                    # Kama haipo MikroTik lakini DB bado inaonyesha ipo active -> Mark Expired
+                    if v.get("status") == "used":
+                        db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "expired"}})
+
+        except Exception as e:
+            logger.error(f"Error syncing live status with Mikrotik: {e}")
+        finally:
+            if api:
+                try:
+                    api.close()
+                except Exception:
+                    pass
+
 
 # ================= USER SERVICE (MongoDB) =================
 class UserService:
@@ -576,14 +639,14 @@ def get_current_user(request: Request) -> str:
     return request.session.get("user", "Guest")
 
 
-# ================= BACKGROUND WORKER =================
+# ================= BACKGROUND WORKER (Fast 15-second sync) =================
 def expiry_worker():
     while True:
         try:
             VoucherService.check_and_expire_vouchers()
         except Exception as e:
             logger.error(f"Error in expiry worker: {e}")
-        time.sleep(300)
+        time.sleep(15)  # Imepunguzwa kuwa sekunde 15 ili status ibadilike haraka!
 
 threading.Thread(target=expiry_worker, daemon=True).start()
 
@@ -645,10 +708,7 @@ def hotspot_login(voucher: str = Form(...), mac: str = Form("")):
     if not voucher_obj:
         return {"status": "error", "message": "Voucher haipo au ni makosa!"}
 
-    if voucher_obj["status"] != "unused":
-        return {"status": "error", "message": "Voucher tayari imetumika!"}
-
-    if voucher_obj["expires_at"] < datetime.now():
+    if voucher_obj["status"] == "expired":
         return {"status": "error", "message": "Voucher muda wake umekwisha!"}
 
     success = VoucherService.mark_used(voucher_obj["id"], mac)
@@ -688,10 +748,44 @@ def kick_user(request: Request, active_id: str):
     return RedirectResponse("/active-users", status_code=303)
 
 
+# ================= TRANSACTIONS & SMS GATEWAY ROUTES =================
+@app.get("/transactions", response_class=HTMLResponse)
+@login_required
+def transactions_page(request: Request):
+    all_vouchers = VoucherService.get_all_vouchers()
+    used_vouchers = [v for v in all_vouchers if v.get('status') == 'used']
+    
+    return templates.TemplateResponse(
+        request=request,
+        name="transactions.html",
+        context={
+            "request": request,
+            "transactions": used_vouchers,
+            "user": get_current_user(request)
+        }
+    )
+
+@app.get("/sms-gateway", response_class=HTMLResponse)
+@login_required
+def sms_gateway_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="sms_gateway.html",
+        context={
+            "request": request,
+            "user": get_current_user(request)
+        }
+    )
+
+
 # ================= DASHBOARD =================
 @app.get("/dashboard")
 @login_required
 def dashboard(request: Request):
+    # Fanya Sync ya haraka kwanza kabla ya kurender Dashboard context
+    if MikrotikConfig.ENABLED:
+        MikrotikService.sync_live_voucher_statuses()
+
     all_vouchers = VoucherService.get_all_vouchers()
     expired_vouchers = [v for v in all_vouchers if v.get('status') == 'expired']
     active_list = MikrotikService.get_active_users()
@@ -966,6 +1060,9 @@ def delete_package(request: Request, pkg_id: int):
 @app.get("/vouchers")
 @login_required
 def vouchers(request: Request):
+    if MikrotikConfig.ENABLED:
+        MikrotikService.sync_live_voucher_statuses()
+        
     return templates.TemplateResponse(
         request=request,
         name="vouchers.html",
@@ -1040,7 +1137,7 @@ def print_vouchers(request: Request):
 
 
 # ================= REPORTS =================
-@app.reports if False else app.get("/reports")
+@app.get("/reports")
 @login_required
 def reports(request: Request):
     all_vouchers = VoucherService.get_all_vouchers()
