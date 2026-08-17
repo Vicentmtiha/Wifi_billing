@@ -350,7 +350,6 @@
     pointer-events: none;
   }
 
-  /* Dynamic Flow Animation along Cables */
   .wire-flow-cyan {
     stroke-dasharray: 8, 12;
     animation: wireDash 1s linear infinite;
@@ -365,9 +364,7 @@
   }
 
   @keyframes wireDash {
-    to {
-      stroke-dashoffset: -40;
-    }
+    to { stroke-dashoffset: -40; }
   }
 
   /* TABLES & BADGES */
@@ -464,53 +461,53 @@
     box-shadow: 0 8px 30px rgba(0,0,0,.55);
   }
   .installer-chip {
-    display:inline-flex;
-    align-items:center;
-    gap:7px;
-    padding:6px 10px;
-    border-radius:999px;
-    font-family:'Orbitron',sans-serif;
-    font-size:9px;
-    border:1px solid var(--border-cyber);
-    background:rgba(0,243,255,.04);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    border: 1px solid var(--border-cyber);
+    background: rgba(0,243,255,.04);
   }
   .router-field {
-    background:#050b16 !important;
-    color:#f1f5f9 !important;
-    border:1px solid rgba(0,243,255,.22) !important;
-    border-radius:9px !important;
+    background: #050b16 !important;
+    color: #f1f5f9 !important;
+    border: 1px solid rgba(0,243,255,.22) !important;
+    border-radius: 9px !important;
   }
   .router-field:focus {
-    border-color:var(--neon-cyan) !important;
-    box-shadow:0 0 0 .2rem rgba(0,243,255,.08) !important;
+    border-color: var(--neon-cyan) !important;
+    box-shadow: 0 0 0 .2rem rgba(0,243,255,.08) !important;
   }
   .terminal-box {
-    background:#010409;
-    border:1px solid rgba(0,243,255,.2);
-    border-radius:10px;
-    padding:14px;
-    color:#b9faff;
-    font-family:monospace;
-    font-size:11px;
-    line-height:1.55;
-    min-height:180px;
-    max-height:320px;
-    overflow:auto;
-    white-space:pre-wrap;
+    background: #010409;
+    border: 1px solid rgba(0,243,255,.2);
+    border-radius: 10px;
+    padding: 14px;
+    color: #b9faff;
+    font-family: monospace;
+    font-size: 11px;
+    line-height: 1.55;
+    min-height: 180px;
+    max-height: 320px;
+    overflow: auto;
+    white-space: pre-wrap;
   }
   .model-box {
-    border:1px solid rgba(0,255,136,.25);
-    background:rgba(0,255,136,.035);
-    border-radius:12px;
-    padding:15px;
+    border: 1px solid rgba(0,255,136,.25);
+    background: rgba(0,255,136,.035);
+    border-radius: 12px;
+    padding: 15px;
   }
   .step-dot {
-    width:28px;height:28px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;
-    background:rgba(0,243,255,.08);
-    border:1px solid rgba(0,243,255,.35);
-    color:var(--neon-cyan);
-    font-family:'Orbitron';font-size:10px;font-weight:800;
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,243,255,.08);
+    border: 1px solid rgba(0,243,255,.35);
+    color: var(--neon-cyan);
+    font-family: 'Orbitron'; font-size: 10px; font-weight: 800;
   }
   @media(max-width: 900px){
     .sidebar{width:235px}
@@ -521,7 +518,6 @@
     .sidebar{position:relative;width:100%;height:auto}
     .main{margin-left:0;padding:20px}
   }
-
 </style>
 </head>
 <body>
@@ -665,7 +661,6 @@
                     <!-- SVG ANIMATED CABLES WITH LASER PARTICLES -->
                     <svg class="svg-wire-overlay" viewBox="0 0 1000 330" preserveAspectRatio="none">
                         <defs>
-                            <!-- Glow Filters -->
                             <filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
                                 <feGaussianBlur stdDeviation="4" result="blur" />
                                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
@@ -679,7 +674,6 @@
                                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
                             </filter>
 
-                            <!-- Gradient Definitions -->
                             <linearGradient id="grad-cyan" x1="0%" y1="0%" x2="0%" y2="100%">
                                 <stop offset="0%" stop-color="#00f3ff" stop-opacity="1"/>
                                 <stop offset="100%" stop-color="#0088ff" stop-opacity="0.8"/>
@@ -694,39 +688,25 @@
                             </linearGradient>
                         </defs>
 
-                        <!-- STATIC BACKBONE CABLE PATHS -->
                         <path id="path-wan1" d="M 83,105 L 83,195 L 180,250" fill="none" stroke="url(#grad-cyan)" stroke-width="3" opacity="0.4" />
                         <path id="path-eth2" d="M 250,105 L 250,185 L 430,250" fill="none" stroke="url(#grad-green)" stroke-width="3" opacity="0.4" />
                         <path id="path-eth3" d="M 416,105 L 416,195 L 500,250" fill="none" stroke="url(#grad-green)" stroke-width="3" opacity="0.4" />
                         <path id="path-eth5" d="M 750,105 L 750,195 L 570,250" fill="none" stroke="url(#grad-green)" stroke-width="3" opacity="0.4" />
                         <path id="path-sfp" d="M 916,105 L 916,195 L 820,250" fill="none" stroke="url(#grad-purple)" stroke-width="3" opacity="0.4" />
 
-                        <!-- ANIMATED LASER DASH FLOW LAYERS -->
                         <path d="M 83,105 L 83,195 L 180,250" fill="none" stroke="#00f3ff" stroke-width="3.5" class="wire-flow-cyan" filter="url(#glow-cyan)" />
                         <path d="M 250,105 L 250,185 L 430,250" fill="none" stroke="#00ff88" stroke-width="3" class="wire-flow-green" filter="url(#glow-green)" />
                         <path d="M 416,105 L 416,195 L 500,250" fill="none" stroke="#00ff88" stroke-width="3" class="wire-flow-green" filter="url(#glow-green)" />
                         <path d="M 750,105 L 750,195 L 570,250" fill="none" stroke="#00ff88" stroke-width="3" class="wire-flow-green" filter="url(#glow-green)" />
                         <path d="M 916,105 L 916,195 L 820,250" fill="none" stroke="#b537f2" stroke-width="3.5" class="wire-flow-purple" filter="url(#glow-purple)" />
 
-                        <!-- REALTIME MOVING DATA PARTICLES (CIRCLES TRAVELLING ALONG PATHS) -->
-                        <circle r="4" fill="#ffffff" filter="url(#glow-cyan)">
-                            <animateMotion path="M 83,105 L 83,195 L 180,250" dur="1.2s" repeatCount="indefinite" />
-                        </circle>
-                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)">
-                            <animateMotion path="M 250,105 L 250,185 L 430,250" dur="1.6s" repeatCount="indefinite" />
-                        </circle>
-                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)">
-                            <animateMotion path="M 416,105 L 416,195 L 500,250" dur="1.4s" repeatCount="indefinite" />
-                        </circle>
-                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)">
-                            <animateMotion path="M 750,105 L 750,195 L 570,250" dur="1.5s" repeatCount="indefinite" />
-                        </circle>
-                        <circle r="4" fill="#ffffff" filter="url(#glow-purple)">
-                            <animateMotion path="M 916,105 L 916,195 L 820,250" dur="0.9s" repeatCount="indefinite" />
-                        </circle>
+                        <circle r="4" fill="#ffffff" filter="url(#glow-cyan)"><animateMotion path="M 83,105 L 83,195 L 180,250" dur="1.2s" repeatCount="indefinite" /></circle>
+                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)"><animateMotion path="M 250,105 L 250,185 L 430,250" dur="1.6s" repeatCount="indefinite" /></circle>
+                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)"><animateMotion path="M 416,105 L 416,195 L 500,250" dur="1.4s" repeatCount="indefinite" /></circle>
+                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)"><animateMotion path="M 750,105 L 750,195 L 570,250" dur="1.5s" repeatCount="indefinite" /></circle>
+                        <circle r="4" fill="#ffffff" filter="url(#glow-purple)"><animateMotion path="M 916,105 L 916,195 L 820,250" dur="0.9s" repeatCount="indefinite" /></circle>
                     </svg>
 
-                    <!-- HARDWARE CORE HUBS -->
                     <div class="cyber-hub">
                         <div class="hub-node text-info"><i class="fa-solid fa-globe"></i> ISP BACKBONE CORE</div>
                         <div class="hub-node text-success"><i class="fa-solid fa-server"></i> MIKROTIK HOTSPOT GATEWAY</div>
@@ -736,7 +716,6 @@
             </div>
         </div>
     </div>
-
 
     <!-- MIKROTIK NEW ROUTER INSTALLER -->
     <div class="row g-4 mb-4">
@@ -1563,8 +1542,6 @@ add name=bridge-hotspot comment="CORE-WISP Hotspot Bridge"`;
 
 # BRIDGE PORTS
 # Add only the LAN ports you actually want in the hotspot bridge.
-# Example:
-# /interface bridge port add bridge=bridge-hotspot interface=ether2
 `;
 
         s += `
@@ -1625,7 +1602,6 @@ set api disabled=no
 set api-ssl disabled=yes
 
 # FINISHED
-# Next: upload your CORE-WISP hotspot files and connect the billing system.
 `;
 
         return s;
@@ -1708,7 +1684,7 @@ set api-ssl disabled=yes
             showInstallerAlert('Browser imekataa clipboard. Copy manually kutoka terminal box.', 'warning');
         }
     });
-
 </script>
 </body>
 </html>
+```[cite: 9]

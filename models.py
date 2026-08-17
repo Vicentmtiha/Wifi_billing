@@ -47,4 +47,5 @@ class User(Base):
     password = Column(String)
 
     role = Column(String, default="staff")
-    status = Column(String, default="active")
+    status = Column(String, default="pending")  # Badilisha kutoka 'active' iwe 'pending'
+    created_at = Column(DateTime, default=datetime.now)  # Muhimu kuonyesha tarehe ya ombi

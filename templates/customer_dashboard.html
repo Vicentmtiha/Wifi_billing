@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Customer Dashboard - CORE WISP</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
+
+    <style>
+        body {
+            background: #f5f7fb;
+            font-family: Arial, sans-serif;
+        }
+
+        .sidebar {
+            width: 250px;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            background: #111827;
+            color: white;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .brand {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            padding: 10px;
+        }
+
+        .brand span {
+            color: #22c55e;
+        }
+
+        .menu-title {
+            font-size: 11px;
+            color: #9ca3af;
+            margin: 20px 10px 8px;
+            text-transform: uppercase;
+        }
+
+        .sidebar a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #d1d5db;
+            text-decoration: none;
+            padding: 12px 14px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #1f2937;
+            color: white;
+        }
+
+        .sidebar a.active {
+            border-left: 3px solid #22c55e;
+        }
+
+        .logout {
+            color: #f87171 !important;
+        }
+
+        .main {
+            margin-left: 250px;
+            padding: 25px;
+        }
+
+        .topbar {
+            background: white;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        }
+
+        .welcome h4 {
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .welcome p {
+            margin: 3px 0 0;
+            color: #6b7280;
+        }
+
+        .profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .profile-icon {
+            width: 42px;
+            height: 42px;
+            background: #dcfce7;
+            color: #16a34a;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            height: 100%;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #eef2ff;
+            color: #4f46e5;
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+
+        .stat-title {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            margin-top: 5px;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            margin-top: 25px;
+        }
+
+        .section-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .section-title h5 {
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .router-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            padding: 5px 9px;
+            border-radius: 20px;
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            background: #22c55e;
+            border-radius: 50%;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 35px 20px;
+            color: #6b7280;
+        }
+
+        .empty-state i {
+            font-size: 40px;
+            color: #9ca3af;
+            margin-bottom: 15px;
+        }
+
+        .quick-action {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 15px;
+            text-decoration: none;
+            color: #111827;
+            display: block;
+            transition: 0.2s;
+        }
+
+        .quick-action:hover {
+            background: #f9fafb;
+            transform: translateY(-2px);
+        }
+
+        .quick-action i {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: #16a34a;
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                width: 210px;
+            }
+
+            .main {
+                margin-left: 210px;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+            }
+
+            .main {
+                margin-left: 0;
+            }
+
+            .topbar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- ================= SIDEBAR ================= -->
+
+<div class="sidebar">
+
+    <div class="brand">
+        CORE<span>WISP</span>
+    </div>
+
+    <div class="menu-title">Main</div>
+
+    <a href="/customer/dashboard" class="active">
+        <i class="fa-solid fa-chart-line"></i>
+        <span>Dashboard</span>
+    </a>
+
+    <a href="/customer/routers">
+        <i class="fa-solid fa-router"></i>
+        <span>My Routers</span>
+    </a>
+
+    <a href="/customer/vouchers">
+        <i class="fa-solid fa-ticket"></i>
+        <span>My Vouchers</span>
+    </a>
+
+    <a href="/customer/packages">
+        <i class="fa-solid fa-box"></i>
+        <span>My Packages</span>
+    </a>
+
+    <div class="menu-title">Management</div>
+
+    <a href="/customer/clients">
+        <i class="fa-solid fa-users"></i>
+        <span>My Clients</span>
+    </a>
+
+    <a href="/customer/traffic">
+        <i class="fa-solid fa-chart-area"></i>
+        <span>Traffic</span>
+    </a>
+
+    <a href="/customer/reports">
+        <i class="fa-solid fa-file-lines"></i>
+        <span>Reports</span>
+    </a>
+
+    <div class="menu-title">Account</div>
+
+    <a href="/customer/profile">
+        <i class="fa-solid fa-user"></i>
+        <span>My Account</span>
+    </a>
+
+    <a href="/logout" class="logout">
+        <i class="fa-solid fa-right-from-bracket"></i>
+        <span>Logout</span>
+    </a>
+
+</div>
+
+
+<!-- ================= MAIN ================= -->
+
+<div class="main">
+
+    <!-- TOP BAR -->
+
+    <div class="topbar">
+
+        <div class="welcome">
+            <h4>
+                Welcome,
+                {{ user or "Customer" }}
+            </h4>
+
+            <p>
+                Manage your WiFi business from your dashboard.
+            </p>
+        </div>
+
+        <div class="profile">
+
+            <div>
+                <strong>{{ user or "Customer" }}</strong>
+                <div style="font-size:12px;color:#6b7280;">
+                    Customer Account
+                </div>
+            </div>
+
+            <div class="profile-icon">
+                <i class="fa-solid fa-user"></i>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= STATISTICS ================= -->
+
+    <div class="row g-4">
+
+        <!-- Routers -->
+
+        <div class="col-lg-3 col-md-6">
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    <i class="fa-solid fa-router"></i>
+                </div>
+
+                <div class="stat-title">
+                    My Routers
+                </div>
+
+                <div class="stat-number">
+                    {{ total_routers or 0 }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Vouchers -->
+
+        <div class="col-lg-3 col-md-6">
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    <i class="fa-solid fa-ticket"></i>
+                </div>
+
+                <div class="stat-title">
+                    My Vouchers
+                </div>
+
+                <div class="stat-number">
+                    {{ total_vouchers or 0 }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Clients -->
+
+        <div class="col-lg-3 col-md-6">
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+
+                <div class="stat-title">
+                    Active Clients
+                </div>
+
+                <div class="stat-number">
+                    {{ active_clients or 0 }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Packages -->
+
+        <div class="col-lg-3 col-md-6">
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    <i class="fa-solid fa-box"></i>
+                </div>
+
+                <div class="stat-title">
+                    My Packages
+                </div>
+
+                <div class="stat-number">
+                    {{ total_packages or 0 }}
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= ROUTER ================= -->
+
+    <div class="section-card">
+
+        <div class="section-title">
+
+            <h5>
+                <i class="fa-solid fa-router me-2"></i>
+                My Routers
+            </h5>
+
+            <a href="/customer/routers"
+               class="btn btn-sm btn-success">
+                <i class="fa-solid fa-plus me-1"></i>
+                Add Router
+            </a>
+
+        </div>
+
+
+        {% if routers %}
+
+        <div class="table-responsive">
+
+            <table class="table align-middle">
+
+                <thead>
+
+                    <tr>
+                        <th>Router Name</th>
+                        <th>IP Address</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for router in routers %}
+
+                    <tr>
+
+                        <td>
+                            <strong>
+                                {{ router.name }}
+                            </strong>
+                        </td>
+
+                        <td>
+                            {{ router.host }}
+                        </td>
+
+                        <td>
+
+                            {% if router.status == "online" %}
+
+                            <span class="router-status">
+                                <span class="status-dot"></span>
+                                Online
+                            </span>
+
+                            {% else %}
+
+                            <span class="badge bg-secondary">
+                                Offline
+                            </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            <a href="/customer/routers/{{ router.id }}"
+                               class="btn btn-sm btn-outline-primary">
+                                Manage
+                            </a>
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        {% else %}
+
+        <div class="empty-state">
+
+            <i class="fa-solid fa-router"></i>
+
+            <h5>No Router Connected</h5>
+
+            <p>
+                You haven't added a MikroTik router yet.
+            </p>
+
+            <a href="/customer/routers"
+               class="btn btn-success">
+
+                <i class="fa-solid fa-plus me-1"></i>
+                Add Your First Router
+
+            </a>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+
+    <!-- ================= QUICK ACTIONS ================= -->
+
+    <div class="section-card">
+
+        <div class="section-title">
+
+            <h5>
+                Quick Actions
+            </h5>
+
+        </div>
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+
+                <a href="/customer/routers"
+                   class="quick-action">
+
+                    <i class="fa-solid fa-router"></i>
+
+                    <div>
+                        <strong>Add Router</strong>
+                    </div>
+
+                    <small class="text-muted">
+                        Connect your MikroTik
+                    </small>
+
+                </a>
+
+            </div>
+
+
+            <div class="col-md-3">
+
+                <a href="/customer/vouchers"
+                   class="quick-action">
+
+                    <i class="fa-solid fa-ticket"></i>
+
+                    <div>
+                        <strong>Generate Voucher</strong>
+                    </div>
+
+                    <small class="text-muted">
+                        Create WiFi vouchers
+                    </small>
+
+                </a>
+
+            </div>
+
+
+            <div class="col-md-3">
+
+                <a href="/customer/packages"
+                   class="quick-action">
+
+                    <i class="fa-solid fa-box"></i>
+
+                    <div>
+                        <strong>Packages</strong>
+                    </div>
+
+                    <small class="text-muted">
+                        Manage WiFi packages
+                    </small>
+
+                </a>
+
+            </div>
+
+
+            <div class="col-md-3">
+
+                <a href="/customer/reports"
+                   class="quick-action">
+
+                    <i class="fa-solid fa-chart-column"></i>
+
+                    <div>
+                        <strong>Reports</strong>
+                    </div>
+
+                    <small class="text-muted">
+                        View business reports
+                    </small>
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= ACCOUNT NOTICE ================= -->
+
+    <div class="section-card">
+
+        <div class="alert alert-info mb-0">
+
+            <i class="fa-solid fa-circle-info me-2"></i>
+
+            <strong>Account:</strong>
+
+            Your customer account is managed through the CORE WISP
+            billing system.
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
+</script>
+
+</body>
+</html>
