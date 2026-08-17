@@ -1,4 +1,4 @@
-#!/home/vicent/wifi_billing/venv/bin/python3
+#!/home/vicent/Wifi_billing/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

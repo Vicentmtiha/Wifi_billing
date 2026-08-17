@@ -5,6 +5,7 @@ import logging
 import threading
 import time
 import re
+import ipaddress
 from datetime import datetime, timedelta
 from typing import Optional
 from functools import wraps
@@ -1153,6 +1154,575 @@ def reports(request: Request):
         "total_expired": len([v for v in all_vouchers if v.get("status") == "expired"])
     }
     return templates.TemplateResponse(request=request, name="reports.html", context=context)
+
+
+
+# ================= MIKROTIK NEW ROUTER INSTALLER =================
+def _installer_connection(host: str, port: int, username: str, password: str):
+    """Create a temporary API connection using credentials supplied by the installer UI."""
+    if not host or not username:
+        raise ValueError("Router host na username vinahitajika.")
+    if not password:
+        raise ValueError("Router password inahitajika.")
+    try:
+        port = int(port or 8728)
+    except (TypeError, ValueError):
+        port = 8728
+
+    return connect(
+        host=host.strip(),
+        username=username.strip(),
+        password=password,
+        port=port,
+        timeout=8
+    )
+
+
+def _installer_read_resource(api):
+    try:
+        return next(iter(api.path("system", "resource")), {})
+    except Exception:
+        return {}
+
+
+def _installer_read_routerboard(api):
+    try:
+        return next(iter(api.path("system", "routerboard")), {})
+    except Exception:
+        return {}
+
+
+def _installer_read_interfaces(api):
+    try:
+        rows = list(api.path("interface"))
+        result = []
+        for item in rows:
+            name = item.get("name")
+            if name:
+                result.append({
+                    "name": name,
+                    "type": item.get("type", ""),
+                    "running": item.get("running", False),
+                    "disabled": item.get("disabled", False)
+                })
+        return result
+    except Exception:
+        return []
+
+
+def _installer_detect(host: str, port: int, username: str, password: str):
+    api = None
+    try:
+        api = _installer_connection(host, port, username, password)
+        resource = _installer_read_resource(api)
+        board = _installer_read_routerboard(api)
+        interfaces = _installer_read_interfaces(api)
+
+        model = (
+            board.get("model")
+            or resource.get("board-name")
+            or resource.get("board_name")
+            or "Unknown"
+        )
+
+        serial = (
+            board.get("serial-number")
+            or resource.get("serial-number")
+            or resource.get("serial_number")
+            or "Unknown"
+        )
+
+        return {
+            "success": True,
+            "model": model,
+            "board_name": resource.get("board-name", model),
+            "routeros": resource.get("version", "Unknown"),
+            "version": resource.get("version", "Unknown"),
+            "architecture": resource.get("architecture-name", "Unknown"),
+            "serial": serial,
+            "cpu": resource.get("cpu", ""),
+            "cpu_count": resource.get("cpu-count", ""),
+            "total_memory": resource.get("total-memory", ""),
+            "free_memory": resource.get("free-memory", ""),
+            "uptime": resource.get("uptime", ""),
+            "interfaces": interfaces
+        }
+    finally:
+        if api:
+            try:
+                api.close()
+            except Exception:
+                pass
+
+
+def _installer_script(
+    model: str,
+    routeros: str,
+    wan: str,
+    ip_cidr: str,
+    pool_range: str,
+    dns_name: str,
+    hotspot_name: str,
+    install_nat: bool,
+    install_dhcp: bool,
+    install_dns: bool,
+    install_hotspot: bool,
+    lan_ports=None
+):
+    """Generate a RouterOS script for preview/download. Passwords are never placed in it."""
+    lan_ports = lan_ports or []
+    lines = [
+        "# =========================================================",
+        "# CORE-WISP - NEW MIKROTIK INSTALLATION",
+        f"# Model: {model or 'Unknown'}",
+        f"# RouterOS: {routeros or 'Unknown'}",
+        f"# WAN: {wan}",
+        "# IMPORTANT: Review before applying.",
+        "# No router password is stored in this script.",
+        "# =========================================================",
+        "",
+        "/system backup save name=corewisp-before-install",
+        "/export file=corewisp-before-install",
+        "",
+        f"/ip dhcp-client add interface={wan} disabled=no comment=\"CORE-WISP WAN DHCP\"",
+        "",
+        "/interface bridge add name=bridge-hotspot comment=\"CORE-WISP Hotspot Bridge\"",
+    ]
+
+    for port in lan_ports:
+        lines.append(
+            f"/interface bridge port add bridge=bridge-hotspot interface={port}"
+        )
+
+    lines += [
+        "",
+        f"/ip address add address={ip_cidr} interface=bridge-hotspot comment=\"CORE-WISP Gateway\""
+    ]
+
+    if install_dns:
+        lines += [
+            "",
+            "/ip dns set allow-remote-requests=yes servers=8.8.8.8,1.1.1.1"
+        ]
+
+    if install_nat:
+        lines += [
+            "",
+            f"/ip firewall nat add chain=srcnat out-interface={wan} action=masquerade comment=\"CORE-WISP Internet NAT\""
+        ]
+
+    if install_dhcp:
+        lines += [
+            "",
+            f"/ip pool add name=hs-pool-core ranges={pool_range}",
+            "/ip dhcp-server add name=dhcp-hotspot interface=bridge-hotspot address-pool=hs-pool-core lease-time=30m disabled=no",
+            "/ip dhcp-server network add address=10.10.10.0/24 gateway=10.10.10.1 dns-server=10.10.10.1"
+        ]
+
+    if install_hotspot:
+        lines += [
+            "",
+            f"/ip hotspot profile add name=hsprof-core hotspot-address=10.10.10.1 dns-name={dns_name} html-directory=hotspot login-by=http-chap,http-pap",
+            f"/ip hotspot add name={hotspot_name} interface=bridge-hotspot address-pool=hs-pool-core profile=hsprof-core disabled=no"
+        ]
+
+    lines += [
+        "",
+        "/ip service set telnet disabled=yes",
+        "/ip service set ftp disabled=yes",
+        "/ip service set www disabled=yes",
+        "/ip service set api disabled=no",
+        "",
+        "# END CORE-WISP INSTALL"
+    ]
+    return "\n".join(lines)
+
+
+def _installer_apply(
+    host: str,
+    port: int,
+    username: str,
+    password: str,
+    wan: str,
+    ip_cidr: str,
+    pool_range: str,
+    dns_name: str,
+    hotspot_name: str,
+    install_nat: bool,
+    install_dhcp: bool,
+    install_dns: bool,
+    install_hotspot: bool
+):
+    """Apply a safe, idempotent-ish base configuration without resetting the router."""
+    api = None
+    changes = []
+    warnings = []
+
+    def add_once(path_obj, finder, **kwargs):
+        try:
+            existing = list(path_obj)
+            if any(finder(x) for x in existing):
+                return False
+            path_obj.add(**kwargs)
+            return True
+        except Exception as exc:
+            warnings.append(str(exc))
+            return False
+
+    try:
+        api = _installer_connection(host, port, username, password)
+
+        # 1. Backup first.
+        try:
+            api.path("system", "backup").save(name="corewisp-before-install")
+            changes.append("Backup created: corewisp-before-install")
+        except Exception as exc:
+            warnings.append(f"Backup failed: {exc}")
+
+        # 2. Detect all ethernet ports and put every ethernet port except WAN into hotspot bridge.
+        interfaces = _installer_read_interfaces(api)
+        ethernet_ports = [
+            x["name"] for x in interfaces
+            if x.get("name", "").lower().startswith("ether")
+            and x.get("name") != wan
+            and not x.get("disabled", False)
+        ]
+
+        bridge_path = api.path("interface", "bridge")
+        bridge_created = add_once(
+            bridge_path,
+            lambda x: x.get("name") == "bridge-hotspot",
+            name="bridge-hotspot",
+            comment="CORE-WISP Hotspot Bridge"
+        )
+        if bridge_created:
+            changes.append("Created bridge-hotspot")
+
+        bridge_port_path = api.path("interface", "bridge", "port")
+        for port_name in ethernet_ports:
+            if add_once(
+                bridge_port_path,
+                lambda x, pn=port_name: x.get("bridge") == "bridge-hotspot"
+                and x.get("interface") == pn,
+                bridge="bridge-hotspot",
+                interface=port_name
+            ):
+                changes.append(f"Added {port_name} to bridge-hotspot")
+
+        # 3. WAN DHCP client.
+        dhcp_client_path = api.path("ip", "dhcp-client")
+        if add_once(
+            dhcp_client_path,
+            lambda x: x.get("interface") == wan,
+            interface=wan,
+            disabled="no",
+            comment="CORE-WISP WAN DHCP"
+        ):
+            changes.append(f"WAN DHCP client on {wan}")
+
+        # 4. Gateway address.
+        ip_interface = ipaddress.ip_interface(ip_cidr)
+        network = ip_interface.network
+        gateway_ip = str(ip_interface.ip)
+
+        address_path = api.path("ip", "address")
+        if add_once(
+            address_path,
+            lambda x: x.get("interface") == "bridge-hotspot"
+            and str(x.get("address", "")).split("/")[0] == gateway_ip,
+            address=ip_cidr,
+            interface="bridge-hotspot",
+            comment="CORE-WISP Gateway"
+        ):
+            changes.append(f"Gateway address {ip_cidr}")
+
+        # 5. DNS.
+        if install_dns:
+            try:
+                api.path("ip", "dns").set(
+                    **{"allow-remote-requests": "yes", "servers": "8.8.8.8,1.1.1.1"}
+                )
+                changes.append("DNS configured")
+            except Exception as exc:
+                warnings.append(f"DNS configuration failed: {exc}")
+
+        # 6. NAT.
+        if install_nat:
+            nat_path = api.path("ip", "firewall", "nat")
+            if add_once(
+                nat_path,
+                lambda x: x.get("chain") == "srcnat"
+                and x.get("action") == "masquerade"
+                and x.get("out-interface") == wan,
+                chain="srcnat",
+                **{"out-interface": wan},
+                action="masquerade",
+                comment="CORE-WISP Internet NAT"
+            ):
+                changes.append("Internet NAT configured")
+
+        # 7. DHCP pool + server + network.
+        if install_dhcp:
+            pool_path = api.path("ip", "pool")
+            pool_created = add_once(
+                pool_path,
+                lambda x: x.get("name") == "hs-pool-core",
+                name="hs-pool-core",
+                ranges=pool_range
+            )
+            if pool_created:
+                changes.append(f"DHCP pool {pool_range}")
+
+            dhcp_server_path = api.path("ip", "dhcp-server")
+            if add_once(
+                dhcp_server_path,
+                lambda x: x.get("name") == "dhcp-hotspot",
+                name="dhcp-hotspot",
+                interface="bridge-hotspot",
+                **{"address-pool": "hs-pool-core", "lease-time": "30m", "disabled": "no"}
+            ):
+                changes.append("DHCP server created")
+
+            network_path = api.path("ip", "dhcp-server", "network")
+            network_address = str(network)
+            if add_once(
+                network_path,
+                lambda x: x.get("address") == network_address,
+                address=network_address,
+                gateway=gateway_ip,
+                **{"dns-server": gateway_ip}
+            ):
+                changes.append(f"DHCP network {network_address}")
+
+        # 8. Hotspot profile + server.
+        if install_hotspot:
+            profile_path = api.path("ip", "hotspot", "profile")
+            if add_once(
+                profile_path,
+                lambda x: x.get("name") == "hsprof-core",
+                name="hsprof-core",
+                **{
+                    "hotspot-address": gateway_ip,
+                    "dns-name": dns_name,
+                    "html-directory": "hotspot",
+                    "login-by": "http-chap,http-pap"
+                }
+            ):
+                changes.append("Hotspot profile created")
+
+            hotspot_path = api.path("ip", "hotspot")
+            if add_once(
+                hotspot_path,
+                lambda x: x.get("name") == hotspot_name,
+                name=hotspot_name,
+                interface="bridge-hotspot",
+                **{"address-pool": "hs-pool-core", "profile": "hsprof-core", "disabled": "no"}
+            ):
+                changes.append(f"Hotspot {hotspot_name} created")
+
+        # 9. Basic service hardening.
+        try:
+            services = api.path("ip", "service")
+            service_rows = list(services)
+            for service_name in ("telnet", "ftp", "www"):
+                row = next((x for x in service_rows if x.get("name") == service_name), None)
+                if row and row.get("disabled") != "true":
+                    services.set(**{".id": row[".id"], "disabled": "yes"})
+            changes.append("Disabled telnet/ftp/www services")
+        except Exception as exc:
+            warnings.append(f"Service hardening warning: {exc}")
+
+        return {
+            "success": True,
+            "message": "MikroTik installation imekamilika.",
+            "changes": changes,
+            "warnings": warnings,
+            "wan": wan,
+            "gateway": gateway_ip,
+            "network": str(network),
+            "ethernet_ports_used": ethernet_ports
+        }
+
+    except Exception as exc:
+        logger.error(f"MikroTik installer error: {exc}")
+        return {
+            "success": False,
+            "message": f"Installation failed: {str(exc)}",
+            "changes": changes,
+            "warnings": warnings
+        }
+    finally:
+        if api:
+            try:
+                api.close()
+            except Exception:
+                pass
+
+
+@app.get("/mikrotik-installer")
+@login_required
+def mikrotik_installer_page(request: Request):
+    """
+    Route for the installer menu.
+    The installer UI is embedded in the main dashboard HTML.
+    """
+    return RedirectResponse("/dashboard", status_code=303)
+
+
+@app.post("/mikrotik/detect")
+@login_required
+async def mikrotik_detect(request: Request):
+    """
+    Detect MikroTik model, RouterOS version, architecture, serial and interfaces
+    using credentials supplied by the installer page.
+    """
+    try:
+        data = await request.json()
+        result = _installer_detect(
+            host=str(data.get("host", "")).strip(),
+            port=int(data.get("port") or 8728),
+            username=str(data.get("username", "")).strip(),
+            password=str(data.get("password", ""))
+        )
+        return JSONResponse(result, status_code=200)
+    except Exception as exc:
+        logger.error(f"MikroTik detection failed: {exc}")
+        return JSONResponse(
+            {"success": False, "message": f"Imeshindwa ku-detect router: {str(exc)}"},
+            status_code=400
+        )
+
+
+@app.post("/mikrotik/install")
+@login_required
+async def mikrotik_install(request: Request):
+    """
+    Install the CORE-WISP base configuration on a new MikroTik.
+    The script sent by the browser is NOT executed blindly; configuration
+    is rebuilt server-side from validated fields.
+    """
+    try:
+        data = await request.json()
+
+        host = str(data.get("host", "")).strip()
+        port = int(data.get("port") or 8728)
+        username = str(data.get("username", "")).strip()
+        password = str(data.get("password", ""))
+
+        wan = str(data.get("wan") or "ether1").strip()
+        ip_cidr = str(data.get("ip_cidr") or "10.10.10.1/24").strip()
+        pool_range = str(data.get("pool_range") or "10.10.10.10-10.10.10.254").strip()
+        dns_name = str(data.get("dns_name") or "vicentwifi.local").strip()
+        hotspot_name = str(data.get("hotspot_name") or "hotspot1").strip()
+
+        install_nat = bool(data.get("install_nat", True))
+        install_dhcp = bool(data.get("install_dhcp", True))
+        install_dns = bool(data.get("install_dns", True))
+        install_hotspot = bool(data.get("install_hotspot", True))
+
+        # Validate IP/network before touching the router.
+        ipaddress.ip_interface(ip_cidr)
+
+        if not re.match(r"^[A-Za-z0-9_.:-]+$", wan):
+            raise ValueError("WAN interface si sahihi.")
+        if not re.match(r"^[A-Za-z0-9_.:-]+$", hotspot_name):
+            raise ValueError("Hotspot name si sahihi.")
+        if not re.match(r"^[A-Za-z0-9_.:-]+$", dns_name):
+            raise ValueError("DNS name si sahihi.")
+
+        # Detect first so we know the real ports/model.
+        detected = _installer_detect(host, port, username, password)
+        interfaces = detected.get("interfaces", [])
+        valid_interfaces = {x.get("name") for x in interfaces}
+        if valid_interfaces and wan not in valid_interfaces:
+            raise ValueError(
+                f"WAN interface '{wan}' haipo kwenye router. "
+                f"Interfaces: {', '.join(sorted(valid_interfaces))}"
+            )
+
+        result = _installer_apply(
+            host=host,
+            port=port,
+            username=username,
+            password=password,
+            wan=wan,
+            ip_cidr=ip_cidr,
+            pool_range=pool_range,
+            dns_name=dns_name,
+            hotspot_name=hotspot_name,
+            install_nat=install_nat,
+            install_dhcp=install_dhcp,
+            install_dns=install_dns,
+            install_hotspot=install_hotspot
+        )
+
+        result.update({
+            "model": detected.get("model"),
+            "routeros": detected.get("routeros"),
+            "architecture": detected.get("architecture"),
+            "serial": detected.get("serial")
+        })
+        return JSONResponse(result, status_code=200 if result.get("success") else 400)
+
+    except Exception as exc:
+        logger.error(f"MikroTik installation request failed: {exc}")
+        return JSONResponse(
+            {"success": False, "message": f"Kosa la installation: {str(exc)}"},
+            status_code=400
+        )
+
+
+@app.post("/mikrotik/generate-script")
+@login_required
+async def mikrotik_generate_script(request: Request):
+    """
+    Optional backend endpoint for generating the exact preview script.
+    """
+    try:
+        data = await request.json()
+        host = str(data.get("host", "")).strip()
+        port = int(data.get("port") or 8728)
+        username = str(data.get("username", "")).strip()
+        password = str(data.get("password", ""))
+
+        detected = _installer_detect(host, port, username, password)
+        interfaces = detected.get("interfaces", [])
+        ethernet = [
+            x.get("name") for x in interfaces
+            if x.get("name", "").lower().startswith("ether")
+            and x.get("name") != str(data.get("wan") or "ether1")
+        ]
+
+        script = _installer_script(
+            model=detected.get("model", "Unknown"),
+            routeros=detected.get("routeros", "Unknown"),
+            wan=str(data.get("wan") or "ether1"),
+            ip_cidr=str(data.get("ip_cidr") or "10.10.10.1/24"),
+            pool_range=str(data.get("pool_range") or "10.10.10.10-10.10.10.254"),
+            dns_name=str(data.get("dns_name") or "vicentwifi.local"),
+            hotspot_name=str(data.get("hotspot_name") or "hotspot1"),
+            install_nat=bool(data.get("install_nat", True)),
+            install_dhcp=bool(data.get("install_dhcp", True)),
+            install_dns=bool(data.get("install_dns", True)),
+            install_hotspot=bool(data.get("install_hotspot", True)),
+            lan_ports=ethernet
+        )
+        return JSONResponse({
+            "success": True,
+            "script": script,
+            "model": detected.get("model"),
+            "routeros": detected.get("routeros"),
+            "architecture": detected.get("architecture"),
+            "serial": detected.get("serial"),
+            "interfaces": interfaces
+        })
+    except Exception as exc:
+        logger.error(f"MikroTik script generation failed: {exc}")
+        return JSONResponse(
+            {"success": False, "message": f"Script generation failed: {str(exc)}"},
+            status_code=400
+        )
+
 
 
 # ================= SETTINGS =================

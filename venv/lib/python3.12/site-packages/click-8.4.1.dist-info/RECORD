@@ -1,6 +1,7 @@
 click-8.4.1.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
 click-8.4.1.dist-info/METADATA,sha256=uWALc7Y-Ixjj35al3B2qNsyXk-0tf578YgIsL1Vbn98,2621
 click-8.4.1.dist-info/RECORD,,
+click-8.4.1.dist-info/REQUESTED,sha256=47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU,0
 click-8.4.1.dist-info/WHEEL,sha256=G2gURzTEtmeR8nrdXUJfNiB3VYVxigPQ-bEQujpNiNs,82
 click-8.4.1.dist-info/licenses/LICENSE.txt,sha256=morRBqOU6FO_4h9C9OctWSgZoigF2ZG18ydQKSkrZY0,1475
 click/__init__.py,sha256=FId2fXCSJB3yeWD-e2uON-mBhFa2Yc9MvXGmHu8OXG0,4634

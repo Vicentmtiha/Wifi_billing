@@ -454,6 +454,74 @@
     color: var(--neon-cyan);
     font-weight: 700;
   }
+
+  /* MIKROTIK INSTALLER */
+  .installer-card {
+    background: linear-gradient(135deg, rgba(0,243,255,.06), rgba(181,55,242,.06));
+    border: 1px solid rgba(0,243,255,.28);
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.55);
+  }
+  .installer-chip {
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    padding:6px 10px;
+    border-radius:999px;
+    font-family:'Orbitron',sans-serif;
+    font-size:9px;
+    border:1px solid var(--border-cyber);
+    background:rgba(0,243,255,.04);
+  }
+  .router-field {
+    background:#050b16 !important;
+    color:#f1f5f9 !important;
+    border:1px solid rgba(0,243,255,.22) !important;
+    border-radius:9px !important;
+  }
+  .router-field:focus {
+    border-color:var(--neon-cyan) !important;
+    box-shadow:0 0 0 .2rem rgba(0,243,255,.08) !important;
+  }
+  .terminal-box {
+    background:#010409;
+    border:1px solid rgba(0,243,255,.2);
+    border-radius:10px;
+    padding:14px;
+    color:#b9faff;
+    font-family:monospace;
+    font-size:11px;
+    line-height:1.55;
+    min-height:180px;
+    max-height:320px;
+    overflow:auto;
+    white-space:pre-wrap;
+  }
+  .model-box {
+    border:1px solid rgba(0,255,136,.25);
+    background:rgba(0,255,136,.035);
+    border-radius:12px;
+    padding:15px;
+  }
+  .step-dot {
+    width:28px;height:28px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(0,243,255,.08);
+    border:1px solid rgba(0,243,255,.35);
+    color:var(--neon-cyan);
+    font-family:'Orbitron';font-size:10px;font-weight:800;
+  }
+  @media(max-width: 900px){
+    .sidebar{width:235px}
+    .main{margin-left:235px;padding:25px 20px}
+    .topbar{flex-direction:column;align-items:flex-start;gap:15px}
+  }
+  @media(max-width: 700px){
+    .sidebar{position:relative;width:100%;height:auto}
+    .main{margin-left:0;padding:20px}
+  }
+
 </style>
 </head>
 <body>
@@ -474,6 +542,7 @@
     <a href="/users"><i class="fa fa-users"></i> Staff Users</a>
     <a href="/reports"><i class="fa fa-chart-column"></i> Reports</a>
     <a href="/settings"><i class="fa fa-gear"></i> Settings</a>
+    <a href="/mikrotik-installer"><i class="fa-solid fa-screwdriver-wrench"></i> MikroTik Installer</a>
 </div>
 
 <!-- MAIN CONTENT AREA -->
@@ -662,6 +731,198 @@
                         <div class="hub-node text-info"><i class="fa-solid fa-globe"></i> ISP BACKBONE CORE</div>
                         <div class="hub-node text-success"><i class="fa-solid fa-server"></i> MIKROTIK HOTSPOT GATEWAY</div>
                         <div class="hub-node" style="color: var(--neon-purple);"><i class="fa-solid fa-bolt"></i> AZAMPAY & SMS ENGINE</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- MIKROTIK NEW ROUTER INSTALLER -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="installer-card">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                    <div>
+                        <h5 class="mb-1 fw-bold" style="font-family:'Orbitron';font-size:15px;">
+                            <i class="fa-solid fa-screwdriver-wrench me-2 text-info"></i>
+                            MikroTik NEW Router Installer
+                        </h5>
+                        <small class="text-muted">
+                            Tambua model, ports na RouterOS kisha tengeneza script ya initial setup.
+                        </small>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <span class="installer-chip text-info"><i class="fa-solid fa-microchip"></i> MODEL DETECTION</span>
+                        <span class="installer-chip text-success"><i class="fa-solid fa-shield-halved"></i> SAFE PREVIEW</span>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-xl-4">
+                        <div class="chart-box h-100">
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <div class="step-dot">01</div>
+                                <div>
+                                    <div class="fw-bold small">Router Connection</div>
+                                    <div class="text-muted" style="font-size:10px;">Weka taarifa za MikroTik mpya</div>
+                                </div>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label small text-secondary">Router IP / Host</label>
+                                <input id="installerHost" class="form-control router-field" value="192.168.88.1" placeholder="192.168.88.1">
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small text-secondary">API Port</label>
+                                    <input id="installerPort" type="number" class="form-control router-field" value="8728">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-secondary">Username</label>
+                                    <input id="installerUser" class="form-control router-field" value="admin">
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <label class="form-label small text-secondary">Password</label>
+                                <input id="installerPass" type="password" class="form-control router-field" placeholder="Password ya router">
+                            </div>
+
+                            <div class="d-grid gap-2 mt-3">
+                                <button id="btnDetectRouter" class="btn btn-outline-info rounded-pill fw-bold">
+                                    <i class="fa-solid fa-magnifying-glass me-2"></i> DETECT MODEL
+                                </button>
+                            </div>
+                            <div id="installerAlert" class="alert d-none mt-3 mb-0 small"></div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-4">
+                        <div class="chart-box h-100">
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <div class="step-dot">02</div>
+                                <div>
+                                    <div class="fw-bold small">Detected Hardware</div>
+                                    <div class="text-muted" style="font-size:10px;">Taarifa zitakazotumika kuchagua ports</div>
+                                </div>
+                            </div>
+
+                            <div class="model-box mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted small">Model</span>
+                                    <strong id="detectedModel" class="text-info">Not detected</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mt-2">
+                                    <span class="text-muted small">RouterOS</span>
+                                    <strong id="detectedRos" class="text-success">—</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mt-2">
+                                    <span class="text-muted small">Architecture</span>
+                                    <strong id="detectedArch" class="text-warning">—</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mt-2">
+                                    <span class="text-muted small">Board Serial</span>
+                                    <strong id="detectedSerial" class="text-secondary">—</strong>
+                                </div>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label small text-secondary">WAN Interface</label>
+                                <select id="installerWan" class="form-select router-field">
+                                    <option value="ether1">ether1</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small text-secondary">LAN / Hotspot Interface</label>
+                                <select id="installerLan" class="form-select router-field">
+                                    <option value="bridge-hotspot">bridge-hotspot</option>
+                                </select>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small text-secondary">Hotspot IP</label>
+                                    <input id="installerIp" class="form-control router-field" value="10.10.10.1/24">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-secondary">Pool</label>
+                                    <input id="installerPool" class="form-control router-field" value="10.10.10.10-10.10.10.254">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-4">
+                        <div class="chart-box h-100">
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <div class="step-dot">03</div>
+                                <div>
+                                    <div class="fw-bold small">Installation Profile</div>
+                                    <div class="text-muted" style="font-size:10px;">Chagua huduma unazotaka kuandaliwa</div>
+                                </div>
+                            </div>
+
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="installNat" checked>
+                                <label class="form-check-label small" for="installNat">NAT / Internet Sharing</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="installDhcp" checked>
+                                <label class="form-check-label small" for="installDhcp">DHCP Server</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="installDns" checked>
+                                <label class="form-check-label small" for="installDns">DNS / Allow Remote Requests</label>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="installHotspot" checked>
+                                <label class="form-check-label small" for="installHotspot">Hotspot Base</label>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label small text-secondary">Hotspot DNS Name</label>
+                                <input id="installerDnsName" class="form-control router-field" value="vicentwifi.local">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small text-secondary">Hotspot Name</label>
+                                <input id="installerHotspotName" class="form-control router-field" value="hotspot1">
+                            </div>
+
+                            <div class="d-grid gap-2 mt-3">
+                                <button id="btnGenerateInstall" class="btn btn-info rounded-pill fw-bold text-dark">
+                                    <i class="fa-solid fa-code me-2"></i> GENERATE INSTALL SCRIPT
+                                </button>
+                                <button id="btnApplyInstall" class="btn btn-outline-danger rounded-pill fw-bold">
+                                    <i class="fa-solid fa-play me-2"></i> APPLY TO ROUTER
+                                </button>
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                APPLY itahitaji backend endpoint yako ya MikroTik API. Usitumie kwenye router yenye configuration muhimu bila backup.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4 mt-1">
+                    <div class="col-lg-8">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small fw-bold text-info" style="font-family:'Orbitron';">GENERATED ROUTEROS SCRIPT</span>
+                            <button id="btnCopyInstallScript" class="btn btn-sm btn-outline-info rounded-pill">
+                                <i class="fa-regular fa-copy me-1"></i> COPY
+                            </button>
+                        </div>
+                        <pre id="installerScriptPreview" class="terminal-box"># Detect router first, then click GENERATE INSTALL SCRIPT.</pre>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="chart-box h-100">
+                            <div class="small fw-bold text-success mb-2">INSTALLATION CHECKLIST</div>
+                            <div class="small text-muted">
+                                <div class="mb-2"><i class="fa-solid fa-circle-check text-success me-2"></i> Backup existing config</div>
+                                <div class="mb-2"><i class="fa-solid fa-circle-check text-success me-2"></i> Detect RouterOS version</div>
+                                <div class="mb-2"><i class="fa-solid fa-circle-check text-success me-2"></i> Detect board model</div>
+                                <div class="mb-2"><i class="fa-solid fa-circle-check text-success me-2"></i> Detect ethernet ports</div>
+                                <div><i class="fa-solid fa-circle-check text-success me-2"></i> Preview script before applying</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1152,6 +1413,302 @@
         submitBtn.innerHTML = `<i class="fa-solid fa-ticket me-1"></i> TENGENEZA SASA`;
       }
     });
+
+    // ============================
+    // MikroTik New Router Installer
+    // ============================
+    const installerState = {
+        model: null,
+        ros: null,
+        architecture: null,
+        serial: null,
+        interfaces: []
+    };
+
+    function installerEl(id){ return document.getElementById(id); }
+
+    function showInstallerAlert(message, type='info'){
+        const box = installerEl('installerAlert');
+        if(!box) return;
+        box.className = `alert alert-${type} d-block mt-3 mb-0 small`;
+        box.innerHTML = message;
+    }
+
+    function escapeRouterValue(value){
+        return String(value ?? '').replace(/"/g, '\\"');
+    }
+
+    function populateInterfaces(interfaces){
+        const wan = installerEl('installerWan');
+        const lan = installerEl('installerLan');
+        if(!wan || !lan) return;
+
+        wan.innerHTML = '';
+        lan.innerHTML = '<option value="bridge-hotspot">bridge-hotspot</option>';
+
+        (interfaces || []).forEach((item, index) => {
+            const name = typeof item === 'string' ? item : (item.name || '');
+            if(!name) return;
+
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            wan.appendChild(opt);
+
+            if(name !== (index === 0 ? name : '')) {
+                const lanOpt = document.createElement('option');
+                lanOpt.value = name;
+                lanOpt.textContent = name;
+                lan.appendChild(lanOpt);
+            }
+        });
+
+        if(interfaces && interfaces.length){
+            const first = typeof interfaces[0] === 'string' ? interfaces[0] : interfaces[0].name;
+            wan.value = first || 'ether1';
+        }
+    }
+
+    async function detectMikroTik(){
+        const btn = installerEl('btnDetectRouter');
+        const host = installerEl('installerHost').value.trim();
+        const port = installerEl('installerPort').value.trim();
+        const username = installerEl('installerUser').value.trim();
+        const password = installerEl('installerPass').value;
+
+        if(!host || !username){
+            showInstallerAlert('Weka Router IP/Host na username kwanza.', 'warning');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> DETECTING...';
+
+        try{
+            const response = await fetch('/mikrotik/detect', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({host, port:Number(port || 8728), username, password})
+            });
+
+            const result = await response.json();
+
+            if(!response.ok || !result.success){
+                throw new Error(result.message || 'Router detection failed');
+            }
+
+            installerState.model = result.model || result.board_name || 'Unknown';
+            installerState.ros = result.routeros || result.version || 'Unknown';
+            installerState.architecture = result.architecture || 'Unknown';
+            installerState.serial = result.serial || 'Unknown';
+            installerState.interfaces = result.interfaces || [];
+
+            installerEl('detectedModel').textContent = installerState.model;
+            installerEl('detectedRos').textContent = installerState.ros;
+            installerEl('detectedArch').textContent = installerState.architecture;
+            installerEl('detectedSerial').textContent = installerState.serial;
+            populateInterfaces(installerState.interfaces);
+
+            showInstallerAlert(
+                `<i class="fa-solid fa-circle-check me-2"></i> Router imeonekana: <strong>${installerState.model}</strong>`,
+                'success'
+            );
+        }catch(err){
+            showInstallerAlert(
+                `<i class="fa-solid fa-triangle-exclamation me-2"></i> ${err.message || 'Imeshindwa ku-detect MikroTik.'}`,
+                'danger'
+            );
+        }finally{
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-magnifying-glass me-2"></i> DETECT MODEL';
+        }
+    }
+
+    function buildRouterScript(){
+        const wan = escapeRouterValue(installerEl('installerWan').value || 'ether1');
+        const lan = escapeRouterValue(installerEl('installerLan').value || 'bridge-hotspot');
+        const ipCidr = escapeRouterValue(installerEl('installerIp').value || '10.10.10.1/24');
+        const pool = escapeRouterValue(installerEl('installerPool').value || '10.10.10.10-10.10.10.254');
+        const dnsName = escapeRouterValue(installerEl('installerDnsName').value || 'vicentwifi.local');
+        const hotspotName = escapeRouterValue(installerEl('installerHotspotName').value || 'hotspot1');
+
+        const doNat = installerEl('installNat').checked;
+        const doDhcp = installerEl('installDhcp').checked;
+        const doDns = installerEl('installDns').checked;
+        const doHotspot = installerEl('installHotspot').checked;
+
+        let s = `# =========================================================
+# CORE-WISP MikroTik Initial Installer
+# Model: ${installerState.model || 'NOT DETECTED'}
+# RouterOS: ${installerState.ros || 'NOT DETECTED'}
+# Generated: ${new Date().toISOString()}
+# IMPORTANT: Review before applying.
+# =========================================================
+
+# BACKUP
+/system backup save name=corewisp-before-install
+/export file=corewisp-before-install
+
+# INTERFACES
+# WAN: ${wan}
+# LAN/HOTSPOT: ${lan}
+
+`;
+
+        s += `# BRIDGE
+/interface bridge
+add name=bridge-hotspot comment="CORE-WISP Hotspot Bridge"`;
+
+        s += `
+
+# BRIDGE PORTS
+# Add only the LAN ports you actually want in the hotspot bridge.
+# Example:
+# /interface bridge port add bridge=bridge-hotspot interface=ether2
+`;
+
+        s += `
+# IP ADDRESS
+/ip address
+add address=${ipCidr} interface=bridge-hotspot comment="CORE-WISP Hotspot Gateway"
+`;
+
+        if(doDns){
+            s += `
+# DNS
+/ip dns
+set allow-remote-requests=yes servers=8.8.8.8,1.1.1.1
+`;
+        }
+
+        if(doNat){
+            s += `
+# NAT
+/ip firewall nat
+add chain=srcnat out-interface=${wan} action=masquerade comment="CORE-WISP Internet NAT"
+`;
+        }
+
+        if(doDhcp){
+            s += `
+# DHCP POOL
+/ip pool
+add name=hs-pool-core ranges=${pool}
+
+# DHCP SERVER
+/ip dhcp-server
+add name=dhcp-hotspot interface=bridge-hotspot address-pool=hs-pool-core lease-time=30m disabled=no
+
+/ip dhcp-server network
+add address=10.10.10.0/24 gateway=10.10.10.1 dns-server=10.10.10.1
+`;
+        }
+
+        if(doHotspot){
+            s += `
+# HOTSPOT BASE
+/ip hotspot profile
+add name=hsprof-core hotspot-address=10.10.10.1 dns-name=${dnsName} html-directory=hotspot login-by=http-chap,http-pap
+
+/ip hotspot
+add name=${hotspotName} interface=bridge-hotspot address-pool=hs-pool-core profile=hsprof-core disabled=no
+`;
+        }
+
+        s += `
+# BASIC SAFETY
+/ip service
+set telnet disabled=yes
+set ftp disabled=yes
+set www disabled=yes
+set api disabled=no
+set api-ssl disabled=yes
+
+# FINISHED
+# Next: upload your CORE-WISP hotspot files and connect the billing system.
+`;
+
+        return s;
+    }
+
+    function generateInstallScript(){
+        const script = buildRouterScript();
+        installerEl('installerScriptPreview').textContent = script;
+        showInstallerAlert('Script imetengenezwa. I-review kabla ya APPLY.', 'info');
+        return script;
+    }
+
+    async function applyInstallScript(){
+        const script = generateInstallScript();
+        const host = installerEl('installerHost').value.trim();
+        const port = Number(installerEl('installerPort').value || 8728);
+        const username = installerEl('installerUser').value.trim();
+        const password = installerEl('installerPass').value;
+
+        if(!host || !username){
+            showInstallerAlert('Weka connection details kwanza.', 'warning');
+            return;
+        }
+
+        if(!confirm('TAHADHARI: Hii inaweza kubadilisha configuration ya MikroTik. Umefanya backup na ume-review script?')) return;
+
+        try{
+            const response = await fetch('/mikrotik/install', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({
+                    host, port, username, password,
+                    model:installerState.model,
+                    routeros:installerState.ros,
+                    script,
+                    wan: installerEl('installerWan').value || 'ether1',
+                    ip_cidr: installerEl('installerIp').value || '10.10.10.1/24',
+                    pool_range: installerEl('installerPool').value || '10.10.10.10-10.10.10.254',
+                    dns_name: installerEl('installerDnsName').value || 'vicentwifi.local',
+                    hotspot_name: installerEl('installerHotspotName').value || 'hotspot1',
+                    install_nat: installerEl('installNat').checked,
+                    install_dhcp: installerEl('installDhcp').checked,
+                    install_dns: installerEl('installDns').checked,
+                    install_hotspot: installerEl('installHotspot').checked
+                })
+            });
+
+            const result = await response.json();
+
+            if(!response.ok || !result.success){
+                throw new Error(result.message || 'Installation failed');
+            }
+
+            showInstallerAlert(
+                '<i class="fa-solid fa-circle-check me-2"></i> Installation imekamilika kwenye MikroTik.',
+                'success'
+            );
+        }catch(err){
+            showInstallerAlert(
+                `<i class="fa-solid fa-triangle-exclamation me-2"></i> ${err.message || 'Installation endpoint haipatikani.'}`,
+                'danger'
+            );
+        }
+    }
+
+    const detectBtn = installerEl('btnDetectRouter');
+    const genBtn = installerEl('btnGenerateInstall');
+    const applyBtn = installerEl('btnApplyInstall');
+    const copyBtn = installerEl('btnCopyInstallScript');
+
+    if(detectBtn) detectBtn.addEventListener('click', detectMikroTik);
+    if(genBtn) genBtn.addEventListener('click', generateInstallScript);
+    if(applyBtn) applyBtn.addEventListener('click', applyInstallScript);
+    if(copyBtn) copyBtn.addEventListener('click', async ()=>{
+        const script = installerEl('installerScriptPreview').textContent;
+        try{
+            await navigator.clipboard.writeText(script);
+            showInstallerAlert('Script imenakiliwa clipboard.', 'success');
+        }catch(e){
+            showInstallerAlert('Browser imekataa clipboard. Copy manually kutoka terminal box.', 'warning');
+        }
+    });
+
 </script>
 </body>
 </html>
