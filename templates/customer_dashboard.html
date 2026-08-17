@@ -3,252 +3,356 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Customer Dashboard - CORE WISP</title>
 
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        rel="stylesheet"
-    >
-
-    <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-    >
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
     <style>
-        body {
-            background: #f5f7fb;
-            font-family: Arial, sans-serif;
+        :root {
+            --bg-body: #0b0f19;
+            --bg-card: rgba(22, 30, 49, 0.75);
+            --bg-sidebar: #0f172a;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary-accent: #6366f1;
+            --success-accent: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
         }
 
+        body {
+            background-color: var(--bg-body);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0, transparent 50%);
+            background-attachment: fixed;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styling */
         .sidebar {
-            width: 250px;
+            width: 260px;
             height: 100vh;
             position: fixed;
             left: 0;
             top: 0;
-            background: #111827;
-            color: white;
-            padding: 20px 15px;
-            overflow-y: auto;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            padding: 24px 18px;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            transition: all 0.3s ease;
         }
 
         .brand {
             font-size: 22px;
-            font-weight: bold;
-            margin-bottom: 30px;
-            padding: 10px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 8px 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand-icon {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            color: #fff;
+            font-size: 18px;
         }
 
         .brand span {
-            color: #22c55e;
+            color: #10b981;
         }
 
         .menu-title {
             font-size: 11px;
-            color: #9ca3af;
+            font-weight: 700;
+            color: #64748b;
             margin: 20px 10px 8px;
             text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .sidebar a {
+        .nav-link-custom {
             display: flex;
             align-items: center;
             gap: 12px;
-            color: #d1d5db;
+            color: var(--text-muted);
             text-decoration: none;
             padding: 12px 14px;
-            margin-bottom: 5px;
-            border-radius: 8px;
-            transition: 0.2s;
-        }
-
-        .sidebar a:hover,
-        .sidebar a.active {
-            background: #1f2937;
-            color: white;
-        }
-
-        .sidebar a.active {
-            border-left: 3px solid #22c55e;
-        }
-
-        .logout {
-            color: #f87171 !important;
-        }
-
-        .main {
-            margin-left: 250px;
-            padding: 25px;
-        }
-
-        .topbar {
-            background: white;
+            margin-bottom: 4px;
             border-radius: 12px;
-            padding: 15px 20px;
-            margin-bottom: 25px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link-custom i {
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .nav-link-custom:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            transform: translateX(3px);
+        }
+
+        .nav-link-custom.active {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(79, 70, 229, 0.1) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: #818cf8;
+            font-weight: 600;
+        }
+
+        .nav-link-custom.logout {
+            color: #f87171 !important;
+            margin-top: auto;
+        }
+
+        .nav-link-custom.logout:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 260px;
+            padding: 30px;
+        }
+
+        /* Top Bar */
+        .topbar {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 18px 24px;
+            margin-bottom: 30px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
 
         .welcome h4 {
             margin: 0;
-            font-weight: 700;
+            font-weight: 800;
+            font-size: 22px;
         }
 
         .welcome p {
-            margin: 3px 0 0;
-            color: #6b7280;
+            margin: 4px 0 0;
+            color: var(--text-muted);
+            font-size: 13px;
         }
 
         .profile {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 14px;
         }
 
         .profile-icon {
-            width: 42px;
-            height: 42px;
-            background: #dcfce7;
-            color: #16a34a;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .stat-card {
-            background: white;
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
             border-radius: 14px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-            height: 100%;
-        }
-
-        .stat-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #eef2ff;
-            color: #4f46e5;
-            font-size: 20px;
-            margin-bottom: 15px;
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+            font-size: 18px;
+        }
+
+        /* Cards & Glassmorphism */
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 22px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Stat Cards */
+        .stat-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .stat-info {
+            display: flex;
+            flex-direction: column;
         }
 
         .stat-title {
-            color: #6b7280;
-            font-size: 14px;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .stat-number {
-            font-size: 28px;
-            font-weight: 700;
-            margin-top: 5px;
+            font-size: 32px;
+            font-weight: 800;
+            margin-top: 4px;
+            letter-spacing: -1px;
         }
 
-        .section-card {
-            background: white;
-            border-radius: 14px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-            margin-top: 25px;
-        }
-
-        .section-title {
+        .stat-icon-wrapper {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 18px;
+            justify-content: center;
+            font-size: 22px;
         }
 
-        .section-title h5 {
+        .icon-router { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
+        .icon-ticket { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .icon-users  { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .icon-box    { background: rgba(236, 72, 153, 0.15); color: #f472b6; }
+
+        /* Tables */
+        .custom-table {
+            color: var(--text-main);
             margin: 0;
-            font-weight: 700;
         }
 
-        .router-status {
+        .custom-table th {
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            border-bottom: 1px solid var(--border-color);
+            padding: 14px 16px;
+        }
+
+        .custom-table td {
+            background: transparent;
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px;
+            vertical-align: middle;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+
+        .router-status-online {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            padding: 5px 9px;
-            border-radius: 20px;
-            background: #dcfce7;
-            color: #15803d;
+            gap: 8px;
+            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 30px;
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            font-weight: 600;
         }
 
-        .status-dot {
-            width: 7px;
-            height: 7px;
-            background: #22c55e;
+        .status-dot-pulse {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
             border-radius: 50%;
+            box-shadow: 0 0 10px #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* Quick Actions */
+        .quick-action-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            text-decoration: none;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .quick-action-card:hover {
+            background: rgba(30, 41, 59, 0.9);
+            border-color: rgba(99, 102, 241, 0.4);
+            transform: translateY(-3px);
+            color: #ffffff;
+        }
+
+        .quick-action-icon {
+            width: 46px;
+            height: 46px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #818cf8;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .quick-action-card:hover .quick-action-icon {
+            background: var(--primary-accent);
+            color: #ffffff;
         }
 
         .empty-state {
             text-align: center;
-            padding: 35px 20px;
-            color: #6b7280;
+            padding: 40px 20px;
+            color: var(--text-muted);
         }
 
         .empty-state i {
-            font-size: 40px;
-            color: #9ca3af;
-            margin-bottom: 15px;
+            font-size: 48px;
+            color: #475569;
+            margin-bottom: 16px;
         }
 
-        .quick-action {
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 15px;
-            text-decoration: none;
-            color: #111827;
-            display: block;
-            transition: 0.2s;
-        }
-
-        .quick-action:hover {
-            background: #f9fafb;
-            transform: translateY(-2px);
-        }
-
-        .quick-action i {
-            font-size: 20px;
-            margin-bottom: 8px;
-            color: #16a34a;
-        }
-
-        @media (max-width: 900px) {
+        /* Responsive */
+        @media (max-width: 992px) {
             .sidebar {
-                width: 210px;
+                transform: translateX(-100%);
             }
-
-            .main {
-                margin-left: 210px;
-            }
-        }
-
-        @media (max-width: 700px) {
-            .sidebar {
-                position: relative;
-                width: 100%;
-                height: auto;
-            }
-
-            .main {
+            .main-content {
                 margin-left: 0;
             }
-
-            .topbar {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 15px;
+            .sidebar.show {
+                transform: translateX(0);
             }
         }
     </style>
@@ -257,441 +361,270 @@
 <body>
 
 <!-- ================= SIDEBAR ================= -->
-
 <div class="sidebar">
-
     <div class="brand">
-        CORE<span>WISP</span>
+        <div class="brand-icon">
+            <i class="fa-solid fa-wifi"></i>
+        </div>
+        <div>CORE<span>WISP</span></div>
     </div>
 
     <div class="menu-title">Main</div>
 
-    <a href="/customer/dashboard" class="active">
-        <i class="fa-solid fa-chart-line"></i>
+    <a href="/customer/dashboard" class="nav-link-custom active">
+        <i class="fa-solid fa-chart-pie"></i>
         <span>Dashboard</span>
     </a>
 
-    <a href="/customer/routers">
+    <a href="/customer/routers" class="nav-link-custom">
         <i class="fa-solid fa-router"></i>
         <span>My Routers</span>
     </a>
 
-    <a href="/customer/vouchers">
+    <a href="/customer/vouchers" class="nav-link-custom">
         <i class="fa-solid fa-ticket"></i>
         <span>My Vouchers</span>
     </a>
 
-    <a href="/customer/packages">
-        <i class="fa-solid fa-box"></i>
+    <a href="/customer/packages" class="nav-link-custom">
+        <i class="fa-solid fa-box-archive"></i>
         <span>My Packages</span>
     </a>
 
     <div class="menu-title">Management</div>
 
-    <a href="/customer/clients">
-        <i class="fa-solid fa-users"></i>
+    <a href="/customer/clients" class="nav-link-custom">
+        <i class="fa-solid fa-users-viewfinder"></i>
         <span>My Clients</span>
     </a>
 
-    <a href="/customer/traffic">
-        <i class="fa-solid fa-chart-area"></i>
+    <a href="/customer/traffic" class="nav-link-custom">
+        <i class="fa-solid fa-chart-line"></i>
         <span>Traffic</span>
     </a>
 
-    <a href="/customer/reports">
-        <i class="fa-solid fa-file-lines"></i>
+    <a href="/customer/reports" class="nav-link-custom">
+        <i class="fa-solid fa-file-invoice"></i>
         <span>Reports</span>
     </a>
 
     <div class="menu-title">Account</div>
 
-    <a href="/customer/profile">
-        <i class="fa-solid fa-user"></i>
+    <a href="/customer/profile" class="nav-link-custom">
+        <i class="fa-solid fa-user-gear"></i>
         <span>My Account</span>
     </a>
 
-    <a href="/logout" class="logout">
+    <a href="/logout" class="nav-link-custom logout">
         <i class="fa-solid fa-right-from-bracket"></i>
         <span>Logout</span>
     </a>
-
 </div>
 
 
-<!-- ================= MAIN ================= -->
-
-<div class="main">
+<!-- ================= MAIN CONTENT ================= -->
+<div class="main-content">
 
     <!-- TOP BAR -->
-
     <div class="topbar">
-
         <div class="welcome">
-            <h4>
-                Welcome,
-                {{ user or "Customer" }}
-            </h4>
-
-            <p>
-                Manage your WiFi business from your dashboard.
-            </p>
+            <h4>Welcome back, {{ user or "Customer" }} 👋</h4>
+            <p>Manage and monitor your WiFi billing infrastructure in real time.</p>
         </div>
 
         <div class="profile">
-
-            <div>
-                <strong>{{ user or "Customer" }}</strong>
-                <div style="font-size:12px;color:#6b7280;">
-                    Customer Account
-                </div>
+            <div class="text-end d-none d-sm-block">
+                <div class="fw-bold fs-6">{{ user or "Customer" }}</div>
+                <div class="small text-muted">Customer Account</div>
             </div>
-
             <div class="profile-icon">
                 <i class="fa-solid fa-user"></i>
             </div>
-
         </div>
-
     </div>
-
 
     <!-- ================= STATISTICS ================= -->
-
-    <div class="row g-4">
-
+    <div class="row g-4 mb-4">
         <!-- Routers -->
-
-        <div class="col-lg-3 col-md-6">
-
-            <div class="stat-card">
-
-                <div class="stat-icon">
+        <div class="col-xl-3 col-md-6">
+            <div class="glass-card stat-card">
+                <div class="stat-info">
+                    <span class="stat-title">My Routers</span>
+                    <span class="stat-number">{{ total_routers or 0 }}</span>
+                </div>
+                <div class="stat-icon-wrapper icon-router">
                     <i class="fa-solid fa-router"></i>
                 </div>
-
-                <div class="stat-title">
-                    My Routers
-                </div>
-
-                <div class="stat-number">
-                    {{ total_routers or 0 }}
-                </div>
-
             </div>
-
         </div>
-
 
         <!-- Vouchers -->
-
-        <div class="col-lg-3 col-md-6">
-
-            <div class="stat-card">
-
-                <div class="stat-icon">
+        <div class="col-xl-3 col-md-6">
+            <div class="glass-card stat-card">
+                <div class="stat-info">
+                    <span class="stat-title">My Vouchers</span>
+                    <span class="stat-number">{{ total_vouchers or 0 }}</span>
+                </div>
+                <div class="stat-icon-wrapper icon-ticket">
                     <i class="fa-solid fa-ticket"></i>
                 </div>
-
-                <div class="stat-title">
-                    My Vouchers
-                </div>
-
-                <div class="stat-number">
-                    {{ total_vouchers or 0 }}
-                </div>
-
             </div>
-
         </div>
-
 
         <!-- Clients -->
-
-        <div class="col-lg-3 col-md-6">
-
-            <div class="stat-card">
-
-                <div class="stat-icon">
+        <div class="col-xl-3 col-md-6">
+            <div class="glass-card stat-card">
+                <div class="stat-info">
+                    <span class="stat-title">Active Clients</span>
+                    <span class="stat-number">{{ active_clients or 0 }}</span>
+                </div>
+                <div class="stat-icon-wrapper icon-users">
                     <i class="fa-solid fa-users"></i>
                 </div>
-
-                <div class="stat-title">
-                    Active Clients
-                </div>
-
-                <div class="stat-number">
-                    {{ active_clients or 0 }}
-                </div>
-
             </div>
-
         </div>
-
 
         <!-- Packages -->
-
-        <div class="col-lg-3 col-md-6">
-
-            <div class="stat-card">
-
-                <div class="stat-icon">
+        <div class="col-xl-3 col-md-6">
+            <div class="glass-card stat-card">
+                <div class="stat-info">
+                    <span class="stat-title">My Packages</span>
+                    <span class="stat-number">{{ total_packages or 0 }}</span>
+                </div>
+                <div class="stat-icon-wrapper icon-box">
                     <i class="fa-solid fa-box"></i>
                 </div>
-
-                <div class="stat-title">
-                    My Packages
-                </div>
-
-                <div class="stat-number">
-                    {{ total_packages or 0 }}
-                </div>
-
             </div>
-
         </div>
-
     </div>
 
-
-    <!-- ================= ROUTER ================= -->
-
-    <div class="section-card">
-
-        <div class="section-title">
-
-            <h5>
-                <i class="fa-solid fa-router me-2"></i>
-                My Routers
-            </h5>
-
-            <a href="/customer/routers"
-               class="btn btn-sm btn-success">
-                <i class="fa-solid fa-plus me-1"></i>
-                Add Router
+    <!-- ================= ROUTER SECTION ================= -->
+    <div class="glass-card mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="fw-bold m-0"><i class="fa-solid fa-server me-2 text-primary"></i>My Connected Routers</h5>
+            <a href="/customer/routers" class="btn btn-sm btn-success rounded-3 px-3 py-2 fw-semibold">
+                <i class="fa-solid fa-plus me-1"></i> Add Router
             </a>
-
         </div>
 
-
         {% if routers %}
-
         <div class="table-responsive">
-
-            <table class="table align-middle">
-
+            <table class="table custom-table align-middle">
                 <thead>
-
                     <tr>
                         <th>Router Name</th>
                         <th>IP Address</th>
                         <th>Status</th>
-                        <th>Action</th>
+                        <th class="text-end">Action</th>
                     </tr>
-
                 </thead>
-
                 <tbody>
-
                     {% for router in routers %}
-
                     <tr>
-
                         <td>
-                            <strong>
-                                {{ router.name }}
-                            </strong>
+                            <div class="fw-bold text-white">{{ router.name }}</div>
                         </td>
-
                         <td>
-                            {{ router.host }}
+                            <code class="text-info bg-dark px-2 py-1 rounded">{{ router.host }}</code>
                         </td>
-
                         <td>
-
                             {% if router.status == "online" %}
-
-                            <span class="router-status">
-                                <span class="status-dot"></span>
+                            <span class="router-status-online">
+                                <span class="status-dot-pulse"></span>
                                 Online
                             </span>
-
                             {% else %}
-
-                            <span class="badge bg-secondary">
-                                Offline
-                            </span>
-
+                            <span class="badge bg-secondary rounded-pill px-3 py-2">Offline</span>
                             {% endif %}
-
                         </td>
-
-                        <td>
-
-                            <a href="/customer/routers/{{ router.id }}"
-                               class="btn btn-sm btn-outline-primary">
+                        <td class="text-end">
+                            <a href="/customer/routers/{{ router.id }}" class="btn btn-sm btn-outline-light rounded-2 px-3">
                                 Manage
                             </a>
-
                         </td>
-
                     </tr>
-
                     {% endfor %}
-
                 </tbody>
-
             </table>
-
         </div>
-
         {% else %}
-
         <div class="empty-state">
-
-            <i class="fa-solid fa-router"></i>
-
-            <h5>No Router Connected</h5>
-
-            <p>
-                You haven't added a MikroTik router yet.
-            </p>
-
-            <a href="/customer/routers"
-               class="btn btn-success">
-
-                <i class="fa-solid fa-plus me-1"></i>
-                Add Your First Router
-
+            <i class="fa-solid fa-network-wired"></i>
+            <h5 class="fw-bold text-white">No Router Connected</h5>
+            <p class="small text-muted mb-4">You haven't added a MikroTik router to your profile yet.</p>
+            <a href="/customer/routers" class="btn btn-success px-4 py-2 rounded-3 fw-semibold">
+                <i class="fa-solid fa-plus me-1"></i> Add Your First Router
             </a>
-
         </div>
-
         {% endif %}
-
     </div>
-
 
     <!-- ================= QUICK ACTIONS ================= -->
-
-    <div class="section-card">
-
-        <div class="section-title">
-
-            <h5>
-                Quick Actions
-            </h5>
-
-        </div>
-
+    <div class="glass-card mb-4">
+        <h5 class="fw-bold mb-4"><i class="fa-solid fa-bolt me-2 text-warning"></i>Quick Actions</h5>
         <div class="row g-3">
-
-            <div class="col-md-3">
-
-                <a href="/customer/routers"
-                   class="quick-action">
-
-                    <i class="fa-solid fa-router"></i>
-
-                    <div>
-                        <strong>Add Router</strong>
+            <div class="col-lg-3 col-md-6">
+                <a href="/customer/routers" class="quick-action-card">
+                    <div class="quick-action-icon">
+                        <i class="fa-solid fa-router"></i>
                     </div>
-
-                    <small class="text-muted">
-                        Connect your MikroTik
-                    </small>
-
+                    <div>
+                        <div class="fw-bold">Add Router</div>
+                        <div class="small text-muted">Connect MikroTik</div>
+                    </div>
                 </a>
-
             </div>
 
-
-            <div class="col-md-3">
-
-                <a href="/customer/vouchers"
-                   class="quick-action">
-
-                    <i class="fa-solid fa-ticket"></i>
-
-                    <div>
-                        <strong>Generate Voucher</strong>
+            <div class="col-lg-3 col-md-6">
+                <a href="/customer/vouchers" class="quick-action-card">
+                    <div class="quick-action-icon">
+                        <i class="fa-solid fa-ticket"></i>
                     </div>
-
-                    <small class="text-muted">
-                        Create WiFi vouchers
-                    </small>
-
+                    <div>
+                        <div class="fw-bold">Generate Voucher</div>
+                        <div class="small text-muted">Create WiFi vouchers</div>
+                    </div>
                 </a>
-
             </div>
 
-
-            <div class="col-md-3">
-
-                <a href="/customer/packages"
-                   class="quick-action">
-
-                    <i class="fa-solid fa-box"></i>
-
-                    <div>
-                        <strong>Packages</strong>
+            <div class="col-lg-3 col-md-6">
+                <a href="/customer/packages" class="quick-action-card">
+                    <div class="quick-action-icon">
+                        <i class="fa-solid fa-box"></i>
                     </div>
-
-                    <small class="text-muted">
-                        Manage WiFi packages
-                    </small>
-
+                    <div>
+                        <div class="fw-bold">Packages</div>
+                        <div class="small text-muted">Manage WiFi plans</div>
+                    </div>
                 </a>
-
             </div>
 
-
-            <div class="col-md-3">
-
-                <a href="/customer/reports"
-                   class="quick-action">
-
-                    <i class="fa-solid fa-chart-column"></i>
-
-                    <div>
-                        <strong>Reports</strong>
+            <div class="col-lg-3 col-md-6">
+                <a href="/customer/reports" class="quick-action-card">
+                    <div class="quick-action-icon">
+                        <i class="fa-solid fa-chart-column"></i>
                     </div>
-
-                    <small class="text-muted">
-                        View business reports
-                    </small>
-
+                    <div>
+                        <div class="fw-bold">Reports</div>
+                        <div class="small text-muted">View business analytics</div>
+                    </div>
                 </a>
-
             </div>
-
         </div>
-
     </div>
 
-
     <!-- ================= ACCOUNT NOTICE ================= -->
-
-    <div class="section-card">
-
-        <div class="alert alert-info mb-0">
-
-            <i class="fa-solid fa-circle-info me-2"></i>
-
-            <strong>Account:</strong>
-
-            Your customer account is managed through the CORE WISP
-            billing system.
-
+    <div class="glass-card border-0 bg-opacity-25" style="background: rgba(99, 102, 241, 0.1);">
+        <div class="d-flex align-items-center gap-3">
+            <i class="fa-solid fa-circle-info text-primary fs-4"></i>
+            <div>
+                <strong class="text-white">Account Info:</strong> Your customer account is active and managed through the CORE WISP billing system.
+            </div>
         </div>
-
     </div>
 
 </div>
 
-
-<script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
-</script>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

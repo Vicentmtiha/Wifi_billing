@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sajili Akaunti | Portal</title>
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            --bg-gradient: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                            radial-gradient(at 50% 0%, hsla(225,39%,25%,1) 0, transparent 50%), 
+                            radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0f172a;
+            background-image: var(--bg-gradient);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 15px;
+            color: #f8fafc;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            max-width: 620px;
+            width: 100%;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .card-header-custom {
+            text-align: center;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .brand-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--primary-gradient);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+            font-size: 24px;
+            color: white;
+        }
+
+        .form-floating > .form-control {
+            background-color: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #f8fafc;
+            border-radius: 12px;
+        }
+
+        .form-floating > .form-control:focus {
+            background-color: rgba(15, 23, 42, 0.8);
+            border-color: #818cf8;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+            color: #ffffff;
+        }
+
+        .form-floating > label {
+            color: #94a3b8;
+        }
+
+        .form-floating > .form-control:focus ~ label,
+        .form-floating > .form-control:not(:placeholder-shown) ~ label {
+            color: #cbd5e1;
+        }
+
+        .btn-gradient {
+            background: var(--primary-gradient);
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-weight: 600;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+            color: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px rgba(79, 70, 229, 0.4);
+            color: white;
+        }
+
+        .custom-alert {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+            border-radius: 12px;
+        }
+
+        .login-link {
+            color: #818cf8;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .login-link:hover {
+            color: #a5b4fc;
+            text-decoration: underline;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #94a3b8;
+            z-index: 10;
+        }
+
+        .password-toggle:hover {
+            color: #f8fafc;
+        }
+    </style>
+</head>
+<body>
+
+<div class="glass-card p-4 p-md-5">
+    <div class="card-header-custom mb-4">
+        <div class="brand-icon">
+            <i class="bi bi-person-plus-fill"></i>
+        </div>
+        <h3 class="fw-bold mb-1">Tengeneza Akaunti</h3>
+        <p class="text-secondary small mb-0">Jaza taarifa zako hapa chini kuanza kutumia huduma</p>
+    </div>
+
+    <!-- Alert Message -->
+    {% if error %}
+    <div class="alert custom-alert d-flex align-items-center mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <div>{{ error }}</div>
+    </div>
+    {% endif %}
+
+    <form action="/register" method="POST">
+        
+        <!-- First Name & Middle Name -->
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="first_name" name="first_name" placeholder="John" required>
+                    <label for="first_name"><i class="bi bi-person me-1"></i> Jina la Kwanza *</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="middle_name" name="middle_name" placeholder="Peter">
+                    <label for="middle_name"><i class="bi bi-person me-1"></i> Jina la Kati</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Last Name & Phone Number -->
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Doe" required>
+                    <label for="last_name"><i class="bi bi-person me-1"></i> Jina la Mwisho *</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-floating">
+                    <input type="tel" class="form-control" id="phone" name="phone" placeholder="07XXXXXXXX" required>
+                    <label for="phone"><i class="bi bi-telephone me-1"></i> Namba ya Simu *</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Email Address -->
+        <div class="form-floating mb-3">
+            <input type="email" class="form-control" id="email" name="email" placeholder="mfano@gmail.com" required>
+            <label for="email"><i class="bi bi-envelope me-1"></i> Barua Pepe (Email) *</label>
+        </div>
+
+        <!-- Password & Confirm Password -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6 position-relative">
+                <div class="form-floating">
+                    <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                    <label for="password"><i class="bi bi-lock me-1"></i> Neno la Siri *</label>
+                </div>
+                <i class="bi bi-eye password-toggle" onclick="togglePassword('password', this)"></i>
+            </div>
+            <div class="col-md-6 position-relative">
+                <div class="form-floating">
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
+                    <label for="confirm_password"><i class="bi bi-shield-lock me-1"></i> Thibitisha *</label>
+                </div>
+                <i class="bi bi-eye password-toggle" onclick="togglePassword('confirm_password', this)"></i>
+            </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="d-grid mb-4">
+            <button type="submit" class="btn btn-gradient btn-lg">
+                <i class="bi bi-arrow-right-circle-fill me-2"></i> Jisajili Sasa
+            </button>
+        </div>
+
+        <!-- Link ya Login -->
+        <div class="text-center">
+            <p class="text-secondary mb-0">Umeshajisajili tayari? 
+                <a href="/login" class="login-link">Ingia Hapa <i class="bi bi-box-arrow-in-right ms-1"></i></a>
+            </p>
+        </div>
+
+    </form>
+</div>
+
+<!-- JavaScript kwa ajili ya Toggle Password Eye -->
+<script>
+    function togglePassword(inputId, icon) {
+        const input = document.getElementById(inputId);
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.remove("bi-eye");
+            icon.classList.add("bi-eye-slash");
+        } else {
+            input.type = "password";
+            icon.classList.remove("bi-eye-slash");
+            icon.classList.add("bi-eye");
+        }
+    }
+</script>
+
+</body>
+</html>
