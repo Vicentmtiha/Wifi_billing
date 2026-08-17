@@ -446,13 +446,6 @@ class MikrotikService:
 
     @staticmethod
     def sync_live_voucher_statuses():
-        """
-        Kazi ya method hii:
-        1. Inasoma wateja wote kutoka MikroTik (/ip/hotspot/user).
-        2. Inasoma active users wote (/ip/hotspot/active).
-        3. Kama vocha haipo kabisa MikroTik lakini kwenye DB ipo 'used' au 'unused' na mteja alishatumia uptime -> inabadilishwa kuwa 'expired'.
-        4. Kama mteja yupo online au anatumia vocha -> status inabadilika kuwa 'used'.
-        """
         api = None
         try:
             api = MikrotikService.get_api()
@@ -468,7 +461,6 @@ class MikrotikService:
                 code = v.get("code")
                 mt_u = mt_users.get(code)
 
-                # Kama vocha ipo kwenye Active List -> Badilisha status kuwa 'used'
                 if code in mt_active:
                     if v.get("status") != "used":
                         db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "used", "used_at": datetime.now()}})
@@ -479,16 +471,13 @@ class MikrotikService:
                     limit_uptime = mt_u.get("limit-uptime", "")
                     bytes_out = int(mt_u.get("bytes-out", 0))
 
-                    # Ukaguzi 1: Kama uptime umefikia limit -> Expired
                     if limit_uptime and uptime == limit_uptime:
                         db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "expired"}})
                         MikrotikService.remove_user_from_mikrotik(code)
-                    # Ukaguzi 2: Kama bytes zimeanza kutoka/kuingia -> Mark as used
                     elif bytes_out > 0 or uptime != "0s":
                         if v.get("status") != "used":
                             db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "used"}})
                 else:
-                    # Kama haipo MikroTik lakini DB bado inaonyesha ipo active -> Mark Expired
                     if v.get("status") == "used":
                         db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "expired"}})
 
@@ -647,7 +636,7 @@ def expiry_worker():
             VoucherService.check_and_expire_vouchers()
         except Exception as e:
             logger.error(f"Error in expiry worker: {e}")
-        time.sleep(15)  # Imepunguzwa kuwa sekunde 15 ili status ibadilike haraka!
+        time.sleep(15)
 
 threading.Thread(target=expiry_worker, daemon=True).start()
 
@@ -665,25 +654,60 @@ def login_page(request: Request):
         context={"request": request, "error": error}
     )
 
+
 @app.post("/login")
-def handle_login(request: Request, username: str = Form(...), password: str = Form(...)):
+def handle_login(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...)
+):
+    username = username.strip()
+
     admin_user = os.getenv("ADMIN_USER", "admin")
     admin_pass = os.getenv("ADMIN_PASS", "admin123")
 
     if username == admin_user and password == admin_pass:
-        request.session.update({"logged_in": True, "user": "SuperAdmin", "role": "admin"})
+        request.session.update({
+            "logged_in": True,
+            "user": "SuperAdmin",
+            "role": "admin"
+        })
         logger.info("SuperAdmin logged in")
         return RedirectResponse("/dashboard", status_code=303)
 
     user = UserService.authenticate(username, password)
-    if user:
-        request.session.update({"logged_in": True, "user": user["username"], "role": user["role"]})
-        logger.info(f"User {username} logged in")
-        return RedirectResponse("/dashboard", status_code=303)
+    if not user:
+        logger.warning(f"Failed login attempt: {username}")
+        request.session["login_error"] = "Username au password si sahihi!"
+        return RedirectResponse("/login", status_code=303)
 
-    logger.warning(f"Failed login attempt: {username}")
-    request.session["login_error"] = "Taarifa si sahihi!"
+    status = str(user.get("status", "pending")).lower()
+    if status != "active":
+        logger.warning(f"Inactive account login attempt: {username}")
+        request.session["login_error"] = "Account yako bado haija-approve. Subiri administrator aku-approve."
+        return RedirectResponse("/login", status_code=303)
+
+    role = str(user.get("role", "customer")).lower()
+
+    request.session.update({
+        "logged_in": True,
+        "user": user.get("username", username),
+        "role": role,
+        "user_id": str(user.get("id", ""))
+    })
+
+    logger.info(f"User {username} logged in with role {role}")
+
+    if role == "admin":
+        return RedirectResponse("/dashboard", status_code=303)
+    if role == "customer":
+        return RedirectResponse("/customer/dashboard", status_code=303)
+
+    logger.warning(f"Unknown role '{role}' for user {username}")
+    request.session.clear()
+    request.session["login_error"] = "Role ya account yako haijatambuliwa."
     return RedirectResponse("/login", status_code=303)
+
 
 @app.get("/logout")
 def logout(request: Request):
@@ -783,7 +807,6 @@ def sms_gateway_page(request: Request):
 @app.get("/dashboard")
 @login_required
 def dashboard(request: Request):
-    # Fanya Sync ya haraka kwanza kabla ya kurender Dashboard context
     if MikrotikConfig.ENABLED:
         MikrotikService.sync_live_voucher_statuses()
 
@@ -808,6 +831,66 @@ def dashboard(request: Request):
         "router_status": "Connected" if MikrotikService.check_connection() else "Disconnected"
     }
     return templates.TemplateResponse(request=request, name="dashboard.html", context=context)
+
+
+# ================= CUSTOMER DASHBOARD =================
+@app.get("/customer/dashboard", response_class=HTMLResponse)
+@login_required
+def customer_dashboard(request: Request):
+    role = str(request.session.get("role", "")).lower()
+
+    if role != "customer":
+        return RedirectResponse("/dashboard", status_code=303)
+
+    username = request.session.get("user", "Customer")
+
+    try:
+        customer_vouchers = list(db.vouchers.find({"owner_username": username}))
+        customer_packages = list(db.packages.find({"owner_username": username}))
+        customer_routers = list(db.routers.find({"owner_username": username}))
+
+        active_clients = 0
+        try:
+            active_clients = db.clients.count_documents({
+                "owner_username": username,
+                "status": "active"
+            })
+        except Exception:
+            active_clients = 0
+
+        total_vouchers = len(customer_vouchers)
+        total_packages = len(customer_packages)
+        total_routers = len(customer_routers)
+
+        return templates.TemplateResponse(
+            request=request,
+            name="customer_dashboard.html",
+            context={
+                "request": request,
+                "user": username,
+                "total_routers": total_routers,
+                "total_vouchers": total_vouchers,
+                "total_packages": total_packages,
+                "active_clients": active_clients,
+                "routers": customer_routers
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Customer dashboard error: {e}")
+        return templates.TemplateResponse(
+            request=request,
+            name="customer_dashboard.html",
+            context={
+                "request": request,
+                "user": username,
+                "total_routers": 0,
+                "total_vouchers": 0,
+                "total_packages": 0,
+                "active_clients": 0,
+                "routers": []
+            }
+        )
 
 
 # ================= QUICK VOUCHER GENERATOR AJAX ROUTE =================
@@ -1156,10 +1239,8 @@ def reports(request: Request):
     return templates.TemplateResponse(request=request, name="reports.html", context=context)
 
 
-
 # ================= MIKROTIK NEW ROUTER INSTALLER =================
 def _installer_connection(host: str, port: int, username: str, password: str):
-    """Create a temporary API connection using credentials supplied by the installer UI."""
     if not host or not username:
         raise ValueError("Router host na username vinahitajika.")
     if not password:
@@ -1269,7 +1350,6 @@ def _installer_script(
     install_hotspot: bool,
     lan_ports=None
 ):
-    """Generate a RouterOS script for preview/download. Passwords are never placed in it."""
     lan_ports = lan_ports or []
     lines = [
         "# =========================================================",
@@ -1353,7 +1433,6 @@ def _installer_apply(
     install_dns: bool,
     install_hotspot: bool
 ):
-    """Apply a safe, idempotent-ish base configuration without resetting the router."""
     api = None
     changes = []
     warnings = []
@@ -1372,14 +1451,12 @@ def _installer_apply(
     try:
         api = _installer_connection(host, port, username, password)
 
-        # 1. Backup first.
         try:
             api.path("system", "backup").save(name="corewisp-before-install")
             changes.append("Backup created: corewisp-before-install")
         except Exception as exc:
             warnings.append(f"Backup failed: {exc}")
 
-        # 2. Detect all ethernet ports and put every ethernet port except WAN into hotspot bridge.
         interfaces = _installer_read_interfaces(api)
         ethernet_ports = [
             x["name"] for x in interfaces
@@ -1409,7 +1486,6 @@ def _installer_apply(
             ):
                 changes.append(f"Added {port_name} to bridge-hotspot")
 
-        # 3. WAN DHCP client.
         dhcp_client_path = api.path("ip", "dhcp-client")
         if add_once(
             dhcp_client_path,
@@ -1420,7 +1496,6 @@ def _installer_apply(
         ):
             changes.append(f"WAN DHCP client on {wan}")
 
-        # 4. Gateway address.
         ip_interface = ipaddress.ip_interface(ip_cidr)
         network = ip_interface.network
         gateway_ip = str(ip_interface.ip)
@@ -1436,7 +1511,6 @@ def _installer_apply(
         ):
             changes.append(f"Gateway address {ip_cidr}")
 
-        # 5. DNS.
         if install_dns:
             try:
                 api.path("ip", "dns").set(
@@ -1446,7 +1520,6 @@ def _installer_apply(
             except Exception as exc:
                 warnings.append(f"DNS configuration failed: {exc}")
 
-        # 6. NAT.
         if install_nat:
             nat_path = api.path("ip", "firewall", "nat")
             if add_once(
@@ -1461,7 +1534,6 @@ def _installer_apply(
             ):
                 changes.append("Internet NAT configured")
 
-        # 7. DHCP pool + server + network.
         if install_dhcp:
             pool_path = api.path("ip", "pool")
             pool_created = add_once(
@@ -1494,7 +1566,6 @@ def _installer_apply(
             ):
                 changes.append(f"DHCP network {network_address}")
 
-        # 8. Hotspot profile + server.
         if install_hotspot:
             profile_path = api.path("ip", "hotspot", "profile")
             if add_once(
@@ -1520,7 +1591,6 @@ def _installer_apply(
             ):
                 changes.append(f"Hotspot {hotspot_name} created")
 
-        # 9. Basic service hardening.
         try:
             services = api.path("ip", "service")
             service_rows = list(services)
@@ -1562,20 +1632,12 @@ def _installer_apply(
 @app.get("/mikrotik-installer")
 @login_required
 def mikrotik_installer_page(request: Request):
-    """
-    Route for the installer menu.
-    The installer UI is embedded in the main dashboard HTML.
-    """
     return RedirectResponse("/dashboard", status_code=303)
 
 
 @app.post("/mikrotik/detect")
 @login_required
 async def mikrotik_detect(request: Request):
-    """
-    Detect MikroTik model, RouterOS version, architecture, serial and interfaces
-    using credentials supplied by the installer page.
-    """
     try:
         data = await request.json()
         result = _installer_detect(
@@ -1596,11 +1658,6 @@ async def mikrotik_detect(request: Request):
 @app.post("/mikrotik/install")
 @login_required
 async def mikrotik_install(request: Request):
-    """
-    Install the CORE-WISP base configuration on a new MikroTik.
-    The script sent by the browser is NOT executed blindly; configuration
-    is rebuilt server-side from validated fields.
-    """
     try:
         data = await request.json()
 
@@ -1620,7 +1677,6 @@ async def mikrotik_install(request: Request):
         install_dns = bool(data.get("install_dns", True))
         install_hotspot = bool(data.get("install_hotspot", True))
 
-        # Validate IP/network before touching the router.
         ipaddress.ip_interface(ip_cidr)
 
         if not re.match(r"^[A-Za-z0-9_.:-]+$", wan):
@@ -1630,7 +1686,6 @@ async def mikrotik_install(request: Request):
         if not re.match(r"^[A-Za-z0-9_.:-]+$", dns_name):
             raise ValueError("DNS name si sahihi.")
 
-        # Detect first so we know the real ports/model.
         detected = _installer_detect(host, port, username, password)
         interfaces = detected.get("interfaces", [])
         valid_interfaces = {x.get("name") for x in interfaces}
@@ -1675,9 +1730,6 @@ async def mikrotik_install(request: Request):
 @app.post("/mikrotik/generate-script")
 @login_required
 async def mikrotik_generate_script(request: Request):
-    """
-    Optional backend endpoint for generating the exact preview script.
-    """
     try:
         data = await request.json()
         host = str(data.get("host", "")).strip()
@@ -1724,7 +1776,6 @@ async def mikrotik_generate_script(request: Request):
         )
 
 
-
 # ================= SETTINGS =================
 @app.get("/settings")
 @login_required
@@ -1744,3 +1795,9 @@ def settings(request: Request):
 @login_required
 def save_settings(request: Request):
     return RedirectResponse("/settings", status_code=303)
+
+
+# ================= STATIC FILES MOUNT =================
+from fastapi.staticfiles import StaticFiles
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
