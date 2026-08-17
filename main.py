@@ -565,7 +565,7 @@ class UserService:
                 "email": clean_email,
                 "password": password,
                 "role": "customer",
-                "status": "active",  # Imewekwa active moja kwa moja
+                "status": "active",
                 "created_at": datetime.now()
             }
             db.users.insert_one(user_doc)
@@ -858,7 +858,6 @@ async def handle_register(
             context={"request": request, "error": "Email tayari imeshasajiliwa. Tafadhali tumia nyingine au ingia (Login)."}
         )
     
-    # Mtengenezee session moja kwa moja baada ya usajili kufanikiwa
     clean_email = email.lower().strip()
     request.session.update({
         "logged_in": True,
@@ -866,7 +865,6 @@ async def handle_register(
         "role": "customer"
     })
     
-    # Mpeleke moja kwa moja kwenye dashboard ya customer
     return RedirectResponse("/customer/dashboard", status_code=303)
 
 
@@ -994,7 +992,48 @@ def dashboard(request: Request):
     return templates.TemplateResponse(request=request, name="dashboard.html", context=context)
 
 
-# ================= PENDING USERS APPROVAL ROUTES =================
+# ================= PENDING USERS & APPROVAL ROUTES =================
+@app.get("/pending-registrations", response_class=HTMLResponse)
+@login_required
+def pending_registrations_page(request: Request):
+    role = str(request.session.get("role", "")).lower()
+    if role != "admin":
+        return RedirectResponse("/customer/dashboard", status_code=303)
+    
+    pending_users = list(db.users.find({"status": "pending"}))
+    return HTMLResponse(content=f"""
+    <!DOCTYPE html>
+    <html lang="sw">
+    <head>
+        <meta charset="UTF-8">
+        <title>Pending Registrations - CORE-WISP</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body class="bg-light p-5">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Watumiaji Wanaosubiri Uhakiki (Pending Registrations)</h2>
+                <a href="/dashboard" class="btn btn-secondary">Rudi Dashboard</a>
+            </div>
+            <div class="card shadow-sm p-4">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Username / Email</th>
+                            <th>Role</th>
+                            <th>Vitendo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {"".join(f"<tr><td>{u.get('username')}</td><td>{u.get('role')}</td><td><a href='/approve-user/{u.get('_id')}' class='btn btn-success btn-sm'>Approve</a> <a href='/reject-user/{u.get('_id')}' class='btn btn-danger btn-sm'>Reject</a></td></tr>" for u in pending_users) if pending_users else "<tr><td colspan='3' class='text-center'>Hakuna maombi yanayosubiri kwa sasa.</td></tr>"}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </body>
+    </html>
+    """)
+
 @app.get("/approve-user/{user_id}")
 @login_required
 def approve_user_route(request: Request, user_id: str):

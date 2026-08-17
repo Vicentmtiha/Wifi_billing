@@ -68,6 +68,7 @@
     backdrop-filter: blur(25px);
     box-shadow: 10px 0 40px rgba(0, 0, 0, 0.85);
     overflow-y: auto;
+    transition: transform 0.3s ease;
   }
 
   .logo {
@@ -122,10 +123,26 @@
     box-shadow: 0 0 25px rgba(0, 243, 255, 0.35);
   }
 
+  /* MOBILE NAVBAR TOGGLER */
+  .mobile-nav-bar {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 70px;
+    background: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-cyber);
+    z-index: 1000;
+    padding: 0 20px;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(25px);
+  }
+
   /* MAIN AREA */
   .main {
     margin-left: 280px;
     padding: 35px 45px;
+    transition: margin 0.3s ease;
   }
 
   .topbar {
@@ -395,7 +412,7 @@
     padding: 12px 16px;
     font-weight: 600;
     font-size: 12px;
-    border-radius: 99px;
+    border-radius: 9px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -461,78 +478,93 @@
     box-shadow: 0 8px 30px rgba(0,0,0,.55);
   }
   .installer-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 6px 10px;
-    border-radius: 999px;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 9px;
-    border: 1px solid var(--border-cyber);
-    background: rgba(0,243,255,.04);
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    padding:6px 10px;
+    border-radius:999px;
+    font-family:'Orbitron',sans-serif;
+    font-size:9px;
+    border:1px solid var(--border-cyber);
+    background:rgba(0,243,255,.04);
   }
   .router-field {
-    background: #050b16 !important;
-    color: #f1f5f9 !important;
-    border: 1px solid rgba(0,243,255,.22) !important;
-    border-radius: 9px !important;
+    background:#050b16 !important;
+    color:#f1f5f9 !important;
+    border:1px solid rgba(0,243,255,.22) !important;
+    border-radius:9px !important;
   }
   .router-field:focus {
-    border-color: var(--neon-cyan) !important;
-    box-shadow: 0 0 0 .2rem rgba(0,243,255,.08) !important;
+    border-color:var(--neon-cyan) !important;
+    box-shadow:0 0 0 .2rem rgba(0,243,255,.08) !important;
   }
   .terminal-box {
-    background: #010409;
-    border: 1px solid rgba(0,243,255,.2);
-    border-radius: 10px;
-    padding: 14px;
-    color: #b9faff;
-    font-family: monospace;
-    font-size: 11px;
-    line-height: 1.55;
-    min-height: 180px;
-    max-height: 320px;
-    overflow: auto;
-    white-space: pre-wrap;
+    background:#010409;
+    border:1px solid rgba(0,243,255,.2);
+    border-radius:10px;
+    padding:14px;
+    color:#b9faff;
+    font-family:monospace;
+    font-size:11px;
+    line-height:1.55;
+    min-height:180px;
+    max-height:320px;
+    overflow:auto;
+    white-space:pre-wrap;
   }
   .model-box {
-    border: 1px solid rgba(0,255,136,.25);
-    background: rgba(0,255,136,.035);
-    border-radius: 12px;
-    padding: 15px;
+    border:1px solid rgba(0,255,136,.25);
+    background:rgba(0,255,136,.035);
+    border-radius:12px;
+    padding:15px;
   }
   .step-dot {
-    width: 28px; height: 28px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(0,243,255,.08);
-    border: 1px solid rgba(0,243,255,.35);
-    color: var(--neon-cyan);
-    font-family: 'Orbitron'; font-size: 10px; font-weight: 800;
+    width:28px;height:28px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(0,243,255,.08);
+    border:1px solid rgba(0,243,255,.35);
+    color:var(--neon-cyan);
+    font-family:'Orbitron';font-size:10px;font-weight:800;
   }
-  @media(max-width: 900px){
-    .sidebar{width:235px}
-    .main{margin-left:235px;padding:25px 20px}
-    .topbar{flex-direction:column;align-items:flex-start;gap:15px}
-  }
-  @media(max-width: 700px){
-    .sidebar{position:relative;width:100%;height:auto}
-    .main{margin-left:0;padding:20px}
+
+  /* MEDIA QUERIES FOR PROFESSIONAL MOBILE RESPONSIVENESS */
+  @media(max-width: 991px){
+    .sidebar{
+      transform: translateX(-100%);
+    }
+    .sidebar.show{
+      transform: translateX(0);
+    }
+    .main{
+      margin-left: 0;
+      padding: 95px 15px 20px 15px;
+    }
+    .mobile-nav-bar{
+      display: flex;
+    }
   }
 </style>
 </head>
 <body>
 
+<!-- MOBILE TOP NAVBAR FOR PHONES -->
+<div class="mobile-nav-bar">
+    <div class="d-flex align-items-center gap-2">
+        <i class="fa-solid fa-network-wired text-info fs-4"></i>
+        <span style="font-family:'Orbitron'; font-size:14px; font-weight:800; color:#fff;">CORE WISP</span>
+    </div>
+    <button class="btn btn-outline-info btn-sm" id="sidebarToggleBtn" onclick="toggleSidebar()">
+        <i class="fa-solid fa-bars"></i> Menu
+    </button>
+</div>
+
 <!-- SIDEBAR MENU -->
-<div class="sidebar">
+<div class="sidebar" id="appSidebar">
     <div class="logo">
         <i class="fa-solid fa-network-wired"></i>
         <span>CORE WISP</span>
     </div>
     <a href="/dashboard" class="active"><i class="fa fa-chart-line"></i> Dashboard</a>
-    <a href="/pending-approvals" class="position-relative">
-        <i class="fa-solid fa-user-clock text-warning"></i> Pending Requests
-        <span class="badge bg-warning text-dark ms-auto font-monospace">{{ pending_requests|length if pending_requests else 0 }}</span>
-    </a>
     <a href="/active-users"><i class="fa fa-users-gear"></i> Active Users</a>
     <a href="/vouchers"><i class="fa fa-ticket"></i> Vouchers</a>
     <a href="/print" target="_blank"><i class="fa fa-print"></i> Printing Page</a>
@@ -543,6 +575,7 @@
     <a href="/reports"><i class="fa fa-chart-column"></i> Reports</a>
     <a href="/settings"><i class="fa fa-gear"></i> Settings</a>
     <a href="/mikrotik-installer"><i class="fa-solid fa-screwdriver-wrench"></i> MikroTik Installer</a>
+    <a href="/pending-registrations"><i class="fa-solid fa-user-clock text-warning"></i> Pending Requests</a>
 </div>
 
 <!-- MAIN CONTENT AREA -->
@@ -553,7 +586,7 @@
             <h2>NEURAL COMMAND ENGINE v3.5</h2>
             <p class="text-muted small mb-0">Enterprise ISP Bandwidth, Realtime Data-Flow & Billing Engine</p>
         </div>
-        <div class="d-flex align-items-center gap-3">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
             <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="background: rgba(181,55,242,0.03); border: 1px solid rgba(181,55,242,0.35);">
                 <i class="fa-solid fa-comment-sms" style="color: var(--neon-purple);"></i>
                 <span class="small fw-bold" style="font-family: 'Orbitron'; font-size: 10px; color: var(--neon-purple);">SMS: 0 LEFT</span>
@@ -574,16 +607,7 @@
 
     <!-- KPI Summary Grid -->
     <div class="row g-4 mb-4">
-        <div class="col-xl-2-4 col-lg-4 col-md-6">
-            <div class="card-box d-flex justify-content-between align-items-center">
-                <div>
-                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Pending Approval</small>
-                    <div class="number text-warning" style="font-size: 21px;">{{ pending_requests|length if pending_requests else 0 }}</div>
-                </div>
-                <div class="card-icon text-warning"><i class="fa-solid fa-user-clock"></i></div>
-            </div>
-        </div>
-        <div class="col-xl-2-4 col-lg-4 col-md-6">
+        <div class="col-lg-3 col-md-6">
             <div class="card-box d-flex justify-content-between align-items-center">
                 <div>
                     <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Today's Revenue</small>
@@ -592,50 +616,51 @@
                 <div class="card-icon text-success"><i class="fa-solid fa-wallet"></i></div>
             </div>
         </div>
-        <div class="col-xl-2-4 col-lg-4 col-md-6">
+        <div class="col-lg-3 col-md-6">
             <div class="card-box d-flex justify-content-between align-items-center">
                 <div>
                     <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Active Users</small>
-                    <div class="number text-info" style="font-size: 21px;">{{ total_active | default(0) }}</div>
+                    <div class="number text-info">{{ total_active | default(0) }}</div>
                 </div>
                 <div class="card-icon text-info"><i class="fa-solid fa-users-rays"></i></div>
             </div>
         </div>
-        <div class="col-xl-2-4 col-lg-4 col-md-6">
+        <div class="col-lg-3 col-md-6">
             <div class="card-box d-flex justify-content-between align-items-center">
                 <div>
                     <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Used Vouchers</small>
-                    <div class="number text-warning" style="font-size: 21px;">{{ used | default(0) }}</div>
+                    <div class="number text-warning">{{ used | default(0) }}</div>
                 </div>
                 <div class="card-icon text-warning"><i class="fa-solid fa-wifi"></i></div>
             </div>
         </div>
-        <div class="col-xl-2-4 col-lg-4 col-md-6">
+        <div class="col-lg-3 col-md-6">
             <div class="card-box d-flex justify-content-between align-items-center">
                 <div>
                     <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Total Vouchers</small>
-                    <div class="number" style="color: var(--neon-purple); font-size: 21px;">{{ total | default(0) }}</div>
+                    <div class="number" style="color: var(--neon-purple);">{{ total | default(0) }}</div>
                 </div>
                 <div class="card-icon" style="color: var(--neon-purple);"><i class="fa-solid fa-ticket"></i></div>
             </div>
         </div>
     </div>
 
-    <!-- PENDING REGISTRATION REQUESTS SECTION (IDHINI YA USAJILI MPYA) -->
+    <!-- PENDING REQUESTS REGISTRATION SECTION (ADDED PROFESSIONALLY) -->
     <div class="row g-4 mb-4">
         <div class="col-12">
-            <div class="chart-box p-4" style="border-color: rgba(255, 204, 0, 0.35);">
-                <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="chart-box p-4" style="border: 1px solid rgba(255, 204, 0, 0.35); background: rgba(8, 14, 28, 0.92);">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                     <div>
                         <h5 class="mb-0 fw-bold text-warning" style="font-family: 'Orbitron'; font-size: 15px;">
-                            <i class="fa-solid fa-user-clock me-2"></i> Pending Registration Requests (Wateja Wanaosubiri Idhini)
+                            <i class="fa-solid fa-user-clock me-2"></i> Pending Registration Requests (Maombi Yanayosubiri Uhakiki)
                         </h5>
-                        <small class="text-muted">Maombi mapya ya usajili yanayohitaji kuthibitishwa au kukataliwa na Admin</small>
+                        <small class="text-muted">Wateja wapya walioomba usajili au kuunganishwa kwenye mtandao</small>
                     </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-50 px-3 py-1" style="font-family: 'Orbitron'; font-size: 10px;">
-                            INASUBIRI: {{ pending_requests|length if pending_requests else 0 }}
+                    <div class="d-flex gap-2">
+                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-1" style="font-family: 'Orbitron'; font-size: 10px;">
+                            PENDING: {{ pending_requests | length if pending_requests else 0 }}
                         </span>
+                        <a href="/pending-registrations" class="btn btn-outline-warning btn-sm px-3 rounded-pill" style="font-size: 10px; font-family: 'Orbitron';">VIEW ALL</a>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -643,12 +668,12 @@
                         <thead>
                             <tr>
                                 <th>#</th>
-                                <th>Mteja / Jina</th>
+                                <th>Jina la Mteja</th>
                                 <th>Namba ya Simu</th>
-                                <th>Kifurushi (Package)</th>
-                                <th>Tarehe / Muda</th>
-                                <th>Hali (Status)</th>
-                                <th class="text-end">Kitendo (Action)</th>
+                                <th>Kifurushi Kilichochaguliwa</th>
+                                <th>Tarehe ya Maombi</th>
+                                <th>Hali</th>
+                                <th class="text-end">Vitendo (Actions)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -656,20 +681,18 @@
                             {% for req in pending_requests %}
                             <tr>
                                 <td>{{ loop.index }}</td>
-                                <td><strong class="text-light"><i class="fa-solid fa-user me-1 text-secondary"></i> {{ req.username or req.name }}</strong></td>
+                                <td><strong class="text-light"><i class="fa-solid fa-user-tag me-1 text-warning"></i> {{ req.name }}</strong></td>
                                 <td><span class="font-monospace text-info">{{ req.phone }}</span></td>
-                                <td><span class="badge bg-secondary bg-opacity-25 text-light">{{ req.package_name or 'Default' }}</span></td>
-                                <td class="small text-muted">{{ req.created_at or 'Hivi Karibuni' }}</td>
-                                <td><span class="badge bg-warning bg-opacity-15 text-warning border border-warning border-opacity-25"><i class="fa-solid fa-hourglass-half me-1"></i> Inasubiri</span></td>
+                                <td class="small text-muted">{{ req.package }}</td>
+                                <td class="small text-secondary">{{ req.date }}</td>
+                                <td><span class="badge bg-warning bg-opacity-15 text-warning border border-warning border-opacity-25">Inasubiriwa</span></td>
                                 <td class="text-end">
-                                    <div class="d-flex justify-content-end gap-2">
-                                        <a href="/approve-request/{{ req.id }}" class="btn btn-outline-success btn-sm px-3 rounded-pill" style="font-size: 10px; font-family: 'Orbitron';" onclick="return confirm('Je, una uhakika unataka kumthibitisha (Approve) {{ req.username or req.name }}?')">
-                                            <i class="fa-solid fa-check me-1"></i> APPROVE
-                                        </a>
-                                        <a href="/reject-request/{{ req.id }}" class="btn btn-outline-danger btn-sm px-3 rounded-pill" style="font-size: 10px; font-family: 'Orbitron';" onclick="return confirm('Je, una uhakika unataka kumkataa (Reject) {{ req.username or req.name }}?')">
-                                            <i class="fa-solid fa-xmark me-1"></i> REJECT
-                                        </a>
-                                    </div>
+                                    <a href="/approve-request/{{ req.id }}" class="btn btn-outline-success btn-sm px-2 rounded me-1" title="Kubali Usajili" onclick="return confirm('Idhinisha maombi ya {{ req.name }}?')">
+                                        <i class="fa-solid fa-check"></i>
+                                    </a>
+                                    <a href="/reject-request/{{ req.id }}" class="btn btn-outline-danger btn-sm px-2 rounded" title="Kataa Maombi" onclick="return confirm('Kataa maombi haya?')">
+                                        <i class="fa-solid xmark fa-xmark"></i>
+                                    </a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -677,7 +700,7 @@
                             <tr>
                                 <td colspan="7" class="text-center text-muted py-4">
                                     <i class="fa-solid fa-circle-check d-block mb-2 fs-4 text-success"></i>
-                                    Hakuna maombi mapya ya usajili yanayosubiri idhini kwa sasa.
+                                    Hakuna maombi ya usajili yanayosubiri kwa sasa.
                                 </td>
                             </tr>
                         {% endif %}
@@ -768,25 +791,39 @@
                             </linearGradient>
                         </defs>
 
+                        <!-- STATIC BACKBONE CABLE PATHS -->
                         <path id="path-wan1" d="M 83,105 L 83,195 L 180,250" fill="none" stroke="url(#grad-cyan)" stroke-width="3" opacity="0.4" />
                         <path id="path-eth2" d="M 250,105 L 250,185 L 430,250" fill="none" stroke="url(#grad-green)" stroke-width="3" opacity="0.4" />
                         <path id="path-eth3" d="M 416,105 L 416,195 L 500,250" fill="none" stroke="url(#grad-green)" stroke-width="3" opacity="0.4" />
                         <path id="path-eth5" d="M 750,105 L 750,195 L 570,250" fill="none" stroke="url(#grad-green)" stroke-width="3" opacity="0.4" />
                         <path id="path-sfp" d="M 916,105 L 916,195 L 820,250" fill="none" stroke="url(#grad-purple)" stroke-width="3" opacity="0.4" />
 
+                        <!-- ANIMATED LASER DASH FLOW LAYERS -->
                         <path d="M 83,105 L 83,195 L 180,250" fill="none" stroke="#00f3ff" stroke-width="3.5" class="wire-flow-cyan" filter="url(#glow-cyan)" />
                         <path d="M 250,105 L 250,185 L 430,250" fill="none" stroke="#00ff88" stroke-width="3" class="wire-flow-green" filter="url(#glow-green)" />
                         <path d="M 416,105 L 416,195 L 500,250" fill="none" stroke="#00ff88" stroke-width="3" class="wire-flow-green" filter="url(#glow-green)" />
                         <path d="M 750,105 L 750,195 L 570,250" fill="none" stroke="#00ff88" stroke-width="3" class="wire-flow-green" filter="url(#glow-green)" />
                         <path d="M 916,105 L 916,195 L 820,250" fill="none" stroke="#b537f2" stroke-width="3.5" class="wire-flow-purple" filter="url(#glow-purple)" />
 
-                        <circle r="4" fill="#ffffff" filter="url(#glow-cyan)"><animateMotion path="M 83,105 L 83,195 L 180,250" dur="1.2s" repeatCount="indefinite" /></circle>
-                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)"><animateMotion path="M 250,105 L 250,185 L 430,250" dur="1.6s" repeatCount="indefinite" /></circle>
-                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)"><animateMotion path="M 416,105 L 416,195 L 500,250" dur="1.4s" repeatCount="indefinite" /></circle>
-                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)"><animateMotion path="M 750,105 L 750,195 L 570,250" dur="1.5s" repeatCount="indefinite" /></circle>
-                        <circle r="4" fill="#ffffff" filter="url(#glow-purple)"><animateMotion path="M 916,105 L 916,195 L 820,250" dur="0.9s" repeatCount="indefinite" /></circle>
+                        <!-- REALTIME MOVING DATA PARTICLES -->
+                        <circle r="4" fill="#ffffff" filter="url(#glow-cyan)">
+                            <animateMotion path="M 83,105 L 83,195 L 180,250" dur="1.2s" repeatCount="indefinite" />
+                        </circle>
+                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)">
+                            <animateMotion path="M 250,105 L 250,185 L 430,250" dur="1.6s" repeatCount="indefinite" />
+                        </circle>
+                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)">
+                            <animateMotion path="M 416,105 L 416,195 L 500,250" dur="1.4s" repeatCount="indefinite" />
+                        </circle>
+                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)">
+                            <animateMotion path="M 750,105 L 750,195 L 570,250" dur="1.5s" repeatCount="indefinite" />
+                        </circle>
+                        <circle r="4" fill="#ffffff" filter="url(#glow-purple)">
+                            <animateMotion path="M 916,105 L 916,195 L 820,250" dur="0.9s" repeatCount="indefinite" />
+                        </circle>
                     </svg>
 
+                    <!-- HARDWARE CORE HUBS -->
                     <div class="cyber-hub">
                         <div class="hub-node text-info"><i class="fa-solid fa-globe"></i> ISP BACKBONE CORE</div>
                         <div class="hub-node text-success"><i class="fa-solid fa-server"></i> MIKROTIK HOTSPOT GATEWAY</div>
@@ -1332,13 +1369,27 @@
 <!-- JavaScript Engine -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    // Sidebar toggle for mobile view
+    function toggleSidebar() {
+        const sidebar = document.getElementById('appSidebar');
+        if(sidebar) {
+            sidebar.classList.toggle('show');
+        }
+    }
+
     // Live Packet Rate Simulator for Hardware Matrix Ports
     setInterval(() => {
-        document.getElementById('p-wan1').innerText = (Math.random() * 1.5 + 2.0).toFixed(1) + 'K';
-        document.getElementById('p-eth2').innerText = (Math.random() * 0.8 + 1.2).toFixed(1) + 'K';
-        document.getElementById('p-eth3').innerText = Math.floor(Math.random() * 400 + 600);
-        document.getElementById('p-eth5').innerText = (Math.random() * 0.6 + 1.0).toFixed(1) + 'K';
-        document.getElementById('p-sfp').innerText = (Math.random() * 2.0 + 4.5).toFixed(1) + 'K';
+        const pWan1 = document.getElementById('p-wan1');
+        const pEth2 = document.getElementById('p-eth2');
+        const pEth3 = document.getElementById('p-eth3');
+        const pEth5 = document.getElementById('p-eth5');
+        const pSfp = document.getElementById('p-sfp');
+        
+        if(pWan1) pWan1.innerText = (Math.random() * 1.5 + 2.0).toFixed(1) + 'K';
+        if(pEth2) pEth2.innerText = (Math.random() * 0.8 + 1.2).toFixed(1) + 'K';
+        if(pEth3) pEth3.innerText = Math.floor(Math.random() * 400 + 600);
+        if(pEth5) pEth5.innerText = (Math.random() * 0.6 + 1.0).toFixed(1) + 'K';
+        if(pSfp) pSfp.innerText = (Math.random() * 2.0 + 4.5).toFixed(1) + 'K';
     }, 1200);
 
     // Bandwidth Dynamic Line Chart
@@ -1371,8 +1422,10 @@
             let finalTotal = Math.round(baseTotal);
             trafficChart.data.datasets[0].data.push(finalTotal);
             trafficChart.update();
-            document.getElementById('currentDl').innerText = Math.round(finalTotal * 0.75);
-            document.getElementById('currentUl').innerText = finalTotal - Math.round(finalTotal * 0.75);
+            const curDl = document.getElementById('currentDl');
+            const curUl = document.getElementById('currentUl');
+            if(curDl) curDl.innerText = Math.round(finalTotal * 0.75);
+            if(curUl) curUl.innerText = finalTotal - Math.round(finalTotal * 0.75);
         }, 700);
     }
 
@@ -1421,10 +1474,15 @@
     setInterval(() => {
         const cpu = Math.floor(Math.random() * 20) + 15;
         const ram = Math.floor(Math.random() * 5) + 42;
-        document.getElementById('cpuBar').style.width = cpu + '%';
-        document.getElementById('cpuValue').innerHTML = cpu + '%';
-        document.getElementById('ramBar').style.width = ram + '%';
-        document.getElementById('ramValue').innerHTML = ram + '%';
+        const cpuBar = document.getElementById('cpuBar');
+        const cpuVal = document.getElementById('cpuValue');
+        const ramBar = document.getElementById('ramBar');
+        const ramVal = document.getElementById('ramValue');
+
+        if(cpuBar) cpuBar.style.width = cpu + '%';
+        if(cpuVal) cpuVal.innerHTML = cpu + '%';
+        if(ramBar) ramBar.style.width = ram + '%';
+        if(ramVal) ramVal.innerHTML = ram + '%';
     }, 2000);
 
     // Modal Radio Toggle Logic
@@ -1444,38 +1502,39 @@
     }
 
     // Fast Voucher Generator AJAX
-    document.getElementById('quickVoucherForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const submitBtn = document.getElementById('btnGenerateSubmit');
-      const alertBox = document.getElementById('modalAlert');
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> Inatengeneza...`;
-      alertBox.className = 'alert d-none';
+    const quickVoucherForm = document.getElementById('quickVoucherForm');
+    if(quickVoucherForm){
+        quickVoucherForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const submitBtn = document.getElementById('btnGenerateSubmit');
+          const alertBox = document.getElementById('modalAlert');
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> Inatengeneza...`;
+          alertBox.className = 'alert d-none';
 
-      try {
-        const response = await fetch('/generate-vouchers-fast', { method: 'POST', body: new FormData(this) });
-        const result = await response.json();
-        if (response.ok && result.success) {
-          alertBox.className = 'alert alert-success d-block bg-success bg-opacity-25 text-success border-success';
-          alertBox.innerHTML = `<i class="fa-solid fa-circle-check me-2"></i> Imefanikiwa! Vocha <strong>${result.count}</strong> zimetengenezwa.`;
-          document.getElementById('quickVoucherForm').reset();
-          setTimeout(() => { window.location.reload(); }, 1500);
-        } else {
-          alertBox.className = 'alert alert-danger d-block bg-danger bg-opacity-25 text-danger border-danger';
-          alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-2"></i> ${result.message || 'Kuna tatizo limetokea!'}`;
-        }
-      } catch (err) {
-        alertBox.className = 'alert alert-danger d-block bg-danger bg-opacity-25 text-danger border-danger';
-        alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-2"></i> Imeshindwa kuunganisha na Server!`;
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = `<i class="fa-solid fa-ticket me-1"></i> TENGENEZA SASA`;
-      }
-    });
+          try {
+            const response = await fetch('/generate-vouchers-fast', { method: 'POST', body: new FormData(this) });
+            const result = await response.json();
+            if (response.ok && result.success) {
+              alertBox.className = 'alert alert-success d-block bg-success bg-opacity-25 text-success border-success';
+              alertBox.innerHTML = `<i class="fa-solid fa-circle-check me-2"></i> Imefanikiwa! Vocha <strong>${result.count}</strong> zimetengenezwa.`;
+              quickVoucherForm.reset();
+              setTimeout(() => { window.location.reload(); }, 1500);
+            } else {
+              alertBox.className = 'alert alert-danger d-block bg-danger bg-opacity-25 text-danger border-danger';
+              alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-2"></i> ${result.message || 'Kuna tatizo limetokea!'}`;
+            }
+          } catch (err) {
+            alertBox.className = 'alert alert-danger d-block bg-danger bg-opacity-25 text-danger border-danger';
+            alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-2"></i> Imeshindwa kuunganisha na Server!`;
+          } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i class="fa-solid fa-ticket me-1"></i> TENGENEZA SASA`;
+          }
+        });
+    }
 
-    // ============================
     // MikroTik New Router Installer
-    // ============================
     const installerState = {
         model: null,
         ros: null,
@@ -1764,6 +1823,7 @@ set api-ssl disabled=yes
             showInstallerAlert('Browser imekataa clipboard. Copy manually kutoka terminal box.', 'warning');
         }
     });
+
 </script>
 </body>
 </html>
