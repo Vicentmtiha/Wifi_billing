@@ -1,4 +1,9 @@
 import os
+import secrets
+import hashlib
+import hmac
+from datetime import datetime, timezone
+from pathlib import Path
 import random
 import string
 import logging
@@ -22,6 +27,122 @@ from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from bson import ObjectId
+
+
+# ================= PRODUCTION SECURITY =================
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+ADMIN_USER = os.getenv("ADMIN_USER")
+ADMIN_PASS = os.getenv("ADMIN_PASS")
+
+if not SECRET_KEY:
+    if ENVIRONMENT == "production":
+        raise RuntimeError(
+            "SECRET_KEY haijawekwa. Weka SECRET_KEY kwenye .env kabla ya production."
+        )
+    SECRET_KEY = secrets.token_urlsafe(48)
+
+if ENVIRONMENT == "production" and (not ADMIN_USER or not ADMIN_PASS):
+    raise RuntimeError(
+        "ADMIN_USER na ADMIN_PASS lazima ziwekwe kwenye .env kwa production."
+    )
+PASSWORD_SALT_BYTES = 16
+PASSWORD_DKLEN = 64
+PASSWORD_ITERATIONS = 310_000
+
+def hash_password(password: str) -> str:
+    """PBKDF2-HMAC-SHA256 password hash; no plaintext password is stored."""
+    if not password or len(password) < 8:
+        raise ValueError("Password lazima iwe na angalau characters 8.")
+    salt = secrets.token_bytes(PASSWORD_SALT_BYTES)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt,
+        PASSWORD_ITERATIONS,
+        dklen=PASSWORD_DKLEN,
+    )
+    return "pbkdf2_sha256${}${}${}".format(
+        PASSWORD_ITERATIONS,
+        salt.hex(),
+        digest.hex(),
+    )
+
+def verify_password(password: str, stored: str) -> bool:
+    """Verify new PBKDF2 hashes. Legacy plaintext passwords are not accepted."""
+    if not password or not stored or not stored.startswith("pbkdf2_sha256$"):
+        return False
+    try:
+        _, iterations, salt_hex, digest_hex = stored.split("$", 3)
+        iterations = int(iterations)
+        salt = bytes.fromhex(salt_hex)
+        expected = bytes.fromhex(digest_hex)
+        actual = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt,
+            iterations,
+            dklen=len(expected),
+        )
+        return hmac.compare_digest(actual, expected)
+    except (ValueError, TypeError):
+        return False
+
+def is_admin(request: Request) -> bool:
+    return bool(request.session.get("logged_in")) and str(request.session.get("role", "")).lower() == "admin"
+
+def is_customer(request: Request) -> bool:
+    return bool(request.session.get("logged_in")) and str(request.session.get("role", "")).lower() == "customer"
+
+def require_admin(request: Request):
+    if not request.session.get("logged_in"):
+        return RedirectResponse("/login", status_code=303)
+    if not is_admin(request):
+        return RedirectResponse("/customer/dashboard", status_code=303)
+    return None
+
+def require_customer(request: Request):
+    if not request.session.get("logged_in"):
+        return RedirectResponse("/login", status_code=303)
+    if not is_customer(request):
+        return RedirectResponse("/dashboard", status_code=303)
+    return None
+
+def safe_error(message="Ombi la mfumo limeshindwa. Jaribu tena."):
+    return JSONResponse({"success": False, "message": message}, status_code=400)
+
+# In-memory login throttle. For multiple production workers, replace with Redis.
+_LOGIN_ATTEMPTS = {}
+_LOGIN_WINDOW_SECONDS = 300
+_LOGIN_MAX_ATTEMPTS = 8
+
+def login_rate_limited(client_key: str) -> bool:
+    now = datetime.now(timezone.utc).timestamp()
+    row = _LOGIN_ATTEMPTS.get(client_key, {"count": 0, "reset": now + _LOGIN_WINDOW_SECONDS})
+    if now >= row["reset"]:
+        row = {"count": 0, "reset": now + _LOGIN_WINDOW_SECONDS}
+    row["count"] += 1
+    _LOGIN_ATTEMPTS[client_key] = row
+    return row["count"] > _LOGIN_MAX_ATTEMPTS
+
+def clear_login_attempts(client_key: str):
+    _LOGIN_ATTEMPTS.pop(client_key, None)
+
+def audit_event(action: str, request: Request, target: str = ""):
+    try:
+        db.audit_logs.insert_one({
+            "action": action,
+            "actor": request.session.get("user"),
+            "role": request.session.get("role"),
+            "target": target,
+            "ip": request.client.host if request.client else "",
+            "created_at": datetime.now(timezone.utc),
+        })
+    except Exception as exc:
+        logger.warning("Audit log failed: %s", exc)
+
 
 # ================= SETUP & CONFIGURATION =================
 load_dotenv()
@@ -159,12 +280,12 @@ class VoucherService:
         return "01:00:00"
 
     @staticmethod
-    def create_voucher(price: int, uptime: str, data_limit: str, profile_name: str = "default", prefix: str = "") -> Optional[str]:
+    def create_voucher(price: int, uptime: str, data_limit: str, profile_name: str = "default", prefix: str = "", owner_username: str = "") -> Optional[str]:
         try:
             code = VoucherService.generate_code(prefix)
             existing = db.vouchers.find_one({"code": code})
             if existing:
-                return VoucherService.create_voucher(price, uptime, data_limit, profile_name, prefix)
+                return VoucherService.create_voucher(price, uptime, data_limit, profile_name, prefix, owner_username)
 
             expiry_date = datetime.now() + timedelta(days=30)
             voucher_doc = {
@@ -177,10 +298,11 @@ class VoucherService:
                 "status": "unused",
                 "created_at": datetime.now(),
                 "expires_at": expiry_date,
-                "used_by": ""
+                "used_by": "",
+                "owner_username": owner_username.strip()
             }
             db.vouchers.insert_one(voucher_doc)
-            logger.info(f"Voucher created: {code}")
+            logger.info(f"Voucher created: {code} for owner: {owner_username}")
 
             if mikrotik_config.ENABLED:
                 threading.Thread(
@@ -538,7 +660,7 @@ class UserService:
             user_doc = {
                 "id": random.randint(10000, 99999),
                 "username": username.strip(),
-                "password": password,
+                "password_hash": hash_password(password),
                 "role": role,
                 "status": status,
                 "created_at": datetime.now()
@@ -563,7 +685,7 @@ class UserService:
                 "last_name": last_name.strip(),
                 "phone": phone.strip(),
                 "email": clean_email,
-                "password": password,
+                "password_hash": hash_password(password),
                 "role": "customer",
                 "status": "active",
                 "created_at": datetime.now()
@@ -624,7 +746,7 @@ class UserService:
                 return False
             result = db.users.update_one(
                 {"_id": u["_id"]},
-                {"$set": {"username": username.strip(), "password": password, "role": role, "status": status}}
+                {"$set": {"username": username.strip(), "password_hash": hash_password(password), "role": role, "status": status}}
             )
             return result.modified_count > 0
         except Exception as e:
@@ -655,14 +777,15 @@ class UserService:
 class PackageService:
 
     @staticmethod
-    def create_package(name: str, price: int, uptime: str = "1 Day", data_limit: str = "Unlimited") -> bool:
+    def create_package(name: str, price: int, uptime: str = "1 Day", data_limit: str = "Unlimited", owner_username: str = "") -> bool:
         try:
             pkg_doc = {
                 "id": random.randint(10000, 99999),
                 "name": name.strip(),
                 "price": int(price),
                 "uptime": uptime.strip(),
-                "data_limit": data_limit.strip()
+                "data_limit": data_limit.strip(),
+                "owner_username": owner_username.strip()
             }
             db.packages.insert_one(pkg_doc)
             return True
@@ -743,6 +866,18 @@ threading.Thread(target=expiry_worker, daemon=True).start()
 
 
 # ================= AUTH ROUTES =================
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if ENVIRONMENT == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
 @app.get("/")
 @app.get("/login")
 def login_page(request: Request):
@@ -868,6 +1003,72 @@ async def handle_register(
     return RedirectResponse("/customer/dashboard", status_code=303)
 
 
+# ================= PENDING USERS & APPROVAL ROUTES =================
+@app.get("/pending-registrations", response_class=HTMLResponse)
+@login_required
+def pending_registrations_page(request: Request):
+    role = str(request.session.get("role", "")).lower()
+    if role != "admin":
+        return RedirectResponse("/customer/dashboard", status_code=303)
+    
+    pending_users = list(db.users.find({"status": "pending"}))
+    return HTMLResponse(content=f"""
+    <!DOCTYPE html>
+    <html lang="sw">
+    <head>
+        <meta charset="UTF-8">
+        <title>Pending Registrations - CORE-WISP</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body class="bg-light p-5">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Watumiaji Wanaosubiri Uhakiki (Pending Registrations)</h2>
+                <a href="/dashboard" class="btn btn-secondary">Rudi Dashboard</a>
+            </div>
+            <div class="card shadow-sm p-4">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Username / Email</th>
+                            <th>Role</th>
+                            <th>Vitendo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {"".join(f"<tr><td>{u.get('username')}</td><td>{u.get('role')}</td><td><a href='/approve-user/{u.get('_id')}' class='btn btn-success btn-sm'>Approve</a> <a href='/reject-user/{u.get('_id')}' class='btn btn-danger btn-sm'>Reject</a></td></tr>" for u in pending_users) if pending_users else "<tr><td colspan='3' class='text-center'>Hakuna maombi yanayosubiri kwa sasa.</td></tr>"}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </body>
+    </html>
+    """)
+
+@app.get("/approve-user/{user_id}")
+@login_required
+def approve_user_route(request: Request, user_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    role = str(request.session.get("role", "")).lower()
+    if role == "admin":
+        UserService.approve_user(user_id)
+        logger.info(f"User {user_id} approved by Admin.")
+    return RedirectResponse("/dashboard", status_code=303)
+
+
+@app.get("/reject-user/{user_id}")
+@login_required
+def reject_user_route(request: Request, user_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    role = str(request.session.get("role", "")).lower()
+    if role == "admin":
+        UserService.reject_user(user_id)
+        logger.info(f"User {user_id} rejected and deleted by Admin.")
+    return RedirectResponse("/dashboard", status_code=303)
 # ================= HOTSPOT ROUTES =================
 @app.get("/hotspot", response_class=HTMLResponse)
 @app.get("/hotspot-login", response_class=HTMLResponse)
@@ -1068,13 +1269,13 @@ def customer_dashboard(request: Request):
     try:
         customer_vouchers = list(db.vouchers.find({"owner_username": username}))
         customer_packages = list(db.packages.find({"owner_username": username}))
-        customer_routers = list(db.routers.find({"owner_username": username}))
+        customer_routers = list(db.routers.find({"owner_username": username})) if "routers" in db.list_collection_names() else []
 
         try:
             active_clients = db.clients.count_documents({
                 "owner_username": username,
                 "status": "active"
-            })
+            }) if "clients" in db.list_collection_names() else 0
         except Exception:
             active_clients = 0
 
@@ -1088,7 +1289,9 @@ def customer_dashboard(request: Request):
                 "total_vouchers": len(customer_vouchers),
                 "total_packages": len(customer_packages),
                 "active_clients": active_clients,
-                "routers": customer_routers
+                "routers": customer_routers,
+                "packages": customer_packages,
+                "vouchers": customer_vouchers
             }
         )
 
@@ -1104,9 +1307,127 @@ def customer_dashboard(request: Request):
                 "total_vouchers": 0,
                 "total_packages": 0,
                 "active_clients": 0,
-                "routers": []
+                "routers": [],
+                "packages": [],
+                "vouchers": []
             }
         )
+
+
+# ================= CUSTOMER SIDEBAR ROUTES (FULL FUNCTIONALITY) =================
+
+@app.get("/customer/routers", response_class=HTMLResponse)
+@login_required
+def customer_routers(request: Request):
+    username = request.session.get("user", "Customer")
+    routers = list(db.routers.find({"owner_username": username})) if "routers" in db.list_collection_names() else []
+    
+    template_name = "customer_routers.html" if "customer_routers.html" in os.listdir("templates") else "customer_dashboard.html"
+    return templates.TemplateResponse(
+        request=request,
+        name=template_name,
+        context={"request": request, "user": username, "routers": routers}
+    )
+
+@app.get("/customer/vouchers", response_class=HTMLResponse)
+@login_required
+def customer_vouchers(request: Request):
+    username = request.session.get("user", "Customer")
+    vouchers_list = list(db.vouchers.find({"owner_username": username}))
+    packages_list = list(db.packages.find({"owner_username": username}))
+    
+    template_name = "customer_vouchers.html" if "customer_vouchers.html" in os.listdir("templates") else "customer_dashboard.html"
+    return templates.TemplateResponse(
+        request=request,
+        name=template_name,
+        context={
+            "request": request, 
+            "user": username, 
+            "vouchers": vouchers_list,
+            "packages": packages_list,
+            "total_vouchers": len(vouchers_list)
+        }
+    )
+
+@app.get("/customer/packages", response_class=HTMLResponse)
+@login_required
+def customer_packages(request: Request):
+    username = request.session.get("user", "Customer")
+    packages_list = list(db.packages.find({"owner_username": username}))
+    
+    template_name = "customer_packages.html" if "customer_packages.html" in os.listdir("templates") else "customer_dashboard.html"
+    return templates.TemplateResponse(
+        request=request,
+        name=template_name,
+        context={
+            "request": request, 
+            "user": username, 
+            "packages": packages_list,
+            "total_packages": len(packages_list)
+        }
+    )
+
+@app.get("/customer/clients", response_class=HTMLResponse)
+@login_required
+def customer_clients(request: Request):
+    username = request.session.get("user", "Customer")
+    clients_list = list(db.clients.find({"owner_username": username})) if "clients" in db.list_collection_names() else []
+    
+    template_name = "customer_clients.html" if "customer_clients.html" in os.listdir("templates") else "customer_dashboard.html"
+    return templates.TemplateResponse(
+        request=request,
+        name=template_name,
+        context={
+            "request": request, 
+            "user": username, 
+            "clients": clients_list,
+            "active_clients": len(clients_list)
+        }
+    )
+
+@app.get("/customer/traffic", response_class=HTMLResponse)
+@login_required
+def customer_traffic(request: Request):
+    username = request.session.get("user", "Customer")
+    template_name = "customer_traffic.html" if "customer_traffic.html" in os.listdir("templates") else "customer_dashboard.html"
+    return templates.TemplateResponse(
+        request=request,
+        name=template_name,
+        context={"request": request, "user": username}
+    )
+
+@app.get("/customer/reports", response_class=HTMLResponse)
+@login_required
+def customer_reports(request: Request):
+    username = request.session.get("user", "Customer")
+    vouchers_list = list(db.vouchers.find({"owner_username": username}))
+    total_sales = sum(int(v.get("price", 0)) for v in vouchers_list if v.get("status") == "used")
+    
+    template_name = "customer_reports.html" if "customer_reports.html" in os.listdir("templates") else "customer_dashboard.html"
+    return templates.TemplateResponse(
+        request=request,
+        name=template_name,
+        context={
+            "request": request, 
+            "user": username, 
+            "total_sales": total_sales, 
+            "vouchers": vouchers_list,
+            "total_issued": len(vouchers_list)
+        }
+    )
+
+@app.get("/customer/profile", response_class=HTMLResponse)
+@login_required
+def customer_profile(request: Request):
+    username = request.session.get("user", "Customer")
+    user_data = db.users.find_one({"username": username}) or {}
+    
+    template_name = "customer_profile.html" if "customer_profile.html" in os.listdir("templates") else "customer_dashboard.html"
+    return templates.TemplateResponse(
+        request=request,
+        name=template_name,
+        context={"request": request, "user": username, "account": user_data}
+    )
 
 
 # ================= QUICK VOUCHER GENERATOR AJAX ROUTE =================
@@ -1123,8 +1444,11 @@ async def generate_vouchers_fast(
     prefix: str = Form("")
 ):
     try:
+        username = request.session.get("user", "")
         if generation_type == "package" and package_id:
             pkg = PackageService.get_package(package_id)
+            if pkg and pkg.get("owner_username") not in (None, username) and not is_admin(request):
+                return safe_error("Package hauruhusiwi.")
             price = pkg.get("price", 1000) if pkg else 1000
             uptime = pkg.get("uptime", "1 Day") if pkg else "1 Day"
             data_limit = pkg.get("data_limit", "Unlimited") if pkg else "Unlimited"
@@ -1144,7 +1468,8 @@ async def generate_vouchers_fast(
                 uptime=uptime,
                 data_limit=data_limit,
                 profile_name=profile_name,
-                prefix=clean_prefix
+                prefix=clean_prefix,
+                owner_username=username
             )
             if code:
                 generated_codes.append(code)
@@ -1161,48 +1486,19 @@ async def generate_vouchers_fast(
 
     except Exception as e:
         logger.error(f"Error in fast voucher generation: {e}")
-        return JSONResponse({"success": False, "message": f"Kosa la Server: {str(e)}"}, status_code=500)
+        return JSONResponse({"success": False, "message": "Server error. Jaribu tena."}, status_code=500)
 
 
 # ================= AZAMPAY CHECKOUT & MOCK PAYMENT ROUTE =================
 @app.api_route("/lipa", methods=["GET", "POST"])
-async def lipa_internet(amount: int = 1000, phone: str = "0712345678"):
-    duration_map = {
-        500: {"uptime": "1h", "data": "500MB", "name": "Saa_1"},
-        1000: {"uptime": "1d", "data": "Unlimited", "name": "Siku_1"},
-        2000: {"uptime": "2d", "data": "Unlimited", "name": "Siku_2"},
-        3000: {"uptime": "3d", "data": "Unlimited", "name": "Siku_3"},
-        5000: {"uptime": "7d", "data": "Unlimited", "name": "Wiki_1"},
-        10000: {"uptime": "30d", "data": "Unlimited", "name": "Mwezi_1"}
-    }
-    
-    package_info = duration_map.get(amount, {
-        "uptime": "1d", 
-        "data": "Unlimited", 
-        "name": f"Kifurushi_TZS_{amount}"
-    })
-    
-    voucher_code = VoucherService.create_voucher(
-        price=amount,
-        uptime=package_info["uptime"],
-        data_limit=package_info["data"],
-        profile_name=package_info["name"],
-        prefix="MOCK"
-    )
-    
-    logger.info(f"Mock Voucher Generated for {phone} (Amount: {amount}): {voucher_code}")
+async def lipa_internet(request: Request, amount: int = 1000, phone: str = "0712345678"):
+    # Production safety: this endpoint no longer fabricates a successful payment.
+    # Real voucher issuance must happen only after verified AzamPay callback.
+    return JSONResponse({
+        "status": "pending",
+        "message": "Payment endpoint iko kwenye verified-payment flow. Hakuna voucher inayotolewa kabla ya malipo kuthibitishwa."
+    }, status_code=202)
 
-    return {
-        "status": "success",
-        "message": "Mock Payment Successful (Sandbox offline)",
-        "voucher_code": voucher_code,
-        "package": package_info["name"],
-        "phone": phone,
-        "amount": amount
-    }
-
-
-# ================= AZAMPAY CALLBACK / WEBHOOK ROUTE =================
 @app.post("/azampay-callback")
 async def azampay_callback(request: Request):
     try:
@@ -1261,6 +1557,9 @@ async def lipa_page(request: Request):
 @app.get("/users")
 @login_required
 def users(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     return templates.TemplateResponse(
         request=request,
         name="users.html",
@@ -1270,12 +1569,18 @@ def users(request: Request):
 @app.post("/add-user")
 @login_required
 def add_user(request: Request, username: str = Form(...), password: str = Form(...)):
+    guard = require_admin(request)
+    if guard:
+        return guard
     UserService.create_user(username, password)
     return RedirectResponse("/users", status_code=303)
 
 @app.get("/edit-user/{user_id}")
 @login_required
 def edit_user_form(request: Request, user_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
     user = UserService.get_user(user_id)
     if not user:
         return RedirectResponse("/users", status_code=303)
@@ -1298,6 +1603,9 @@ def update_user(
 @app.get("/delete-user/{user_id}")
 @login_required
 def delete_user(request: Request, user_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
     UserService.delete_user(user_id)
     return RedirectResponse("/users", status_code=303)
 
@@ -1306,6 +1614,9 @@ def delete_user(request: Request, user_id: str):
 @app.get("/packages")
 @login_required
 def packages(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     return templates.TemplateResponse(
         request=request,
         name="packages.html",
@@ -1321,12 +1632,16 @@ def add_package(
     uptime: str = Form(""), 
     data_limit: str = Form("")
 ):
-    PackageService.create_package(name, price, uptime, data_limit)
+    username = request.session.get("user", "")
+    PackageService.create_package(name, price, uptime, data_limit, owner_username=username)
     return RedirectResponse("/packages", status_code=303)
 
 @app.get("/edit-package/{pkg_id}")
 @login_required
 def edit_package_form(request: Request, pkg_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
     pkg = PackageService.get_package(pkg_id)
     if not pkg:
         return RedirectResponse("/packages", status_code=303)
@@ -1352,6 +1667,9 @@ def update_package(
 @app.get("/delete-package/{pkg_id}")
 @login_required
 def delete_package(request: Request, pkg_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
     PackageService.delete_package(pkg_id)
     return RedirectResponse("/packages", status_code=303)
 
@@ -1360,6 +1678,9 @@ def delete_package(request: Request, pkg_id: str):
 @app.get("/vouchers")
 @login_required
 def vouchers(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     if mikrotik_config.ENABLED:
         MikrotikService.sync_live_voucher_statuses()
         
@@ -1378,7 +1699,8 @@ def generate_voucher(
     data_limit: str = Form(...),
     profile_name: Optional[str] = Form("Standard")
 ):
-    code = VoucherService.create_voucher(price, duration, data_limit, profile_name=profile_name or "Standard")
+    username = request.session.get("user", "")
+    code = VoucherService.create_voucher(price, duration, data_limit, profile_name=profile_name or "Standard", owner_username=username)
     if not code:
         logger.error("Failed to generate voucher")
     return RedirectResponse("/vouchers", status_code=303)
@@ -1386,24 +1708,36 @@ def generate_voucher(
 @app.get("/activate-voucher/{voucher_id}")
 @login_required
 def activate_voucher(request: Request, voucher_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
     VoucherService.mark_used(voucher_id)
     return RedirectResponse("/vouchers", status_code=303)
 
 @app.get("/expire-voucher/{voucher_id}")
 @login_required
 def expire_voucher(request: Request, voucher_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
     VoucherService.mark_expired(voucher_id)
     return RedirectResponse("/vouchers", status_code=303)
 
 @app.get("/delete-voucher/{voucher_id}")
 @login_required
 def delete_voucher(request: Request, voucher_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
     VoucherService.delete_voucher(voucher_id)
     return RedirectResponse("/vouchers", status_code=303)
 
 @app.get("/clear-expired-vouchers")
 @login_required
 def clear_expired_vouchers(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     try:
         expired_vouchers = list(db.vouchers.find({"status": "expired"}))
         count = len(expired_vouchers)
@@ -1429,6 +1763,9 @@ def clear_expired_vouchers(request: Request):
 @app.get("/print-vouchers", response_class=HTMLResponse)
 @login_required
 def print_vouchers(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     return templates.TemplateResponse(
         request=request,
         name="print_vouchers.html",
@@ -1440,6 +1777,9 @@ def print_vouchers(request: Request):
 @app.get("/reports")
 @login_required
 def reports(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     all_vouchers = VoucherService.get_all_vouchers()
     used_vouchers = [v for v in all_vouchers if v.get("status") == "used"]
     context = {
@@ -1848,12 +2188,18 @@ def _installer_apply(
 @app.get("/mikrotik-installer")
 @login_required
 def mikrotik_installer_page(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     return RedirectResponse("/dashboard", status_code=303)
 
 
 @app.post("/mikrotik/detect")
 @login_required
 async def mikrotik_detect(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     try:
         data = await request.json()
         result = _installer_detect(
@@ -1874,6 +2220,9 @@ async def mikrotik_detect(request: Request):
 @app.post("/mikrotik/install")
 @login_required
 async def mikrotik_install(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     try:
         data = await request.json()
 
@@ -1946,6 +2295,9 @@ async def mikrotik_install(request: Request):
 @app.post("/mikrotik/generate-script")
 @login_required
 async def mikrotik_generate_script(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     try:
         data = await request.json()
         host = str(data.get("host", "")).strip()
@@ -2010,4 +2362,7 @@ def settings(request: Request):
 @app.post("/save-settings")
 @login_required
 def save_settings(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     return RedirectResponse("/settings", status_code=303)

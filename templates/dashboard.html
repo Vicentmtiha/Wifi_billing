@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CORE-WISP | Ultra-Cyber Neural Command Engine v3.5</title>
+<title>CORE-WISP | Administrator Command Center</title>
 
 <!-- Bootstrap 5.3.3 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
@@ -583,7 +583,7 @@
     <!-- Top Bar -->
     <div class="topbar">
         <div class="title">
-            <h2>NEURAL COMMAND ENGINE v3.5</h2>
+            <h2>CORE-WISP ADMINISTRATOR COMMAND CENTER</h2>
             <p class="text-muted small mb-0">Enterprise ISP Bandwidth, Realtime Data-Flow & Billing Engine</p>
         </div>
         <div class="d-flex align-items-center gap-3 flex-wrap">
@@ -645,7 +645,7 @@
         </div>
     </div>
 
-    <!-- PENDING REQUESTS REGISTRATION SECTION (ADDED PROFESSIONALLY) -->
+    <!-- PENDING REQUESTS REGISTRATION SECTION -->
     <div class="row g-4 mb-4">
         <div class="col-12">
             <div class="chart-box p-4" style="border: 1px solid rgba(255, 204, 0, 0.35); background: rgba(8, 14, 28, 0.92);">
@@ -1292,6 +1292,31 @@
         </div>
     </div>
 
+    <!-- ADMINISTRATOR COMMAND MATRIX -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="chart-box p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h5 class="mb-0 fw-bold" style="font-family:'Orbitron';font-size:15px;"><i class="fa-solid fa-shield-halved me-2 text-info"></i>Administrator Control Matrix</h5>
+                        <small class="text-muted">Quick access ya modules zote za current CORE-WISP backend.</small>
+                    </div>
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">ADMIN ONLY</span>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-3"><a href="/users" class="quick-btn"><i class="fa-solid fa-user-shield text-info"></i>Users & Roles</a></div>
+                    <div class="col-md-3"><a href="/packages" class="quick-btn"><i class="fa-solid fa-box text-success"></i>Packages</a></div>
+                    <div class="col-md-3"><a href="/vouchers" class="quick-btn"><i class="fa-solid fa-ticket text-warning"></i>Voucher Engine</a></div>
+                    <div class="col-md-3"><a href="/transactions" class="quick-btn"><i class="fa-solid fa-receipt text-success"></i>Transactions</a></div>
+                    <div class="col-md-3"><a href="/reports" class="quick-btn"><i class="fa-solid fa-chart-column text-info"></i>Reports</a></div>
+                    <div class="col-md-3"><a href="/active-users" class="quick-btn"><i class="fa-solid fa-users-viewfinder text-success"></i>Live Sessions</a></div>
+                    <div class="col-md-3"><a href="/sms-gateway" class="quick-btn"><i class="fa-solid fa-comment-sms" style="color:var(--neon-purple)"></i>SMS & Gateway</a></div>
+                    <div class="col-md-3"><a href="/settings" class="quick-btn"><i class="fa-solid fa-gear text-secondary"></i>System Settings</a></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer>
         <i class="fa-solid fa-shield-virus me-2 text-info"></i> CORE WISP v3.5 Enterprise Neural Engine | Developed by <span class="venom-brand">Venom Company</span> © 2026
     </footer>
@@ -1377,56 +1402,22 @@
         }
     }
 
-    // Live Packet Rate Simulator for Hardware Matrix Ports
-    setInterval(() => {
-        const pWan1 = document.getElementById('p-wan1');
-        const pEth2 = document.getElementById('p-eth2');
-        const pEth3 = document.getElementById('p-eth3');
-        const pEth5 = document.getElementById('p-eth5');
-        const pSfp = document.getElementById('p-sfp');
-        
-        if(pWan1) pWan1.innerText = (Math.random() * 1.5 + 2.0).toFixed(1) + 'K';
-        if(pEth2) pEth2.innerText = (Math.random() * 0.8 + 1.2).toFixed(1) + 'K';
-        if(pEth3) pEth3.innerText = Math.floor(Math.random() * 400 + 600);
-        if(pEth5) pEth5.innerText = (Math.random() * 0.6 + 1.0).toFixed(1) + 'K';
-        if(pSfp) pSfp.innerText = (Math.random() * 2.0 + 4.5).toFixed(1) + 'K';
-    }, 1200);
+    // Interface visualization: do not fabricate live traffic values.
+    // Real interface counters should come from a backend monitoring endpoint.
+    ['p-wan1','p-eth2','p-eth3','p-eth5','p-sfp'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = '—';
+    });
 
-    // Bandwidth Dynamic Line Chart
+    // Bandwidth chart intentionally has no fabricated telemetry.
+    // Populate it from a real MikroTik telemetry endpoint when available.
     const ctxTraffic = document.getElementById("trafficChart");
     if (ctxTraffic) {
-        const labels = Array(30).fill('');
-        const totalTrafficData = [162, 193, 186, 213, 234, 220, 210, 251, 266, 293, 286, 310, 334, 327, 303, 285, 296, 346, 366, 355, 339, 376, 400, 382, 408, 380, 417, 440, 400, 430];
-        const trafficChart = new Chart(ctxTraffic, {
+        new Chart(ctxTraffic, {
             type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{ label: 'Total Bandwidth (Mbps)', data: totalTrafficData, borderColor: '#00f3ff', backgroundColor: 'rgba(0, 243, 255, 0.08)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0 }]
-            },
-            options: {
-                responsive: true, animation: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true, grid: { color: 'rgba(0, 243, 255, 0.04)' }, ticks: { color: '#64748b', font: { family: 'Orbitron', size: 9 }, callback: v => v + ' Mbps' } },
-                    x: { grid: { display: false } }
-                }
-            }
+            data: { labels: [], datasets: [{ label: 'Bandwidth (Mbps)', data: [], borderColor: '#00f3ff', backgroundColor: 'rgba(0,243,255,.08)', fill: true, tension: .35, pointRadius: 0 }] },
+            options: { responsive:true, animation:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{color:'#64748b'}},x:{grid:{display:false}}} }
         });
-
-        let baseTotal = 390;
-        setInterval(() => {
-            trafficChart.data.datasets[0].data.shift();
-            baseTotal += (Math.random() - 0.48) * 60;
-            if (baseTotal < 110) baseTotal = 170; 
-            if (baseTotal > 560) baseTotal = 460;
-            let finalTotal = Math.round(baseTotal);
-            trafficChart.data.datasets[0].data.push(finalTotal);
-            trafficChart.update();
-            const curDl = document.getElementById('currentDl');
-            const curUl = document.getElementById('currentUl');
-            if(curDl) curDl.innerText = Math.round(finalTotal * 0.75);
-            if(curUl) curUl.innerText = finalTotal - Math.round(finalTotal * 0.75);
-        }, 700);
     }
 
     // Voucher Doughnut Chart
@@ -1470,20 +1461,9 @@
         });
     }
 
-    // System Monitor Updates
-    setInterval(() => {
-        const cpu = Math.floor(Math.random() * 20) + 15;
-        const ram = Math.floor(Math.random() * 5) + 42;
-        const cpuBar = document.getElementById('cpuBar');
-        const cpuVal = document.getElementById('cpuValue');
-        const ramBar = document.getElementById('ramBar');
-        const ramVal = document.getElementById('ramValue');
+    // System health values are intentionally not fabricated.
+    // Backend telemetry can populate these fields later.
 
-        if(cpuBar) cpuBar.style.width = cpu + '%';
-        if(cpuVal) cpuVal.innerHTML = cpu + '%';
-        if(ramBar) ramBar.style.width = ram + '%';
-        if(ramVal) ramVal.innerHTML = ram + '%';
-    }, 2000);
 
     // Modal Radio Toggle Logic
     const radioPackage = document.getElementById('genTypePackage');
