@@ -1,43 +1,68 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sw">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Dashboard - CORE WISP</title>
 
-    <!-- Google Fonts: Plus Jakarta Sans -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome 6 -->
+    <!-- Font Awesome 6.5 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
     <style>
         :root {
-            --bg-body: #0b0f19;
-            --bg-card: rgba(22, 30, 49, 0.75);
-            --bg-sidebar: #0f172a;
+            --bg-body: #070a12;
+            --bg-card: rgba(18, 26, 43, 0.75);
+            --bg-sidebar: #0b1120;
             --border-color: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(99, 102, 241, 0.4);
             --primary-accent: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.25);
             --success-accent: #10b981;
+            --warning-accent: #f59e0b;
+            --danger-accent: #ef4444;
+            --info-accent: #3b82f6;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
+            --font-mono: 'JetBrains Mono', monospace;
         }
 
         body {
             background-color: var(--bg-body);
             background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0, transparent 50%);
+                radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 60%);
             background-attachment: fixed;
             font-family: 'Plus Jakarta Sans', sans-serif;
             color: var(--text-main);
             min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        /* Sidebar Styling */
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-body); }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+        /* Mobile Overlay */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1040;
+        }
+        .sidebar-overlay.show { display: block; }
+
+        /* ================= SIDEBAR STYLING ================= */
         .sidebar {
-            width: 260px;
+            width: 270px;
             height: 100vh;
             position: fixed;
             left: 0;
@@ -47,8 +72,9 @@
             padding: 24px 18px;
             display: flex;
             flex-direction: column;
-            z-index: 1000;
-            transition: all 0.3s ease;
+            z-index: 1050;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
         }
 
         .brand {
@@ -58,35 +84,39 @@
             color: #ffffff;
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: space-between;
             padding: 0 8px 24px;
             border-bottom: 1px solid var(--border-color);
         }
 
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
         .brand-icon {
-            width: 38px;
-            height: 38px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            border-radius: 10px;
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 20px var(--primary-glow);
             color: #fff;
-            font-size: 18px;
+            font-size: 20px;
         }
 
-        .brand span {
-            color: #10b981;
-        }
+        .brand span { color: var(--primary-accent); }
 
         .menu-title {
             font-size: 11px;
             font-weight: 700;
-            color: #64748b;
-            margin: 20px 10px 8px;
+            color: #475569;
+            margin: 22px 10px 8px;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 1.2px;
         }
 
         .nav-link-custom {
@@ -95,166 +125,175 @@
             gap: 12px;
             color: var(--text-muted);
             text-decoration: none;
-            padding: 12px 14px;
+            padding: 12px 16px;
             margin-bottom: 4px;
             border-radius: 12px;
             font-size: 14px;
             font-weight: 500;
             transition: all 0.2s ease;
+            position: relative;
+            cursor: pointer;
         }
 
         .nav-link-custom i {
             font-size: 16px;
-            width: 20px;
+            width: 22px;
             text-align: center;
+            transition: color 0.2s ease;
         }
 
         .nav-link-custom:hover {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.04);
             color: #ffffff;
-            transform: translateX(3px);
+            transform: translateX(4px);
         }
 
         .nav-link-custom.active {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(79, 70, 229, 0.1) 100%);
-            border: 1px solid rgba(99, 102, 241, 0.3);
+            background: linear-gradient(90deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0.02) 100%);
+            border-left: 3px solid var(--primary-accent);
             color: #818cf8;
             font-weight: 600;
         }
 
+        .nav-link-custom.active i { color: var(--primary-accent); }
+
         .nav-link-custom.logout {
             color: #f87171 !important;
             margin-top: auto;
+            border-top: 1px solid var(--border-color);
+            border-radius: 0 0 12px 12px;
+            padding-top: 16px;
         }
 
-        .nav-link-custom.logout:hover {
-            background: rgba(239, 68, 68, 0.1);
-        }
+        .nav-link-custom.logout:hover { background: rgba(239, 68, 68, 0.1); }
 
-        /* Main Content */
+        /* ================= MAIN CONTENT ================= */
         .main-content {
-            margin-left: 260px;
-            padding: 30px;
+            margin-left: 270px;
+            padding: 32px;
+            transition: margin-left 0.3s ease;
         }
 
         /* Top Bar */
         .topbar {
             background: var(--bg-card);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--border-color);
             border-radius: 20px;
-            padding: 18px 24px;
-            margin-bottom: 30px;
+            padding: 18px 28px;
+            margin-bottom: 32px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
-        .welcome h4 {
-            margin: 0;
-            font-weight: 800;
-            font-size: 22px;
-        }
+        .welcome h4 { margin: 0; font-weight: 800; font-size: 22px; }
+        .welcome p { margin: 4px 0 0; color: var(--text-muted); font-size: 13px; }
 
-        .welcome p {
-            margin: 4px 0 0;
-            color: var(--text-muted);
-            font-size: 13px;
-        }
-
-        .profile {
+        .profile-badge {
             display: flex;
             align-items: center;
             gap: 14px;
+            background: rgba(255,255,255,0.03);
+            padding: 8px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
         }
 
-        .profile-icon {
-            width: 44px;
-            height: 44px;
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        .profile-avatar {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
-            border-radius: 14px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
-            font-size: 18px;
+            font-weight: 700;
         }
 
-        /* Cards & Glassmorphism */
+        /* Glassmorphism Cards */
         .glass-card {
             background: var(--bg-card);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--border-color);
             border-radius: 20px;
-            padding: 22px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            transition: all 0.3s ease;
         }
 
         .glass-card:hover {
             border-color: rgba(255, 255, 255, 0.15);
         }
 
-        /* Stat Cards */
+        /* Stats Cards */
         .stat-card {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            height: 100%;
         }
 
-        .stat-info {
-            display: flex;
-            flex-direction: column;
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; width: 100px; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.02));
+            pointer-events: none;
         }
 
         .stat-title {
             color: var(--text-muted);
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
         }
 
         .stat-number {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 800;
             margin-top: 4px;
-            letter-spacing: -1px;
+            letter-spacing: -0.5px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
-        .stat-icon-wrapper {
-            width: 52px;
-            height: 52px;
-            border-radius: 16px;
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 22px;
+            font-size: 20px;
+            flex-shrink: 0;
         }
 
-        .icon-router { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
-        .icon-ticket { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-        .icon-users  { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-        .icon-box    { background: rgba(236, 72, 153, 0.15); color: #f472b6; }
+        .icon-total   { background: rgba(99, 102, 241, 0.12); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.2); }
+        .icon-used    { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .icon-unused  { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); }
+        .icon-active  { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .icon-router  { background: rgba(59, 130, 246, 0.12); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2); }
+        .icon-box     { background: rgba(236, 72, 153, 0.12); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.2); }
 
         /* Tables */
-        .custom-table {
-            color: var(--text-main);
-            margin: 0;
-        }
-
+        .custom-table { color: var(--text-main); margin: 0; width: 100%; }
         .custom-table th {
             background: transparent;
             color: var(--text-muted);
-            font-size: 12px;
+            font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 0.8px;
+            letter-spacing: 1px;
             border-bottom: 1px solid var(--border-color);
-            padding: 14px 16px;
+            padding: 16px;
+            white-space: nowrap;
         }
-
         .custom-table td {
             background: transparent;
             border-bottom: 1px solid var(--border-color);
@@ -262,19 +301,59 @@
             vertical-align: middle;
             color: #e2e8f0;
             font-size: 14px;
+            white-space: nowrap;
         }
 
-        .router-status-online {
+        .code-pill {
+            font-family: var(--font-mono);
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #38bdf8;
+            display: inline-block;
+        }
+
+        /* Status Badge */
+        .badge-status {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             font-size: 12px;
-            padding: 6px 12px;
+            padding: 5px 12px;
             border-radius: 30px;
-            background: rgba(16, 185, 129, 0.15);
+            font-weight: 600;
+        }
+
+        .badge-active {
+            background: rgba(16, 185, 129, 0.12);
             color: #34d399;
             border: 1px solid rgba(16, 185, 129, 0.3);
-            font-weight: 600;
+        }
+
+        .badge-used {
+            background: rgba(239, 68, 68, 0.12);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .badge-unused {
+            background: rgba(245, 158, 11, 0.12);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .badge-online {
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-offline {
+            background: rgba(239, 68, 68, 0.12);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
         }
 
         .status-dot-pulse {
@@ -292,67 +371,212 @@
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
         }
 
-        /* Quick Actions */
+        /* Quick Action Cards */
         .quick-action-card {
-            background: rgba(30, 41, 59, 0.5);
+            background: rgba(15, 23, 42, 0.5);
             border: 1px solid var(--border-color);
             border-radius: 16px;
             padding: 20px;
-            text-decoration: none;
             color: var(--text-main);
             display: flex;
             align-items: center;
             gap: 16px;
             transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            height: 100%;
         }
 
         .quick-action-card:hover {
-            background: rgba(30, 41, 59, 0.9);
-            border-color: rgba(99, 102, 241, 0.4);
-            transform: translateY(-3px);
-            color: #ffffff;
+            background: rgba(30, 41, 59, 0.8);
+            border-color: var(--primary-accent);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.15);
+            color: #fff;
         }
 
         .quick-action-icon {
-            width: 46px;
-            height: 46px;
+            width: 48px;
+            height: 48px;
             background: rgba(99, 102, 241, 0.1);
-            border-radius: 12px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #818cf8;
             font-size: 20px;
             flex-shrink: 0;
+            transition: all 0.3s ease;
         }
 
         .quick-action-card:hover .quick-action-icon {
             background: var(--primary-accent);
             color: #ffffff;
+            box-shadow: 0 0 15px var(--primary-glow);
         }
 
-        .empty-state {
+        /* Page Section Navigation */
+        .page-section { display: none; }
+        .page-section.active {
+            display: block;
+            animation: fadeIn 0.35s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Glass Modals Styling */
+        .modal-glass {
+            background: #0f172a;
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-glass .form-control, 
+        .modal-glass .form-select {
+            background-color: #070a12;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+        }
+
+        .modal-glass .form-control:focus, 
+        .modal-glass .form-select:focus {
+            background-color: #0c1222;
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+            color: #ffffff;
+        }
+
+        /* ================= VOUCHER PRINTING TEMPLATE (SCREEN & PRINT) ================= */
+        .voucher-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .voucher-card-print {
+            background: #ffffff;
+            color: #000000;
+            border: 2px dashed #334155;
+            border-radius: 12px;
+            padding: 16px;
             text-align: center;
-            padding: 40px 20px;
-            color: var(--text-muted);
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
-        .empty-state i {
-            font-size: 48px;
+        .voucher-card-print .wisp-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #4f46e5;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .voucher-card-print .voucher-code-display {
+            font-family: var(--font-mono);
+            font-size: 20px;
+            font-weight: 800;
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 8px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid #cbd5e1;
+            letter-spacing: 1px;
+        }
+
+        .voucher-card-print .voucher-details {
+            font-size: 11px;
             color: #475569;
-            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 8px;
+            margin-top: 8px;
         }
 
-        /* Responsive */
-        @media (max-width: 992px) {
+        /* PRINT MEDIA STYLES */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printable-area, #printable-area * {
+                visibility: visible;
+            }
+            #printable-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 10px;
+                background: white;
+            }
+            .voucher-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 10px !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .voucher-card-print {
+                box-shadow: none !important;
+                border: 1px dashed #000 !important;
+                page-break-inside: avoid;
+            }
+        }
+
+        /* RESPONSIVE DESIGN ENHANCEMENTS */
+        @media (max-width: 991.98px) {
             .sidebar {
                 transform: translateX(-100%);
             }
-            .main-content {
-                margin-left: 0;
-            }
             .sidebar.show {
                 transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 20px 15px;
+            }
+            .topbar {
+                padding: 14px 18px;
+                border-radius: 16px;
+            }
+            .welcome h4 {
+                font-size: 18px;
+            }
+            .stat-number {
+                font-size: 24px;
+            }
+            .stat-icon {
+                width: 42px;
+                height: 42px;
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .welcome p {
+                display: none;
+            }
+            .profile-badge {
+                padding: 6px 10px;
+            }
+            .glass-card {
+                padding: 16px;
+                border-radius: 16px;
+            }
+            .btn-action-mobile {
+                padding: 6px 10px;
+                font-size: 12px;
             }
         }
     </style>
@@ -360,271 +584,1153 @@
 
 <body>
 
+<!-- Mobile Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
 <!-- ================= SIDEBAR ================= -->
-<div class="sidebar">
+<aside class="sidebar" id="sidebar">
     <div class="brand">
-        <div class="brand-icon">
-            <i class="fa-solid fa-wifi"></i>
+        <div class="brand-logo">
+            <div class="brand-icon">
+                <i class="fa-solid fa-wifi"></i>
+            </div>
+            <div>CORE<span>WISP</span></div>
         </div>
-        <div>CORE<span>WISP</span></div>
+        <button class="btn text-white d-lg-none p-0" onclick="toggleSidebar()">
+            <i class="fa-solid fa-xmark fs-5"></i>
+        </button>
     </div>
 
-    <div class="menu-title">Main</div>
+    <div class="menu-title">Main Navigation</div>
 
-    <a href="/customer/dashboard" class="nav-link-custom active">
+    <a href="#dashboard" class="nav-link-custom active" onclick="switchTab('dashboard')">
         <i class="fa-solid fa-chart-pie"></i>
         <span>Dashboard</span>
     </a>
 
-    <a href="/customer/routers" class="nav-link-custom">
-        <i class="fa-solid fa-router"></i>
-        <span>My Routers</span>
-    </a>
-
-    <a href="/customer/vouchers" class="nav-link-custom">
+    <a href="#vouchers" class="nav-link-custom" onclick="switchTab('vouchers')">
         <i class="fa-solid fa-ticket"></i>
         <span>My Vouchers</span>
     </a>
 
-    <a href="/customer/packages" class="nav-link-custom">
+    <a href="#print-page" class="nav-link-custom" onclick="switchTab('print-page')">
+        <i class="fa-solid fa-print"></i>
+        <span>Print Vouchers</span>
+    </a>
+
+    <a href="#routers" class="nav-link-custom" onclick="switchTab('routers')">
+        <i class="fa-solid fa-router"></i>
+        <span>My Routers</span>
+    </a>
+
+    <a href="#packages" class="nav-link-custom" onclick="switchTab('packages')">
         <i class="fa-solid fa-box-archive"></i>
-        <span>My Packages</span>
+        <span>WiFi Packages</span>
     </a>
 
-    <div class="menu-title">Management</div>
+    <div class="menu-title">Network & Clients</div>
 
-    <a href="/customer/clients" class="nav-link-custom">
+    <a href="#clients" class="nav-link-custom" onclick="switchTab('clients')">
         <i class="fa-solid fa-users-viewfinder"></i>
-        <span>My Clients</span>
+        <span>Active Clients</span>
     </a>
 
-    <a href="/customer/traffic" class="nav-link-custom">
+    <a href="#traffic" class="nav-link-custom" onclick="switchTab('traffic')">
         <i class="fa-solid fa-chart-line"></i>
-        <span>Traffic</span>
+        <span>Live Traffic</span>
     </a>
 
-    <a href="/customer/reports" class="nav-link-custom">
-        <i class="fa-solid fa-file-invoice"></i>
-        <span>Reports</span>
+    <a href="#reports" class="nav-link-custom" onclick="switchTab('reports')">
+        <i class="fa-solid fa-file-invoice-dollar"></i>
+        <span>Sales & Reports</span>
     </a>
 
     <div class="menu-title">Account</div>
 
-    <a href="/customer/profile" class="nav-link-custom">
+    <a href="#profile" class="nav-link-custom" onclick="switchTab('profile')">
         <i class="fa-solid fa-user-gear"></i>
-        <span>My Account</span>
+        <span>Settings</span>
     </a>
 
     <a href="/logout" class="nav-link-custom logout">
         <i class="fa-solid fa-right-from-bracket"></i>
-        <span>Logout</span>
+        <span>Logout System</span>
     </a>
-</div>
+</aside>
 
 
-<!-- ================= MAIN CONTENT ================= -->
-<div class="main-content">
+<!-- ================= MAIN CONTENT AREA ================= -->
+<main class="main-content">
 
     <!-- TOP BAR -->
-    <div class="topbar">
-        <div class="welcome">
-            <h4>Welcome back, {{ user or "Customer" }} 👋</h4>
-            <p>Manage and monitor your WiFi billing infrastructure in real time.</p>
+    <header class="topbar">
+        <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-outline-light d-lg-none rounded-3 px-3 py-2" onclick="toggleSidebar()">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <div class="welcome">
+                <h4 id="page-title">Welcome back, {{ user or "Administrator" }} 👋</h4>
+                <p id="page-subtitle">Real-time MikroTik Hotspot & WISP Billing Control Center.</p>
+            </div>
         </div>
 
-        <div class="profile">
+        <div class="profile-badge">
             <div class="text-end d-none d-sm-block">
-                <div class="fw-bold fs-6">{{ user or "Customer" }}</div>
-                <div class="small text-muted">Customer Account</div>
+                <div class="fw-bold fs-6 text-white">{{ user or "Customer Admin" }}</div>
+                <div class="small text-muted" style="font-size: 11px;">Active Session</div>
             </div>
-            <div class="profile-icon">
-                <i class="fa-solid fa-user"></i>
-            </div>
-        </div>
-    </div>
-
-    <!-- ================= STATISTICS ================= -->
-    <div class="row g-4 mb-4">
-        <!-- Routers -->
-        <div class="col-xl-3 col-md-6">
-            <div class="glass-card stat-card">
-                <div class="stat-info">
-                    <span class="stat-title">My Routers</span>
-                    <span class="stat-number">{{ total_routers or 0 }}</span>
-                </div>
-                <div class="stat-icon-wrapper icon-router">
-                    <i class="fa-solid fa-router"></i>
-                </div>
+            <div class="profile-avatar">
+                {{ user[0]|upper if user else "A" }}
             </div>
         </div>
+    </header>
 
-        <!-- Vouchers -->
-        <div class="col-xl-3 col-md-6">
-            <div class="glass-card stat-card">
-                <div class="stat-info">
-                    <span class="stat-title">My Vouchers</span>
-                    <span class="stat-number">{{ total_vouchers or 0 }}</span>
-                </div>
-                <div class="stat-icon-wrapper icon-ticket">
-                    <i class="fa-solid fa-ticket"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- Clients -->
-        <div class="col-xl-3 col-md-6">
-            <div class="glass-card stat-card">
-                <div class="stat-info">
-                    <span class="stat-title">Active Clients</span>
-                    <span class="stat-number">{{ active_clients or 0 }}</span>
-                </div>
-                <div class="stat-icon-wrapper icon-users">
-                    <i class="fa-solid fa-users"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- Packages -->
-        <div class="col-xl-3 col-md-6">
-            <div class="glass-card stat-card">
-                <div class="stat-info">
-                    <span class="stat-title">My Packages</span>
-                    <span class="stat-number">{{ total_packages or 0 }}</span>
-                </div>
-                <div class="stat-icon-wrapper icon-box">
-                    <i class="fa-solid fa-box"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ================= ROUTER SECTION ================= -->
-    <div class="glass-card mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h5 class="fw-bold m-0"><i class="fa-solid fa-server me-2 text-primary"></i>My Connected Routers</h5>
-            <a href="/customer/routers" class="btn btn-sm btn-success rounded-3 px-3 py-2 fw-semibold">
-                <i class="fa-solid fa-plus me-1"></i> Add Router
-            </a>
-        </div>
-
-        {% if routers %}
-        <div class="table-responsive">
-            <table class="table custom-table align-middle">
-                <thead>
-                    <tr>
-                        <th>Router Name</th>
-                        <th>IP Address</th>
-                        <th>Status</th>
-                        <th class="text-end">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for router in routers %}
-                    <tr>
-                        <td>
-                            <div class="fw-bold text-white">{{ router.name }}</div>
-                        </td>
-                        <td>
-                            <code class="text-info bg-dark px-2 py-1 rounded">{{ router.host }}</code>
-                        </td>
-                        <td>
-                            {% if router.status == "online" %}
-                            <span class="router-status-online">
-                                <span class="status-dot-pulse"></span>
-                                Online
-                            </span>
-                            {% else %}
-                            <span class="badge bg-secondary rounded-pill px-3 py-2">Offline</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end">
-                            <a href="/customer/routers/{{ router.id }}" class="btn btn-sm btn-outline-light rounded-2 px-3">
-                                Manage
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="empty-state">
-            <i class="fa-solid fa-network-wired"></i>
-            <h5 class="fw-bold text-white">No Router Connected</h5>
-            <p class="small text-muted mb-4">You haven't added a MikroTik router to your profile yet.</p>
-            <a href="/customer/routers" class="btn btn-success px-4 py-2 rounded-3 fw-semibold">
-                <i class="fa-solid fa-plus me-1"></i> Add Your First Router
-            </a>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- ================= QUICK ACTIONS ================= -->
-    <div class="glass-card mb-4">
-        <h5 class="fw-bold mb-4"><i class="fa-solid fa-bolt me-2 text-warning"></i>Quick Actions</h5>
-        <div class="row g-3">
-            <div class="col-lg-3 col-md-6">
-                <a href="/customer/routers" class="quick-action-card">
-                    <div class="quick-action-icon">
-                        <i class="fa-solid fa-router"></i>
-                    </div>
+    <!-- ================= 1. DASHBOARD TAB ================= -->
+    <section id="dashboard" class="page-section active">
+        <!-- VOUCHER STATISTICS CARDS (Total, Used, Unused, Active) -->
+        <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-6" onclick="switchTab('vouchers')" style="cursor: pointer;">
+                <div class="glass-card stat-card">
                     <div>
-                        <div class="fw-bold">Add Router</div>
-                        <div class="small text-muted">Connect MikroTik</div>
+                        <span class="stat-title">Total Vouchers</span>
+                        <div class="stat-number text-white">{{ total_vouchers or 0 }}</div>
                     </div>
-                </a>
-            </div>
-
-            <div class="col-lg-3 col-md-6">
-                <a href="/customer/vouchers" class="quick-action-card">
-                    <div class="quick-action-icon">
+                    <div class="stat-icon icon-total">
                         <i class="fa-solid fa-ticket"></i>
                     </div>
-                    <div>
-                        <div class="fw-bold">Generate Voucher</div>
-                        <div class="small text-muted">Create WiFi vouchers</div>
-                    </div>
-                </a>
+                </div>
             </div>
 
-            <div class="col-lg-3 col-md-6">
-                <a href="/customer/packages" class="quick-action-card">
-                    <div class="quick-action-icon">
-                        <i class="fa-solid fa-box"></i>
-                    </div>
+            <div class="col-xl-3 col-6" onclick="switchTab('vouchers')" style="cursor: pointer;">
+                <div class="glass-card stat-card">
                     <div>
-                        <div class="fw-bold">Packages</div>
-                        <div class="small text-muted">Manage WiFi plans</div>
+                        <span class="stat-title">Active Vouchers</span>
+                        <div class="stat-number text-success">{{ active_vouchers or 0 }}</div>
                     </div>
-                </a>
+                    <div class="stat-icon icon-active">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
             </div>
 
-            <div class="col-lg-3 col-md-6">
-                <a href="/customer/reports" class="quick-action-card">
-                    <div class="quick-action-icon">
-                        <i class="fa-solid fa-chart-column"></i>
-                    </div>
+            <div class="col-xl-3 col-6" onclick="switchTab('vouchers')" style="cursor: pointer;">
+                <div class="glass-card stat-card">
                     <div>
-                        <div class="fw-bold">Reports</div>
-                        <div class="small text-muted">View business analytics</div>
+                        <span class="stat-title">Unused Vouchers</span>
+                        <div class="stat-number text-warning">{{ unused_vouchers or 0 }}</div>
                     </div>
-                </a>
+                    <div class="stat-icon icon-unused">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-6" onclick="switchTab('vouchers')" style="cursor: pointer;">
+                <div class="glass-card stat-card">
+                    <div>
+                        <span class="stat-title">Used Vouchers</span>
+                        <div class="stat-number text-danger">{{ used_vouchers or 0 }}</div>
+                    </div>
+                    <div class="stat-icon icon-used">
+                        <i class="fa-solid fa-check-double"></i>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- ================= ACCOUNT NOTICE ================= -->
-    <div class="glass-card border-0 bg-opacity-25" style="background: rgba(99, 102, 241, 0.1);">
-        <div class="d-flex align-items-center gap-3">
-            <i class="fa-solid fa-circle-info text-primary fs-4"></i>
-            <div>
-                <strong class="text-white">Account Info:</strong> Your customer account is active and managed through the CORE WISP billing system.
+        <!-- CONNECTED ROUTERS & QUICK OVERVIEW -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-8">
+                <div class="glass-card h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                        <h5 class="fw-bold m-0"><i class="fa-solid fa-server me-2 text-primary"></i>Connected MikroTik Routers</h5>
+                        <button type="button" class="btn btn-sm btn-primary rounded-3 px-3 py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#addRouterModal">
+                            <i class="fa-solid fa-plus me-1"></i> Add Router
+                        </button>
+                    </div>
+
+                    {% if routers %}
+                    <div class="table-responsive">
+                        <table class="table custom-table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Router Name</th>
+                                    <th>IP / Host</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for router in routers %}
+                                <tr>
+                                    <td><div class="fw-bold text-white"><i class="fa-solid fa-network-wired me-2 text-muted"></i>{{ router.name }}</div></td>
+                                    <td><span class="code-pill">{{ router.host }}</span></td>
+                                    <td>
+                                        {% if router.status == "online" %}
+                                        <span class="badge-status badge-online">
+                                            <span class="status-dot-pulse"></span> Connected
+                                        </span>
+                                        {% else %}
+                                        <span class="badge-status badge-offline"><i class="fa-solid fa-circle me-1" style="font-size: 8px;"></i> Offline</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <button onclick="switchTab('routers')" class="btn btn-sm btn-outline-light rounded-3 px-3">
+                                            Manage
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fa-solid fa-network-wired display-4 text-muted mb-3 opacity-50"></i>
+                        <h6 class="fw-bold text-white">No MikroTik Routers Connected</h6>
+                        <p class="small text-muted mb-3">Configure your MikroTik API connection to start managing clients.</p>
+                        <button type="button" class="btn btn-primary btn-sm px-4 py-2 rounded-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#addRouterModal">
+                            <i class="fa-solid fa-plus me-1"></i> Add Your First Router
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- SYSTEM STATS SIDE SUMMARY -->
+            <div class="col-lg-4">
+                <div class="glass-card h-100">
+                    <h5 class="fw-bold mb-4"><i class="fa-solid fa-chart-line me-2 text-info"></i>System Overview</h5>
+                    
+                    <div class="p-3 mb-3 rounded-3" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color);">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-muted small">Routers Active</span>
+                            <span class="fw-bold text-white">{{ total_routers or 0 }}</span>
+                        </div>
+                        <div class="progress" style="height: 6px; background: rgba(255,255,255,0.1);">
+                            <div class="progress-bar bg-info" style="width: 100%"></div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 mb-3 rounded-3" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color);">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-muted small">WiFi Packages</span>
+                            <span class="fw-bold text-white">{{ total_packages or 0 }}</span>
+                        </div>
+                        <div class="progress" style="height: 6px; background: rgba(255,255,255,0.1);">
+                            <div class="progress-bar bg-warning" style="width: 100%"></div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 rounded-3" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color);">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-muted small">Online Active Users</span>
+                            <span class="fw-bold text-white">{{ active_clients or 0 }}</span>
+                        </div>
+                        <div class="progress" style="height: 6px; background: rgba(255,255,255,0.1);">
+                            <div class="progress-bar bg-success" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
 
+        <!-- QUICK ACTIONS GRID -->
+        <div class="glass-card">
+            <h5 class="fw-bold mb-4"><i class="fa-solid fa-bolt me-2 text-warning"></i>Quick Actions</h5>
+            <div class="row g-3">
+                <div class="col-lg-3 col-6">
+                    <div class="quick-action-card" data-bs-toggle="modal" data-bs-target="#generateVoucherModal">
+                        <div class="quick-action-icon"><i class="fa-solid fa-plus-circle"></i></div>
+                        <div>
+                            <div class="fw-bold text-white fs-6">Generate Voucher</div>
+                            <div class="small text-muted d-none d-sm-block">Create batch codes</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-6">
+                    <div class="quick-action-card" onclick="switchTab('print-page')">
+                        <div class="quick-action-icon"><i class="fa-solid fa-print"></i></div>
+                        <div>
+                            <div class="fw-bold text-white fs-6">Print Vouchers</div>
+                            <div class="small text-muted d-none d-sm-block">Print batch voucher cards</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-6">
+                    <div class="quick-action-card" data-bs-toggle="modal" data-bs-target="#addRouterModal">
+                        <div class="quick-action-icon"><i class="fa-solid fa-router"></i></div>
+                        <div>
+                            <div class="fw-bold text-white fs-6">Add Router</div>
+                            <div class="small text-muted d-none d-sm-block">Connect MikroTik API</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 col-6">
+                    <div class="quick-action-card" data-bs-toggle="modal" data-bs-target="#addPackageModal">
+                        <div class="quick-action-icon"><i class="fa-solid fa-box"></i></div>
+                        <div>
+                            <div class="fw-bold text-white fs-6">New Package</div>
+                            <div class="small text-muted d-none d-sm-block">Create WiFi tariff</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= 2. VOUCHERS TAB WITH EDIT/DELETE ================= -->
+    <section id="vouchers" class="page-section">
+        <div class="glass-card">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <h5 class="fw-bold m-0"><i class="fa-solid fa-ticket me-2 text-success"></i>Hotspot Vouchers Manager</h5>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-info rounded-3 px-3 py-2 fw-semibold" onclick="switchTab('print-page')">
+                        <i class="fa-solid fa-print me-1"></i> Print Page
+                    </button>
+                    <button type="button" class="btn btn-sm btn-success rounded-3 px-3 py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#generateVoucherModal">
+                        <i class="fa-solid fa-plus me-1"></i> Generate Vouchers
+                    </button>
+                </div>
+            </div>
+
+            <!-- VOUCHER STATS SUMMARY ROW -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 col-6">
+                    <div class="p-3 rounded-3" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color);">
+                        <div class="small text-muted">Total</div>
+                        <div class="fs-4 fw-bold text-white">{{ total_vouchers or 0 }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="p-3 rounded-3" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2);">
+                        <div class="small text-success">Active</div>
+                        <div class="fs-4 fw-bold text-success">{{ active_vouchers or 0 }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="p-3 rounded-3" style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2);">
+                        <div class="small text-warning">Unused</div>
+                        <div class="fs-4 fw-bold text-warning">{{ unused_vouchers or 0 }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="p-3 rounded-3" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2);">
+                        <div class="small text-danger">Used</div>
+                        <div class="fs-4 fw-bold text-danger">{{ used_vouchers or 0 }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table custom-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Voucher Code</th>
+                            <th>Package Name</th>
+                            <th>Price (TZS)</th>
+                            <th>Duration</th>
+                            <th>Data Limit</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="voucherTableBody">
+                        {% if vouchers %}
+                            {% for v in vouchers %}
+                            <tr id="voucher-row-{{ loop.index }}">
+                                <td><span class="code-pill text-warning fw-bold">{{ v.code }}</span></td>
+                                <td>{{ v.package_name or 'Standard Plan' }}</td>
+                                <td><strong class="text-success">TZS {{ "{:,}".format(v.price or 0) }}</strong></td>
+                                <td><i class="fa-regular fa-clock me-1 text-muted"></i>{{ v.validity or '24 Hours' }}</td>
+                                <td><i class="fa-solid fa-database me-1 text-muted"></i>{{ v.data_limit or 'Unlimited' }}</td>
+                                <td>
+                                    {% if v.status == 'used' %}
+                                    <span class="badge-status badge-used">Used</span>
+                                    {% elif v.status == 'unused' %}
+                                    <span class="badge-status badge-unused">Unused</span>
+                                    {% else %}
+                                    <span class="badge-status badge-active">Active</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-warning me-1 btn-action-mobile" 
+                                            onclick="openEditVoucherModal('{{ v._id or loop.index }}', '{{ v.code }}', '{{ v.price or 0 }}', '{{ v.validity or '' }}', '{{ v.data_limit or '' }}', '{{ v.status or 'active' }}')">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger btn-action-mobile" 
+                                            onclick="openDeleteModal('voucher', '{{ v._id or loop.index }}', '{{ v.code }}')">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="fa-solid fa-ticket display-4 mb-3 opacity-25"></i>
+                                    <h6>Hakuna vocha iliyopatikana kwenye mfumo.</h6>
+                                    <p class="small">Bofya "Generate Vouchers" hapo juu ili kutengeneza vocha mpya.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= 3. VOUCHER PRINTING PAGE ================= -->
+    <section id="print-page" class="page-section">
+        <div class="glass-card mb-4 no-print">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h5 class="fw-bold m-0"><i class="fa-solid fa-print me-2 text-info"></i>Voucher Printing Page</h5>
+                    <p class="text-muted small m-0 mt-1">Preview and print voucher batch cards directly for offline sale.</p>
+                </div>
+                <button class="btn btn-primary px-4 py-2 rounded-3 fw-bold" onclick="window.print()">
+                    <i class="fa-solid fa-print me-2"></i> Print All Vouchers
+                </button>
+            </div>
+        </div>
+
+        <!-- PRINTABLE VOUCHERS CONTAINER -->
+        <div id="printable-area">
+            <div class="voucher-grid">
+                {% if vouchers %}
+                    {% for v in vouchers %}
+                    <div class="voucher-card-print">
+                        <div class="wisp-title"><i class="fa-solid fa-wifi me-1"></i> CORE WISP</div>
+                        <div class="small text-muted" style="font-size: 10px;">HOTSPOT ACCESS VOUCHER</div>
+                        <div class="voucher-code-display">{{ v.code }}</div>
+                        <div class="voucher-details">
+                            <span>Price: <strong>TZS {{ "{:,}".format(v.price or 0) }}</strong></span>
+                            <span>Limit: <strong>{{ v.data_limit or 'Unlimited' }}</strong></span>
+                        </div>
+                        <div class="voucher-details mt-1 pt-1">
+                            <span>Validity: {{ v.validity or 'N/A' }}</span>
+                            <span>Connect to WiFi</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="col-12 text-center py-5 no-print text-muted">
+                        <i class="fa-solid fa-print display-4 mb-3 opacity-25"></i>
+                        <h6>Hakuna vocha za kuchapa zilizopo kwa sasa.</h6>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= 4. ROUTERS TAB WITH EDIT/DELETE ================= -->
+    <section id="routers" class="page-section">
+        <div class="glass-card">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <h5 class="fw-bold m-0"><i class="fa-solid fa-router me-2 text-primary"></i>MikroTik Router Management</h5>
+                <button type="button" class="btn btn-sm btn-primary rounded-3 px-3 py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#addRouterModal">
+                    <i class="fa-solid fa-plus me-1"></i> Add Router
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table custom-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Router Name</th>
+                            <th>IP / Domain</th>
+                            <th>API Port</th>
+                            <th>Username</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if routers %}
+                            {% for router in routers %}
+                            <tr>
+                                <td><div class="fw-bold text-white">{{ router.name }}</div></td>
+                                <td><span class="code-pill">{{ router.host }}</span></td>
+                                <td><code>{{ router.port or '8728' }}</code></td>
+                                <td>{{ router.username or 'admin' }}</td>
+                                <td>
+                                    {% if router.status == "online" %}
+                                    <span class="badge-status badge-online"><span class="status-dot-pulse"></span> Online</span>
+                                    {% else %}
+                                    <span class="badge-status badge-offline">Offline</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-warning me-1 btn-action-mobile" 
+                                            onclick="openEditRouterModal('{{ router._id or loop.index }}', '{{ router.name }}', '{{ router.host }}', '{{ router.port or 8728 }}', '{{ router.username or 'admin' }}')">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger btn-action-mobile" 
+                                            onclick="openDeleteModal('router', '{{ router._id or loop.index }}', '{{ router.name }}')">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="fa-solid fa-router display-4 mb-3 opacity-25"></i>
+                                    <h6>Hakuna Router iliyounganishwa.</h6>
+                                    <p class="small">Bofya "Add Router" kuunganisha Router ya MikroTik.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= 5. PACKAGES TAB WITH EDIT/DELETE ================= -->
+    <section id="packages" class="page-section">
+        <div class="glass-card">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <h5 class="fw-bold m-0"><i class="fa-solid fa-box-archive me-2 text-warning"></i>WiFi Pricing & Packages</h5>
+                <button type="button" class="btn btn-sm btn-warning text-dark rounded-3 px-3 py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#addPackageModal">
+                    <i class="fa-solid fa-plus me-1"></i> New Package
+                </button>
+            </div>
+            <div class="row g-4">
+                {% if packages %}
+                    {% for pkg in packages %}
+                    <div class="col-lg-4 col-md-6">
+                        <div class="glass-card border border-secondary border-opacity-25 text-center p-4 h-100 d-flex flex-column justify-content-between">
+                            <div>
+                                <h4 class="fw-bold text-white mb-2">{{ pkg.name }}</h4>
+                                <h2 class="text-success fw-bold mb-3">TZS {{ "{:,}".format(pkg.price or 0) }}</h2>
+                                <div class="d-flex justify-content-center gap-3 text-muted small mb-3">
+                                    <div><i class="fa-regular fa-clock me-1"></i> {{ pkg.validity or pkg.time or 'N/A' }}</div>
+                                    <div><i class="fa-solid fa-database me-1"></i> {{ pkg.data_limit or 'Unlimited' }}</div>
+                                </div>
+                                <div class="small text-muted mb-4">Speed: <strong>{{ pkg.speed or 'Unlimited' }}</strong></div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-warning btn-sm w-50 rounded-3" 
+                                        onclick="openEditPackageModal('{{ pkg._id or loop.index }}', '{{ pkg.name }}', '{{ pkg.price or 0 }}', '{{ pkg.validity or pkg.time or '' }}', '{{ pkg.data_limit or '' }}', '{{ pkg.speed or '' }}')">
+                                    <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm w-50 rounded-3" 
+                                        onclick="openDeleteModal('package', '{{ pkg._id or loop.index }}', '{{ pkg.name }}')">
+                                    <i class="fa-solid fa-trash me-1"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="col-12 text-center py-5 text-muted">
+                        <i class="fa-solid fa-box-open display-4 mb-3 opacity-25"></i>
+                        <h6>Hakuna vifurushi vilivyotengenezwa kwa sasa.</h6>
+                        <p class="small">Bofya "New Package" ili kutengeneza kifurushi kipya cha Intaneti.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= 6. CLIENTS TAB ================= -->
+    <section id="clients" class="page-section">
+        <div class="glass-card">
+            <h5 class="fw-bold mb-4"><i class="fa-solid fa-users me-2 text-info"></i>Active Hotspot Connected Clients</h5>
+            <div class="table-responsive">
+                <table class="table custom-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>User / Voucher</th>
+                            <th>IP Address</th>
+                            <th>MAC Address</th>
+                            <th>Uptime</th>
+                            <th>Bytes In / Out</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if active_clients_list %}
+                            {% for client in active_clients_list %}
+                            <tr>
+                                <td><span class="code-pill text-info">{{ client.username or client.code }}</span></td>
+                                <td><code>{{ client.ip_address or client.address }}</code></td>
+                                <td><span class="text-muted small">{{ client.mac_address or client.mac }}</span></td>
+                                <td><i class="fa-regular fa-clock me-1 text-muted"></i>{{ client.uptime or '0m' }}</td>
+                                <td><span class="text-success">{{ client.bytes_in or '0 B' }}</span> / <span class="text-primary">{{ client.bytes_out or '0 B' }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="5" class="text-center text-muted py-5">Hakuna mteja aliye mtandaoni kwa sasa.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= 7. TRAFFIC TAB ================= -->
+    <section id="traffic" class="page-section">
+        <div class="glass-card">
+            <h5 class="fw-bold mb-4"><i class="fa-solid fa-chart-line me-2 text-primary"></i>Live Bandwidth Traffic Monitor</h5>
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="p-4 rounded-4" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color);">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-bold">DOWNLOAD SPEED (RX)</span>
+                            <i class="fa-solid fa-download text-success fs-5"></i>
+                        </div>
+                        <h2 class="fw-bold text-white mb-0" id="rx-rate-display">{{ live_rx_rate or '0.00' }} <span class="fs-6 text-muted">Mbps</span></h2>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-4 rounded-4" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color);">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-bold">UPLOAD SPEED (TX)</span>
+                            <i class="fa-solid fa-upload text-info fs-5"></i>
+                        </div>
+                        <h2 class="fw-bold text-white mb-0" id="tx-rate-display">{{ live_tx_rate or '0.00' }} <span class="fs-6 text-muted">Mbps</span></h2>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center py-4 rounded-3" style="background: rgba(0,0,0,0.2); border: 1px dashed var(--border-color);">
+                <i class="fa-solid fa-circle-nodes display-4 text-primary mb-3 opacity-50"></i>
+                <h6 class="fw-bold text-white">Live Router Network Interface</h6>
+                <p class="text-muted small m-0">Router Inayotumika: <strong>{{ connected_router_name or 'No Active Router Connected' }}</strong></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= 8. REPORTS TAB ================= -->
+    <section id="reports" class="page-section">
+        <div class="glass-card">
+            <h5 class="fw-bold mb-4"><i class="fa-solid fa-file-invoice-dollar me-2 text-success"></i>Financial & Sales Analytics</h5>
+            
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="p-3 rounded-3" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2);">
+                        <div class="small text-muted">Jumla ya Mapato (Revenue)</div>
+                        <div class="fs-3 fw-bold text-success">TZS {{ "{:,}".format(total_revenue or 0) }}</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 rounded-3" style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2);">
+                        <div class="small text-muted">Vocha Zilizouzwa</div>
+                        <div class="fs-3 fw-bold text-primary">{{ used_vouchers or 0 }}</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 rounded-3" style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2);">
+                        <div class="small text-muted">Wastani wa Mauzo / Vocha</div>
+                        <div class="fs-3 fw-bold text-warning">TZS {{ "{:,}".format(avg_voucher_price or 0) }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table custom-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Tarehe / Muda</th>
+                            <th>Voucher Code</th>
+                            <th>Kifurushi</th>
+                            <th>Kiasi (TZS)</th>
+                            <th>Hali</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if sales_reports %}
+                            {% for sale in sales_reports %}
+                            <tr>
+                                <td>{{ sale.date or sale.timestamp }}</td>
+                                <td><span class="code-pill">{{ sale.code }}</span></td>
+                                <td>{{ sale.package_name }}</td>
+                                <td class="text-success fw-bold">TZS {{ "{:,}".format(sale.price or 0) }}</td>
+                                <td><span class="badge-status badge-online">Paid</span></td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">Hakuna kumbukumbu za mauzo zilizopatikana.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= 9. PROFILE TAB ================= -->
+    <section id="profile" class="page-section">
+        <div class="glass-card">
+            <h5 class="fw-bold mb-4"><i class="fa-solid fa-user-gear me-2 text-primary"></i>Account Configuration</h5>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Jina la Mtumiaji (Username)</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" value="{{ user or 'Admin' }}" readonly>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Barua Pepe (Email)</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" value="{{ user_email or 'vicentmtiha4@gmail.com' }}" readonly>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Hali ya Akaunti (Account Status)</label>
+                    <input type="text" class="form-control bg-dark text-success border-secondary fw-bold" value="{{ account_status or 'Active / Verified' }}" readonly>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Jumla ya Router Zilizosajiliwa</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" value="{{ total_routers or 0 }} Routers" readonly>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+
+<!-- ================= MODALS SECTION ================= -->
+
+<!-- MODAL 1: ADD ROUTER -->
+<div class="modal fade" id="addRouterModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-glass">
+            <form action="/customer/routers/add" method="POST">
+                <div class="modal-header border-bottom border-secondary border-opacity-25 p-4">
+                    <h5 class="modal-title fw-bold text-white">
+                        <i class="fa-solid fa-router text-primary me-2"></i>Unganisha Router Mpya (MikroTik)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Jina la Router</label>
+                        <input type="text" name="name" class="form-control" placeholder="Mfano: Hotspot Main Station" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold text-muted">IP Address / Host</label>
+                            <input type="text" name="host" class="form-control" placeholder="192.168.88.1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">API Port</label>
+                            <input type="number" name="port" class="form-control" value="8728" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">API Username</label>
+                        <input type="text" name="username" class="form-control" value="admin" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">API Password</label>
+                        <input type="password" name="password" class="form-control" placeholder="MikroTik Password">
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary border-opacity-25 p-3">
+                    <button type="button" class="btn btn-outline-light btn-sm px-3 rounded-3" data-bs-dismiss="modal">Ghairi</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold">Unganisha Router</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
+<!-- MODAL 2: GENERATE VOUCHERS -->
+<div class="modal fade" id="generateVoucherModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content modal-glass">
+            <form action="/customer/vouchers/generate" method="POST">
+                <div class="modal-header border-bottom border-secondary border-opacity-25 p-4">
+                    <h5 class="modal-title fw-bold text-white">
+                        <i class="fa-solid fa-ticket text-success me-2"></i>Tengeneza Vocha Mpya (Batch Generator)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Bei ya Vocha (TZS)</label>
+                            <input type="number" name="price" class="form-control" placeholder="1000" value="1000" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Muda / Duration</label>
+                            <input type="text" name="validity" class="form-control" value="24 Hours" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Data Limit</label>
+                            <input type="text" name="data_limit" class="form-control" value="1GB" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-2">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Idadi ya Vocha</label>
+                            <input type="number" name="quantity" class="form-control" value="10" min="1" max="500" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Prefix</label>
+                            <input type="text" name="prefix" class="form-control" value="VC-" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Code Length</label>
+                            <select name="code_length" class="form-select">
+                                <option value="6" selected>6 Characters</option>
+                                <option value="8">8 Characters</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary border-opacity-25 p-3">
+                    <button type="button" class="btn btn-outline-light btn-sm px-3 rounded-3" data-bs-dismiss="modal">Ghairi</button>
+                    <button type="submit" class="btn btn-success btn-sm px-4 rounded-3 fw-bold">Generate Vouchers</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 3: ADD PACKAGE -->
+<div class="modal fade" id="addPackageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-glass">
+            <form action="/customer/packages/add" method="POST">
+                <div class="modal-header border-bottom border-secondary border-opacity-25 p-4">
+                    <h5 class="modal-title fw-bold text-white">
+                        <i class="fa-solid fa-box text-warning me-2"></i>Tengeneza Kifurushi Mpya
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Jina la Kifurushi</label>
+                        <input type="text" name="name" class="form-control" placeholder="Bando la Siku" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Bei (TZS)</label>
+                            <input type="number" name="price" class="form-control" placeholder="1000" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Muda / Validity</label>
+                            <input type="text" name="validity" class="form-control" placeholder="24 Hours" required>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Data Limit</label>
+                            <input type="text" name="data_limit" class="form-control" placeholder="1GB" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Speed Limit</label>
+                            <input type="text" name="speed" class="form-control" value="5M/10M">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary border-opacity-25 p-3">
+                    <button type="button" class="btn btn-outline-light btn-sm px-3 rounded-3" data-bs-dismiss="modal">Ghairi</button>
+                    <button type="submit" class="btn btn-warning btn-sm px-4 rounded-3 fw-bold text-dark">Hifadhi Kifurushi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 4: EDIT VOUCHER -->
+<div class="modal fade" id="editVoucherModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-glass">
+            <form action="/customer/vouchers/edit" method="POST">
+                <input type="hidden" name="voucher_id" id="edit_voucher_id">
+                <div class="modal-header border-bottom border-secondary border-opacity-25 p-4">
+                    <h5 class="modal-title fw-bold text-white">
+                        <i class="fa-solid fa-pen-to-square text-warning me-2"></i>Badilisha Vocha (Edit)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Voucher Code</label>
+                        <input type="text" id="edit_voucher_code" name="code" class="form-control" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Price (TZS)</label>
+                            <input type="number" id="edit_voucher_price" name="price" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Status</label>
+                            <select id="edit_voucher_status" name="status" class="form-select">
+                                <option value="active">Active</option>
+                                <option value="unused">Unused</option>
+                                <option value="used">Used</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Duration</label>
+                            <input type="text" id="edit_voucher_validity" name="validity" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Data Limit</label>
+                            <input type="text" id="edit_voucher_datalimit" name="data_limit" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary border-opacity-25 p-3">
+                    <button type="button" class="btn btn-outline-light btn-sm px-3 rounded-3" data-bs-dismiss="modal">Ghairi</button>
+                    <button type="submit" class="btn btn-warning btn-sm px-4 rounded-3 fw-bold text-dark">Hifadhi Mabadiliko</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 5: EDIT ROUTER -->
+<div class="modal fade" id="editRouterModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-glass">
+            <form action="/customer/routers/edit" method="POST">
+                <input type="hidden" name="router_id" id="edit_router_id">
+                <div class="modal-header border-bottom border-secondary border-opacity-25 p-4">
+                    <h5 class="modal-title fw-bold text-white">
+                        <i class="fa-solid fa-pen-to-square text-warning me-2"></i>Badilisha Router (Edit)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Jina la Router</label>
+                        <input type="text" id="edit_router_name" name="name" class="form-control" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold text-muted">IP / Domain</label>
+                            <input type="text" id="edit_router_host" name="host" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Port</label>
+                            <input type="number" id="edit_router_port" name="port" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Username</label>
+                        <input type="text" id="edit_router_username" name="username" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary border-opacity-25 p-3">
+                    <button type="button" class="btn btn-outline-light btn-sm px-3 rounded-3" data-bs-dismiss="modal">Ghairi</button>
+                    <button type="submit" class="btn btn-warning btn-sm px-4 rounded-3 fw-bold text-dark">Hifadhi Mabadiliko</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 6: EDIT PACKAGE -->
+<div class="modal fade" id="editPackageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-glass">
+            <form action="/customer/packages/edit" method="POST">
+                <input type="hidden" name="package_id" id="edit_package_id">
+                <div class="modal-header border-bottom border-secondary border-opacity-25 p-4">
+                    <h5 class="modal-title fw-bold text-white">
+                        <i class="fa-solid fa-pen-to-square text-warning me-2"></i>Badilisha Kifurushi (Edit)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Package Name</label>
+                        <input type="text" id="edit_package_name" name="name" class="form-control" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Price (TZS)</label>
+                            <input type="number" id="edit_package_price" name="price" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Validity</label>
+                            <input type="text" id="edit_package_validity" name="validity" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Data Limit</label>
+                            <input type="text" id="edit_package_datalimit" name="data_limit" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Speed Limit</label>
+                            <input type="text" id="edit_package_speed" name="speed" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary border-opacity-25 p-3">
+                    <button type="button" class="btn btn-outline-light btn-sm px-3 rounded-3" data-bs-dismiss="modal">Ghairi</button>
+                    <button type="submit" class="btn btn-warning btn-sm px-4 rounded-3 fw-bold text-dark">Hifadhi Mabadiliko</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 7: UNIVERSAL DELETE CONFIRMATION -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content modal-glass text-center p-3">
+            <div class="modal-body">
+                <i class="fa-solid fa-triangle-exclamation display-4 text-danger mb-3"></i>
+                <h5 class="fw-bold text-white mb-2">Una uhakika?</h5>
+                <p class="text-muted small" id="deleteModalText">Je, unataka kufuta kipengele hiki kabisa?</p>
+                
+                <form id="deleteForm" action="" method="POST" class="mt-4">
+                    <input type="hidden" name="item_id" id="delete_item_id">
+                    <div class="d-flex gap-2 justify-content-center">
+                        <button type="button" class="btn btn-outline-light btn-sm px-3 rounded-3" data-bs-dismiss="modal">Ghairi</button>
+                        <button type="submit" class="btn btn-danger btn-sm px-4 rounded-3 fw-bold">Ndiyo, Futa</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS Bundle -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- TAB NAVIGATION & INTERACTIVITY SCRIPT -->
+<script>
+    function switchTab(tabId) {
+        // Hide all page sections
+        const sections = document.querySelectorAll('.page-section');
+        sections.forEach(sec => sec.classList.remove('active'));
+
+        // Remove active state from all sidebar links
+        const links = document.querySelectorAll('.nav-link-custom');
+        links.forEach(link => link.classList.remove('active'));
+
+        // Show target section
+        const targetSection = document.getElementById(tabId);
+        if (targetSection) {
+            targetSection.classList.add('active');
+        }
+
+        // Highlight active nav tab
+        links.forEach(link => {
+            if (link.getAttribute('href') === '#' + tabId) {
+                link.classList.add('active');
+            }
+        });
+
+        // Update Titles dynamically
+        const titleEl = document.getElementById('page-title');
+        const subtitleEl = document.getElementById('page-subtitle');
+        
+        const pageTitles = {
+            'dashboard': { title: 'Welcome back, {{ user or "Administrator" }} 👋', sub: 'Real-time MikroTik Hotspot & WISP Billing Control Center.' },
+            'vouchers': { title: 'Hotspot Vouchers 🎟️', sub: 'Manage, edit, delete, and track total, used, active, and unused vouchers.' },
+            'print-page': { title: 'Print Vouchers 🖨️', sub: 'Batch card printing system for physical voucher distribution.' },
+            'routers': { title: 'MikroTik Routers 📡', sub: 'Manage API connections, sync user profiles, and check active routers.' },
+            'packages': { title: 'WiFi Plans & Pricing 📦', sub: 'Set up bandwidth speeds, pricing tariffs, and data caps.' },
+            'clients': { title: 'Online Active Clients 👥', sub: 'Monitor real-time active users and bandwidth consumption.' },
+            'traffic': { title: 'Network Bandwidth 📈', sub: 'Live streaming graph for real-time interface speed monitoring.' },
+            'reports': { title: 'Sales Analytics 📊', sub: 'Comprehensive financial accounting and voucher sales metrics.' },
+            'profile': { title: 'Account Settings ⚙️', sub: 'Configure user credentials, system preferences, and API keys.' }
+        };
+
+        if (pageTitles[tabId]) {
+            titleEl.textContent = pageTitles[tabId].title;
+            subtitleEl.textContent = pageTitles[tabId].sub;
+        }
+
+        // Close sidebar on mobile when tab clicked
+        if (window.innerWidth < 992) {
+            toggleSidebar(false);
+        }
+
+        // Update URL hash
+        window.location.hash = tabId;
+    }
+
+    function toggleSidebar(forceState) {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        
+        if (forceState !== undefined) {
+            if (forceState) {
+                sidebar.classList.add('show');
+                overlay.classList.add('show');
+            } else {
+                sidebar.classList.remove('show');
+                overlay.classList.remove('show');
+            }
+        } else {
+            sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+        }
+    }
+
+    // Modal Helper Functions for Edit & Delete
+    function openEditVoucherModal(id, code, price, validity, dataLimit, status) {
+        document.getElementById('edit_voucher_id').value = id;
+        document.getElementById('edit_voucher_code').value = code;
+        document.getElementById('edit_voucher_price').value = price;
+        document.getElementById('edit_voucher_validity').value = validity;
+        document.getElementById('edit_voucher_datalimit').value = dataLimit;
+        document.getElementById('edit_voucher_status').value = status;
+
+        new bootstrap.Modal(document.getElementById('editVoucherModal')).show();
+    }
+
+    function openEditRouterModal(id, name, host, port, username) {
+        document.getElementById('edit_router_id').value = id;
+        document.getElementById('edit_router_name').value = name;
+        document.getElementById('edit_router_host').value = host;
+        document.getElementById('edit_router_port').value = port;
+        document.getElementById('edit_router_username').value = username;
+
+        new bootstrap.Modal(document.getElementById('editRouterModal')).show();
+    }
+
+    function openEditPackageModal(id, name, price, validity, dataLimit, speed) {
+        document.getElementById('edit_package_id').value = id;
+        document.getElementById('edit_package_name').value = name;
+        document.getElementById('edit_package_price').value = price;
+        document.getElementById('edit_package_validity').value = validity;
+        document.getElementById('edit_package_datalimit').value = dataLimit;
+        document.getElementById('edit_package_speed').value = speed;
+
+        new bootstrap.Modal(document.getElementById('editPackageModal')).show();
+    }
+
+    function openDeleteModal(type, id, name) {
+        document.getElementById('delete_item_id').value = id;
+        const deleteText = document.getElementById('deleteModalText');
+        const deleteForm = document.getElementById('deleteForm');
+
+        if (type === 'voucher') {
+            deleteText.textContent = `Je, unataka kufuta vocha "${name}"? Action hii haiwezi kurudishwa.`;
+            deleteForm.action = '/customer/vouchers/delete';
+        } else if (type === 'router') {
+            deleteText.textContent = `Je, unataka kufuta router "${name}"? Connection itakatwa.`;
+            deleteForm.action = '/customer/routers/delete';
+        } else if (type === 'package') {
+            deleteText.textContent = `Je, unataka kufuta kifurushi "${name}"?`;
+            deleteForm.action = '/customer/packages/delete';
+        }
+
+        new bootstrap.Modal(document.getElementById('deleteConfirmModal')).show();
+    }
+
+    // Auto-switch tab based on URL hash on startup
+    window.addEventListener('DOMContentLoaded', () => {
+        const hash = window.location.hash.replace('#', '');
+        if (hash) {
+            switchTab(hash);
+        }
+    });
+</script>
+
 </body>
 </html>

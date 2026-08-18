@@ -29,6 +29,13 @@ from pymongo import MongoClient
 from bson import ObjectId
 
 
+from fastapi import FastAPI, Request, Form, HTTPException, Depends
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
+from pymongo import MongoClient
+import os
+
 # ================= PRODUCTION SECURITY =================
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
@@ -166,6 +173,10 @@ app = FastAPI(title="CORE-WISP WiFi Billing System")
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "wifi_billing_secret_key_123"))
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+# Customer router is registered only after the final FastAPI app is created.
+from routers import customer
+app.include_router(customer.router, prefix="/customer")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -910,8 +921,8 @@ def handle_login(
 ):
     username = username.strip()
 
-    admin_user = os.getenv("ADMIN_USER", "admin")
-    admin_pass = os.getenv("ADMIN_PASS", "admin123")
+    admin_user = os.getenv("ADMIN_USER", "").strip()
+    admin_pass = os.getenv("ADMIN_PASS", "")
 
     if username == admin_user and password == admin_pass:
         request.session.update({
@@ -1210,243 +1221,6 @@ def dashboard(request: Request):
     return templates.TemplateResponse(request=request, name="dashboard.html", context=context)
 
 
-# ================= PENDING USERS & APPROVAL ROUTES =================
-@app.get("/pending-registrations", response_class=HTMLResponse)
-@login_required
-def pending_registrations_page(request: Request):
-    role = str(request.session.get("role", "")).lower()
-    if role != "admin":
-        return RedirectResponse("/customer/dashboard", status_code=303)
-    
-    pending_users = list(db.users.find({"status": "pending"}))
-    return HTMLResponse(content=f"""
-    <!DOCTYPE html>
-    <html lang="sw">
-    <head>
-        <meta charset="UTF-8">
-        <title>Pending Registrations - CORE-WISP</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    </head>
-    <body class="bg-light p-5">
-        <div class="container">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>Watumiaji Wanaosubiri Uhakiki (Pending Registrations)</h2>
-                <a href="/dashboard" class="btn btn-secondary">Rudi Dashboard</a>
-            </div>
-            <div class="card shadow-sm p-4">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Username / Email</th>
-                            <th>Role</th>
-                            <th>Vitendo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {"".join(f"<tr><td>{u.get('username')}</td><td>{u.get('role')}</td><td><a href='/approve-user/{u.get('_id')}' class='btn btn-success btn-sm'>Approve</a> <a href='/reject-user/{u.get('_id')}' class='btn btn-danger btn-sm'>Reject</a></td></tr>" for u in pending_users) if pending_users else "<tr><td colspan='3' class='text-center'>Hakuna maombi yanayosubiri kwa sasa.</td></tr>"}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </body>
-    </html>
-    """)
-
-@app.get("/approve-user/{user_id}")
-@login_required
-def approve_user_route(request: Request, user_id: str):
-    role = str(request.session.get("role", "")).lower()
-    if role == "admin":
-        UserService.approve_user(user_id)
-        logger.info(f"User {user_id} approved by Admin.")
-    return RedirectResponse("/dashboard", status_code=303)
-
-
-@app.get("/reject-user/{user_id}")
-@login_required
-def reject_user_route(request: Request, user_id: str):
-    role = str(request.session.get("role", "")).lower()
-    if role == "admin":
-        UserService.reject_user(user_id)
-        logger.info(f"User {user_id} rejected and deleted by Admin.")
-    return RedirectResponse("/dashboard", status_code=303)
-
-
-# ================= CUSTOMER DASHBOARD =================
-@app.get("/customer/dashboard", response_class=HTMLResponse)
-@login_required
-def customer_dashboard(request: Request):
-    role = str(request.session.get("role", "")).lower()
-
-    if role != "customer":
-        return RedirectResponse("/dashboard", status_code=303)
-
-    username = request.session.get("user", "Customer")
-
-    try:
-        customer_vouchers = list(db.vouchers.find({"owner_username": username}))
-        customer_packages = list(db.packages.find({"owner_username": username}))
-        customer_routers = list(db.routers.find({"owner_username": username})) if "routers" in db.list_collection_names() else []
-
-        try:
-            active_clients = db.clients.count_documents({
-                "owner_username": username,
-                "status": "active"
-            }) if "clients" in db.list_collection_names() else 0
-        except Exception:
-            active_clients = 0
-
-        return templates.TemplateResponse(
-            request=request,
-            name="customer_dashboard.html",
-            context={
-                "request": request,
-                "user": username,
-                "total_routers": len(customer_routers),
-                "total_vouchers": len(customer_vouchers),
-                "total_packages": len(customer_packages),
-                "active_clients": active_clients,
-                "routers": customer_routers,
-                "packages": customer_packages,
-                "vouchers": customer_vouchers
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"Customer dashboard error: {e}")
-        return templates.TemplateResponse(
-            request=request,
-            name="customer_dashboard.html",
-            context={
-                "request": request,
-                "user": username,
-                "total_routers": 0,
-                "total_vouchers": 0,
-                "total_packages": 0,
-                "active_clients": 0,
-                "routers": [],
-                "packages": [],
-                "vouchers": []
-            }
-        )
-
-
-# ================= CUSTOMER SIDEBAR ROUTES (FULL FUNCTIONALITY) =================
-
-@app.get("/customer/routers", response_class=HTMLResponse)
-@login_required
-def customer_routers(request: Request):
-    username = request.session.get("user", "Customer")
-    routers = list(db.routers.find({"owner_username": username})) if "routers" in db.list_collection_names() else []
-    
-    template_name = "customer_routers.html" if "customer_routers.html" in os.listdir("templates") else "customer_dashboard.html"
-    return templates.TemplateResponse(
-        request=request,
-        name=template_name,
-        context={"request": request, "user": username, "routers": routers}
-    )
-
-@app.get("/customer/vouchers", response_class=HTMLResponse)
-@login_required
-def customer_vouchers(request: Request):
-    username = request.session.get("user", "Customer")
-    vouchers_list = list(db.vouchers.find({"owner_username": username}))
-    packages_list = list(db.packages.find({"owner_username": username}))
-    
-    template_name = "customer_vouchers.html" if "customer_vouchers.html" in os.listdir("templates") else "customer_dashboard.html"
-    return templates.TemplateResponse(
-        request=request,
-        name=template_name,
-        context={
-            "request": request, 
-            "user": username, 
-            "vouchers": vouchers_list,
-            "packages": packages_list,
-            "total_vouchers": len(vouchers_list)
-        }
-    )
-
-@app.get("/customer/packages", response_class=HTMLResponse)
-@login_required
-def customer_packages(request: Request):
-    username = request.session.get("user", "Customer")
-    packages_list = list(db.packages.find({"owner_username": username}))
-    
-    template_name = "customer_packages.html" if "customer_packages.html" in os.listdir("templates") else "customer_dashboard.html"
-    return templates.TemplateResponse(
-        request=request,
-        name=template_name,
-        context={
-            "request": request, 
-            "user": username, 
-            "packages": packages_list,
-            "total_packages": len(packages_list)
-        }
-    )
-
-@app.get("/customer/clients", response_class=HTMLResponse)
-@login_required
-def customer_clients(request: Request):
-    username = request.session.get("user", "Customer")
-    clients_list = list(db.clients.find({"owner_username": username})) if "clients" in db.list_collection_names() else []
-    
-    template_name = "customer_clients.html" if "customer_clients.html" in os.listdir("templates") else "customer_dashboard.html"
-    return templates.TemplateResponse(
-        request=request,
-        name=template_name,
-        context={
-            "request": request, 
-            "user": username, 
-            "clients": clients_list,
-            "active_clients": len(clients_list)
-        }
-    )
-
-@app.get("/customer/traffic", response_class=HTMLResponse)
-@login_required
-def customer_traffic(request: Request):
-    username = request.session.get("user", "Customer")
-    template_name = "customer_traffic.html" if "customer_traffic.html" in os.listdir("templates") else "customer_dashboard.html"
-    return templates.TemplateResponse(
-        request=request,
-        name=template_name,
-        context={"request": request, "user": username}
-    )
-
-@app.get("/customer/reports", response_class=HTMLResponse)
-@login_required
-def customer_reports(request: Request):
-    username = request.session.get("user", "Customer")
-    vouchers_list = list(db.vouchers.find({"owner_username": username}))
-    total_sales = sum(int(v.get("price", 0)) for v in vouchers_list if v.get("status") == "used")
-    
-    template_name = "customer_reports.html" if "customer_reports.html" in os.listdir("templates") else "customer_dashboard.html"
-    return templates.TemplateResponse(
-        request=request,
-        name=template_name,
-        context={
-            "request": request, 
-            "user": username, 
-            "total_sales": total_sales, 
-            "vouchers": vouchers_list,
-            "total_issued": len(vouchers_list)
-        }
-    )
-
-@app.get("/customer/profile", response_class=HTMLResponse)
-@login_required
-def customer_profile(request: Request):
-    username = request.session.get("user", "Customer")
-    user_data = db.users.find_one({"username": username}) or {}
-    
-    template_name = "customer_profile.html" if "customer_profile.html" in os.listdir("templates") else "customer_dashboard.html"
-    return templates.TemplateResponse(
-        request=request,
-        name=template_name,
-        context={"request": request, "user": username, "account": user_data}
-    )
-
-
 # ================= QUICK VOUCHER GENERATOR AJAX ROUTE =================
 @app.post("/generate-vouchers-fast")
 @login_required
@@ -1461,6 +1235,9 @@ async def generate_vouchers_fast(
     prefix: str = Form("")
 ):
     try:
+        guard = require_admin(request)
+        if guard:
+            return guard
         username = request.session.get("user", "")
         if generation_type == "package" and package_id:
             pkg = PackageService.get_package(package_id)
@@ -1614,6 +1391,9 @@ def update_user(
     username: str = Form(...), password: str = Form(...),
     role: str = Form(...), status: str = Form(...)
 ):
+    guard = require_admin(request)
+    if guard:
+        return guard
     UserService.update_user(user_id, username, password, role, status)
     return RedirectResponse("/users", status_code=303)
 
@@ -1649,6 +1429,9 @@ def add_package(
     uptime: str = Form(""), 
     data_limit: str = Form("")
 ):
+    guard = require_admin(request)
+    if guard:
+        return guard
     username = request.session.get("user", "")
     PackageService.create_package(name, price, uptime, data_limit, owner_username=username)
     return RedirectResponse("/packages", status_code=303)
@@ -1678,6 +1461,9 @@ def update_package(
     uptime: str = Form(""),
     data_limit: str = Form("")
 ):
+    guard = require_admin(request)
+    if guard:
+        return guard
     PackageService.update_package(pkg_id, name, price, uptime, data_limit)
     return RedirectResponse("/packages", status_code=303)
 
@@ -1716,6 +1502,9 @@ def generate_voucher(
     data_limit: str = Form(...),
     profile_name: Optional[str] = Form("Standard")
 ):
+    guard = require_admin(request)
+    if guard:
+        return guard
     username = request.session.get("user", "")
     code = VoucherService.create_voucher(price, duration, data_limit, profile_name=profile_name or "Standard", owner_username=username)
     if not code:
@@ -2383,3 +2172,7 @@ def save_settings(request: Request):
     if guard:
         return guard
     return RedirectResponse("/settings", status_code=303)
+from fastapi.staticfiles import StaticFiles
+
+# Ongeza hii chini ya kuunda app yako (app = FastAPI())
+app.mount("/static", StaticFiles(directory="static"), name="static")

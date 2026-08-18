@@ -14,30 +14,32 @@
     <style>
         :root {
             --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-            --bg-gradient: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-                            radial-gradient(at 50% 0%, hsla(225,39%,25%,1) 0, transparent 50%), 
-                            radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
         }
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #0f172a;
-            background-image: var(--bg-gradient);
+            /* Background safi bila giza ili picha ionekane kwa ukamilifu */
+            background-image: url("/static/backgrounds/vicent.png");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 30px 15px;
-            color: #f8fafc;
+            color: #ffffff;
         }
 
         .glass-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            /* Full Transparency - Card ya uwazi kabisa kama kioo safi */
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
             max-width: 620px;
             width: 100%;
             overflow: hidden;
@@ -47,7 +49,7 @@
         .card-header-custom {
             text-align: center;
             padding-bottom: 1.5rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .brand-icon {
@@ -59,32 +61,33 @@
             align-items: center;
             justify-content: center;
             margin: 0 auto 15px;
-            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.4);
             font-size: 24px;
             color: white;
         }
 
         .form-floating > .form-control {
-            background-color: rgba(15, 23, 42, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #f8fafc;
+            /* Input fields za uwazi kabisa */
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
             border-radius: 12px;
         }
 
         .form-floating > .form-control:focus {
-            background-color: rgba(15, 23, 42, 0.8);
-            border-color: #818cf8;
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+            background-color: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
             color: #ffffff;
         }
 
         .form-floating > label {
-            color: #94a3b8;
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .form-floating > .form-control:focus ~ label,
         .form-floating > .form-control:not(:placeholder-shown) ~ label {
-            color: #cbd5e1;
+            color: #ffffff;
         }
 
         .btn-gradient {
@@ -114,14 +117,14 @@
         }
 
         .login-link {
-            color: #818cf8;
+            color: #a5b4fc;
             text-decoration: none;
             font-weight: 500;
             transition: color 0.2s;
         }
 
         .login-link:hover {
-            color: #a5b4fc;
+            color: #c7d2fe;
             text-decoration: underline;
         }
 
@@ -131,12 +134,12 @@
             top: 50%;
             transform: translateY(-50%);
             cursor: pointer;
-            color: #94a3b8;
+            color: rgba(255, 255, 255, 0.8);
             z-index: 10;
         }
 
         .password-toggle:hover {
-            color: #f8fafc;
+            color: #ffffff;
         }
     </style>
 </head>
@@ -147,8 +150,8 @@
         <div class="brand-icon">
             <i class="bi bi-person-plus-fill"></i>
         </div>
-        <h3 class="fw-bold mb-1">Tengeneza Akaunti</h3>
-        <p class="text-secondary small mb-0">Jaza taarifa zako hapa chini kuanza kutumia huduma</p>
+        <h3 class="fw-bold mb-1">Create an Account</h3>
+        <p class="text-white-50 small mb-0">Fill in your information below to start using the service.</p>
     </div>
 
     <!-- Alert Message -->
@@ -165,14 +168,14 @@
         <div class="row g-3 mb-3">
             <div class="col-md-6">
                 <div class="form-floating">
-                    <input type="text" class="form-control" id="first_name" name="first_name" placeholder="John" required>
-                    <label for="first_name"><i class="bi bi-person me-1"></i> Jina la Kwanza *</label>
+                    <input type="text" class="form-control" id="first_name" name="first_name" placeholder="First Name *" required>
+                    <label for="first_name"><i class="bi bi-person me-1"></i> First Name *</label>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="form-floating">
-                    <input type="text" class="form-control" id="middle_name" name="middle_name" placeholder="Peter">
-                    <label for="middle_name"><i class="bi bi-person me-1"></i> Jina la Kati</label>
+                    <input type="text" class="form-control" id="middle_name" name="middle_name" placeholder="Middle Name">
+                    <label for="middle_name"><i class="bi bi-person me-1"></i> Middle Name</label>
                 </div>
             </div>
         </div>
@@ -181,22 +184,22 @@
         <div class="row g-3 mb-3">
             <div class="col-md-6">
                 <div class="form-floating">
-                    <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Doe" required>
-                    <label for="last_name"><i class="bi bi-person me-1"></i> Jina la Mwisho *</label>
+                    <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Last Name *" required>
+                    <label for="last_name"><i class="bi bi-person me-1"></i> Last Name *</label>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="form-floating">
-                    <input type="tel" class="form-control" id="phone" name="phone" placeholder="07XXXXXXXX" required>
-                    <label for="phone"><i class="bi bi-telephone me-1"></i> Namba ya Simu *</label>
+                    <input type="tel" class="form-control" id="phone" name="phone" placeholder="Phone Number *" required>
+                    <label for="phone"><i class="bi bi-telephone me-1"></i> Phone Number *</label>
                 </div>
             </div>
         </div>
 
         <!-- Email Address -->
         <div class="form-floating mb-3">
-            <input type="email" class="form-control" id="email" name="email" placeholder="mfano@gmail.com" required>
-            <label for="email"><i class="bi bi-envelope me-1"></i> Barua Pepe (Email) *</label>
+            <input type="email" class="form-control" id="email" name="email" placeholder="name@example.com" required>
+            <label for="email"><i class="bi bi-envelope me-1"></i> Email Address *</label>
         </div>
 
         <!-- Password & Confirm Password -->
@@ -204,14 +207,14 @@
             <div class="col-md-6 position-relative">
                 <div class="form-floating">
                     <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
-                    <label for="password"><i class="bi bi-lock me-1"></i> Neno la Siri *</label>
+                    <label for="password"><i class="bi bi-lock me-1"></i> Password *</label>
                 </div>
                 <i class="bi bi-eye password-toggle" onclick="togglePassword('password', this)"></i>
             </div>
             <div class="col-md-6 position-relative">
                 <div class="form-floating">
-                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
-                    <label for="confirm_password"><i class="bi bi-shield-lock me-1"></i> Thibitisha *</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm" required>
+                    <label for="confirm_password"><i class="bi bi-shield-lock me-1"></i> Confirm *</label>
                 </div>
                 <i class="bi bi-eye password-toggle" onclick="togglePassword('confirm_password', this)"></i>
             </div>
@@ -220,14 +223,14 @@
         <!-- Submit Button -->
         <div class="d-grid mb-4">
             <button type="submit" class="btn btn-gradient btn-lg">
-                <i class="bi bi-arrow-right-circle-fill me-2"></i> Jisajili Sasa
+                <i class="bi bi-arrow-right-circle-fill me-2"></i> Register Now
             </button>
         </div>
 
         <!-- Link ya Login -->
         <div class="text-center">
-            <p class="text-secondary mb-0">Umeshajisajili tayari? 
-                <a href="/login" class="login-link">Ingia Hapa <i class="bi bi-box-arrow-in-right ms-1"></i></a>
+            <p class="text-light mb-0">Already have an account? 
+                <a href="/login" class="login-link">Login Here <i class="bi bi-box-arrow-in-right ms-1"></i></a>
             </p>
         </div>
 

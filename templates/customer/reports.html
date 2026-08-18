@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ripoti za Matumizi - CORE-WISP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/customer/dashboard">CORE-WISP Portal</a>
+            <div class="d-flex">
+                <a href="/customer/dashboard" class="btn btn-outline-light btn-sm me-2">Rudi Dashibodi</a>
+                <a href="/logout" class="btn btn-outline-danger btn-sm">Toka</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2>Ripoti za Malipo na Matumizi</h2>
+                <p class="text-muted mb-0">Historia ya manunuzi yako ya vifurushi na vocha za nyuma.</p>
+            </div>
+            <div>
+                <button onclick="window.print()" class="btn btn-secondary btn-sm">Chapisha Ripoti (Print)</button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Tarehe</th>
+                                <th>Aina ya Kifurushi</th>
+                                <th>Njia ya Malipo</th>
+                                <th>Kiasi (TZS)</th>
+                                <th>Hali</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Hapa ndipo data za historia ya malipo zitakapojazwa kutoka database -->
+                            <tr>
+                                <td>2026-08-15 12:30</td>
+                                <td>Kifurushi cha Siku 1</td>
+                                <td>AzamPay / M-Pesa</td>
+                                <td>1,000</td>
+                                <td><span class="badge bg-success">Imekamilika</span></td>
+                            </tr>
+                            <tr>
+                                <td>2026-08-08 10:15</td>
+                                <td>Kifurushi cha Wiki 1</td>
+                                <td>AzamPay / TigoPesa</td>
+                                <td>5,000</td>
+                                <td><span class="badge bg-success">Imekamilika</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -33,3 +33,4 @@ typing_extensions==4.15.0
 urllib3==2.7.0
 uvicorn==0.49.0
 Werkzeug==3.1.8
+routeros-api
