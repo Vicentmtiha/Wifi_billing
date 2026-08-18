@@ -687,7 +687,7 @@ class UserService:
                 "email": clean_email,
                 "password_hash": hash_password(password),
                 "role": "customer",
-                "status": "active",
+                "status": "pending",
                 "created_at": datetime.now()
             }
             db.users.insert_one(user_doc)
@@ -734,7 +734,12 @@ class UserService:
     @staticmethod
     def authenticate(username: str, password: str):
         try:
-            return db.users.find_one({"username": username.strip(), "password": password})
+            user = db.users.find_one({"username": username.strip()})
+            if not user:
+                return None
+            if not verify_password(password, user.get("password_hash", "")):
+                return None
+            return user
         except Exception:
             return None
 
@@ -889,10 +894,11 @@ def login_page(request: Request):
             return RedirectResponse("/customer/dashboard", status_code=303)
             
     error = request.session.pop("login_error", None)
+    success = request.session.pop("register_success", None)
     return templates.TemplateResponse(
         request=request,
         name="login.html",
-        context={"request": request, "error": error}
+        context={"request": request, "error": error, "success": success}
     )
 
 
@@ -992,15 +998,13 @@ async def handle_register(
             name="register.html", 
             context={"request": request, "error": "Email tayari imeshasajiliwa. Tafadhali tumia nyingine au ingia (Login)."}
         )
-    
-    clean_email = email.lower().strip()
-    request.session.update({
-        "logged_in": True,
-        "user": clean_email,
-        "role": "customer"
-    })
-    
-    return RedirectResponse("/customer/dashboard", status_code=303)
+
+    # Usajili haujampi mtumiaji access moja kwa moja - anasubiri Admin amuidhinishe.
+    request.session["register_success"] = (
+        "Usajili umefanikiwa! Akaunti yako inasubiri uhakiki wa Admin. "
+        "Utaweza kuingia (login) mara Admin atakapokuidhinisha."
+    )
+    return RedirectResponse("/login", status_code=303)
 
 
 # ================= PENDING USERS & APPROVAL ROUTES =================
@@ -1175,6 +1179,18 @@ def dashboard(request: Request):
     recent_vouchers = VoucherService.get_recent_vouchers(10)
     pending_users = list(db.users.find({"status": "pending"}))
 
+    pending_requests = [
+        {
+            "id": str(u.get("_id")),
+            "name": (f"{u.get('first_name', '')} {u.get('last_name', '')}".strip()
+                     or u.get("username", "Mteja")),
+            "phone": u.get("phone", "-"),
+            "package": u.get("package", "-"),
+            "date": u.get("created_at").strftime("%d/%m/%Y %H:%M") if u.get("created_at") else "-",
+        }
+        for u in pending_users
+    ]
+
     context = {
         "request": request,
         "total": len(all_vouchers),
@@ -1188,6 +1204,7 @@ def dashboard(request: Request):
         "recent_vouchers": recent_vouchers,
         "pending_users": pending_users,
         "pending_count": len(pending_users),
+        "pending_requests": pending_requests,
         "router_status": "Connected" if MikrotikService.check_connection() else "Disconnected"
     }
     return templates.TemplateResponse(request=request, name="dashboard.html", context=context)

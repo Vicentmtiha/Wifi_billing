@@ -687,10 +687,10 @@
                                 <td class="small text-secondary">{{ req.date }}</td>
                                 <td><span class="badge bg-warning bg-opacity-15 text-warning border border-warning border-opacity-25">Inasubiriwa</span></td>
                                 <td class="text-end">
-                                    <a href="/approve-request/{{ req.id }}" class="btn btn-outline-success btn-sm px-2 rounded me-1" title="Kubali Usajili" onclick="return confirm('Idhinisha maombi ya {{ req.name }}?')">
+                                    <a href="/approve-user/{{ req.id }}" class="btn btn-outline-success btn-sm px-2 rounded me-1" title="Kubali Usajili" onclick="return confirm('Idhinisha maombi ya {{ req.name }}?')">
                                         <i class="fa-solid fa-check"></i>
                                     </a>
-                                    <a href="/reject-request/{{ req.id }}" class="btn btn-outline-danger btn-sm px-2 rounded" title="Kataa Maombi" onclick="return confirm('Kataa maombi haya?')">
+                                    <a href="/reject-user/{{ req.id }}" class="btn btn-outline-danger btn-sm px-2 rounded" title="Kataa Maombi" onclick="return confirm('Kataa maombi haya?')">
                                         <i class="fa-solid xmark fa-xmark"></i>
                                     </a>
                                 </td>

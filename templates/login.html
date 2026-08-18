@@ -161,6 +161,29 @@
             font-weight: 900;
             text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
         }
+
+        .alert-box {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 12.5px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+        }
+
+        .alert-success {
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #86efac;
+        }
     </style>
 </head>
 <body>
@@ -169,6 +192,20 @@
         <div class="brand-header">
             <h2>CORE-WISP</h2>
         </div>
+
+        {% if success %}
+        <div class="alert-box alert-success">
+            <span>✅</span>
+            <div>{{ success }}</div>
+        </div>
+        {% endif %}
+
+        {% if error %}
+        <div class="alert-box alert-error">
+            <span>⚠️</span>
+            <div>{{ error }}</div>
+        </div>
+        {% endif %}
 
         <form action="/login" method="POST">
             <div class="input-group">
