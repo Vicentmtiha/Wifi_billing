@@ -41,13 +41,13 @@ ADMIN_PASS = os.getenv("ADMIN_PASS")
 if not SECRET_KEY:
     if ENVIRONMENT == "production":
         raise RuntimeError(
-            "SECRET_KEY haijawekwa. Weka SECRET_KEY kwenye .env kabla ya production."
+            "SECRET_KEY haijawekwa. Weka SECRET_KEY kwenye .env au Render environment variables kabla ya production."
         )
     SECRET_KEY = secrets.token_urlsafe(48)
 
 if ENVIRONMENT == "production" and (not ADMIN_USER or not ADMIN_PASS):
     raise RuntimeError(
-        "ADMIN_USER na ADMIN_PASS lazima ziwekwe kwenye .env kwa production."
+        "ADMIN_USER na ADMIN_PASS lazima ziwekwe kwenye .env au Render environment variables kwa production."
     )
 
 PASSWORD_SALT_BYTES = 16
@@ -1040,6 +1040,18 @@ def get_current_user(request: Request) -> str:
     return request.session.get("user", "Guest")
 
 
+# Helper Function ya kutambua Render / Production Host URL kwa Usahihi
+def get_base_url(request: Request) -> str:
+    """Inatengeneza Base URL kiotomatiki (Inasoma Render Domain au Host Header)"""
+    forwarded_proto = request.headers.get("x-forwarded-proto")
+    forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    
+    if forwarded_proto and forwarded_host:
+        return f"{forwarded_proto}://{forwarded_host}"
+    
+    return str(request.base_url).rstrip("/")
+
+
 # ================= BACKGROUND WORKER =================
 def expiry_worker():
     while True:
@@ -1164,7 +1176,7 @@ def show_forgot_password_page(request: Request):
     )
 
 
-# 2. Pokea Ombi la Email na Tuma Link Halisi Kwa Email Ya Mtumiaji
+# 2. Pokea Ombi la Email na Tuma Link Halisi Kwa Email Ya Mtumiaji (Inasoma Render Domain Dynamic)
 @app.post("/forgot-password", response_class=HTMLResponse)
 async def handle_forgot_password(
     request: Request,
@@ -1180,8 +1192,9 @@ async def handle_forgot_password(
     token_payload = {"sub": clean_email, "exp": expiration}
     reset_token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
 
-    # Link itakayotumwa kwenye Email ya mteja
-    reset_link = f"http://127.0.0.1:8000/reset-password?token={reset_token}"
+    # KUPATA RENDER / DOMAIN HOST URL DYNAMICALLY
+    base_url = get_base_url(request)
+    reset_link = f"{base_url}/reset-password?token={reset_token}"
 
     # Tuma email kwenye background ili kuzuia ucheleweshaji wa page
     background_tasks.add_task(send_reset_email, clean_email, reset_link)
