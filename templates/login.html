@@ -97,6 +97,26 @@
 
         .toggle-password:hover { opacity: 1; }
 
+        /* Mtindo wa Forgot Password */
+        .forgot-pass-wrapper {
+            text-align: right;
+            margin-top: 8px;
+            margin-bottom: 15px;
+        }
+
+        .forgot-pass-link {
+            color: #38bdf8;
+            font-size: 12px;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        .forgot-pass-link:hover {
+            color: #7dd3fc;
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+            text-decoration: underline;
+        }
+
         .btn-auth {
             width: 100%;
             padding: 15px;
@@ -107,7 +127,6 @@
             font-weight: 700;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin-top: 10px;
             letter-spacing: 2px;
             font-size: 13px;
             box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
@@ -220,6 +239,10 @@
                 <div class="input-wrapper">
                     <input type="password" id="pass" name="password" required placeholder="••••••••">
                     <span class="toggle-password" onclick="togglePass()">👁️</span>
+                </div>
+                <!-- Sehemu ya Forgot Password -->
+                <div class="forgot-pass-wrapper">
+                    <a href="/forgot-password" class="forgot-pass-link">Umesahau Nywila?</a>
                 </div>
             </div>
 

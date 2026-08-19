@@ -1,40 +1,34 @@
-import os
-import secrets
+import datetime
 import hashlib
 import hmac
-from datetime import datetime, timezone
+import ipaddress
+import jwt
+import logging
+import os
 from pathlib import Path
 import random
+import re
+import secrets
+import smtplib
 import string
-import logging
 import threading
 import time
-import re
-import ipaddress
-from datetime import datetime, timedelta
-from typing import Optional
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from functools import wraps
 from inspect import iscoroutinefunction as asyncio_iscoroutinefunction
+from typing import Optional
 from urllib.parse import quote_plus
 
-import requests
-from librouteros import connect
-from fastapi import FastAPI, Request, Form, HTTPException, Depends
-from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from starlette.middleware.sessions import SessionMiddleware
-from dotenv import load_dotenv
-from pymongo import MongoClient
 from bson import ObjectId
-
-
-from fastapi import FastAPI, Request, Form, HTTPException, Depends
+from dotenv import load_dotenv
+from fastapi import BackgroundTasks, Depends, FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
+from librouteros import connect
 from pymongo import MongoClient
-import os
+from starlette.middleware.sessions import SessionMiddleware
 
 # ================= PRODUCTION SECURITY =================
 
@@ -55,9 +49,11 @@ if ENVIRONMENT == "production" and (not ADMIN_USER or not ADMIN_PASS):
     raise RuntimeError(
         "ADMIN_USER na ADMIN_PASS lazima ziwekwe kwenye .env kwa production."
     )
+
 PASSWORD_SALT_BYTES = 16
 PASSWORD_DKLEN = 64
 PASSWORD_ITERATIONS = 310_000
+
 
 def hash_password(password: str) -> str:
     """PBKDF2-HMAC-SHA256 password hash; no plaintext password is stored."""
@@ -76,6 +72,7 @@ def hash_password(password: str) -> str:
         salt.hex(),
         digest.hex(),
     )
+
 
 def verify_password(password: str, stored: str) -> bool:
     """Verify new PBKDF2 hashes. Legacy plaintext passwords are not accepted."""
@@ -97,11 +94,20 @@ def verify_password(password: str, stored: str) -> bool:
     except (ValueError, TypeError):
         return False
 
+
 def is_admin(request: Request) -> bool:
-    return bool(request.session.get("logged_in")) and str(request.session.get("role", "")).lower() == "admin"
+    return (
+        bool(request.session.get("logged_in"))
+        and str(request.session.get("role", "")).lower() == "admin"
+    )
+
 
 def is_customer(request: Request) -> bool:
-    return bool(request.session.get("logged_in")) and str(request.session.get("role", "")).lower() == "customer"
+    return (
+        bool(request.session.get("logged_in"))
+        and str(request.session.get("role", "")).lower() == "customer"
+    )
+
 
 def require_admin(request: Request):
     if not request.session.get("logged_in"):
@@ -110,6 +116,7 @@ def require_admin(request: Request):
         return RedirectResponse("/customer/dashboard", status_code=303)
     return None
 
+
 def require_customer(request: Request):
     if not request.session.get("logged_in"):
         return RedirectResponse("/login", status_code=303)
@@ -117,25 +124,32 @@ def require_customer(request: Request):
         return RedirectResponse("/dashboard", status_code=303)
     return None
 
+
 def safe_error(message="Ombi la mfumo limeshindwa. Jaribu tena."):
     return JSONResponse({"success": False, "message": message}, status_code=400)
+
 
 # In-memory login throttle. For multiple production workers, replace with Redis.
 _LOGIN_ATTEMPTS = {}
 _LOGIN_WINDOW_SECONDS = 300
 _LOGIN_MAX_ATTEMPTS = 8
 
+
 def login_rate_limited(client_key: str) -> bool:
-    now = datetime.now(timezone.utc).timestamp()
-    row = _LOGIN_ATTEMPTS.get(client_key, {"count": 0, "reset": now + _LOGIN_WINDOW_SECONDS})
+    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+    row = _LOGIN_ATTEMPTS.get(
+        client_key, {"count": 0, "reset": now + _LOGIN_WINDOW_SECONDS}
+    )
     if now >= row["reset"]:
         row = {"count": 0, "reset": now + _LOGIN_WINDOW_SECONDS}
     row["count"] += 1
     _LOGIN_ATTEMPTS[client_key] = row
     return row["count"] > _LOGIN_MAX_ATTEMPTS
 
+
 def clear_login_attempts(client_key: str):
     _LOGIN_ATTEMPTS.pop(client_key, None)
+
 
 def audit_event(action: str, request: Request, target: str = ""):
     try:
@@ -145,7 +159,7 @@ def audit_event(action: str, request: Request, target: str = ""):
             "role": request.session.get("role"),
             "target": target,
             "ip": request.client.host if request.client else "",
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.datetime.now(datetime.timezone.utc),
         })
     except Exception as exc:
         logger.warning("Audit log failed: %s", exc)
@@ -170,23 +184,75 @@ client = MongoClient(MONGO_URL)
 db = client[os.getenv("MONGO_DB_NAME", "core_wisp_db")]
 
 app = FastAPI(title="CORE-WISP WiFi Billing System")
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "wifi_billing_secret_key_123"))
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Customer router is registered only after the final FastAPI app is created.
+# Customer router is registered after app setup
 from routers import customer
+
 app.include_router(customer.router, prefix="/customer")
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
 
+# ================= EMAIL / SMTP CONFIGURATION =================
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SENDER_EMAIL = os.getenv("SENDER_EMAIL", "vicentmtiha4@gmail.com")
+SENDER_PASSWORD = os.getenv("SENDER_PASSWORD", "dcbgczltrfhuvnmw")
+
+
+def send_reset_email(to_email: str, reset_link: str):
+    """Function ya kutuma barua pepe halisi kwenda kwa mtumiaji."""
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = f"Core-wisp Billing <{SENDER_EMAIL}>"
+        msg["To"] = to_email
+        msg["Subject"] = "Ombi la Kubadilisha Password - Core-wisp"
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 20px; }}
+                .container {{ max-width: 500px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }}
+                .btn {{ display: inline-block; padding: 12px 24px; background-color: #6366f1; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px; }}
+                .footer {{ margin-top: 25px; font-size: 12px; color: #94a3b8; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2 style="color: #818cf8;">Core-wisp Portal</h2>
+                <p>Habari,</p>
+                <p>Umepokea barua pepe hii kwa sababu kulikuwa na ombi la kubadilisha password ya akaunti yako.</p>
+                <p>Bofya kitufe hapa chini ili kuweka password mpya. Link hii itakuwa hai kwa <b>dakika 15 pekee</b>:</p>
+                <a href="{reset_link}" class="btn">Badilisha Password</a>
+                <p class="footer">Kama hukuomba mabadiliko haya, puuzia barua pepe hii na password yako haitabadilishwa.</p>
+            </div>
+        </body>
+        </html>
+        """
+        msg.attach(MIMEText(html_content, "html"))
+
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        logger.info(f"[SUCCESS] Email ya Reset imetumwa kwenda: {to_email}")
+    except Exception as e:
+        logger.error(f"[ERROR] Imeshindwa kutuma email: {e}")
+
+
 # ================= MIKROTIK CONFIG =================
 class MikrotikConfig:
+
     @property
     def HOST(self):
         return os.getenv("MIKROTIK_HOST", "10.176.235.121")
@@ -207,19 +273,23 @@ class MikrotikConfig:
     def ENABLED(self):
         return os.getenv("MIKROTIK_ENABLED", "true").lower() == "true"
 
+
 mikrotik_config = MikrotikConfig()
 
 
 # ================= AZAMPAY CONFIG & HELPERS =================
-AZAMPAY_BASE_URL = os.getenv("AZAMPAY_BASE_URL", "https://sandbox.azampay.co.tz")
+AZAMPAY_BASE_URL = os.getenv(
+    "AZAMPAY_BASE_URL", "https://sandbox.azampay.co.tz"
+)
+
 
 def detect_provider(phone: str) -> str:
     clean = phone.strip().replace("+", "")
     if clean.startswith("255"):
         clean = "0" + clean[3:]
-    
+
     prefix = clean[:3]
-    
+
     if prefix in ["074", "075", "076", "079"]:
         return "Mpesa"
     elif prefix in ["065", "067", "071"]:
@@ -230,7 +300,7 @@ def detect_provider(phone: str) -> str:
         return "Halopesa"
     elif prefix in ["073"]:
         return "Azampesa"
-    
+
     return "Airtel"
 
 
@@ -243,12 +313,14 @@ def get_access_token():
     payload = {
         "appName": os.getenv("AZAMPAY_APP_NAME", ""),
         "clientId": os.getenv("AZAMPAY_CLIENT_ID", ""),
-        "clientSecret": os.getenv("AZAMPAY_CLIENT_SECRET", "")
+        "clientSecret": os.getenv("AZAMPAY_CLIENT_SECRET", ""),
     }
-    
+
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        ),
     }
 
     try:
@@ -272,7 +344,9 @@ class VoucherService:
 
     @staticmethod
     def generate_code(prefix: str = "") -> str:
-        code_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        code_part = "".join(
+            random.choices(string.ascii_uppercase + string.digits, k=6)
+        )
         if prefix:
             return f"{prefix.strip().upper()}-{code_part}"
         return code_part
@@ -280,25 +354,34 @@ class VoucherService:
     @staticmethod
     def convert_to_mikrotik_time(time_str: str) -> str:
         time_str = str(time_str).lower().strip()
-        match = re.search(r'\d+', time_str)
+        match = re.search(r"\d+", time_str)
         num = int(match.group()) if match else 1
-        if 'day' in time_str or 'd' in time_str:
+        if "day" in time_str or "d" in time_str:
             return f"{num * 24:02}:00:00"
-        elif 'h' in time_str:
+        elif "h" in time_str:
             return f"{num:02}:00:00"
-        elif 'm' in time_str:
+        elif "m" in time_str:
             return f"00:{num:02}:00"
         return "01:00:00"
 
     @staticmethod
-    def create_voucher(price: int, uptime: str, data_limit: str, profile_name: str = "default", prefix: str = "", owner_username: str = "") -> Optional[str]:
+    def create_voucher(
+        price: int,
+        uptime: str,
+        data_limit: str,
+        profile_name: str = "default",
+        prefix: str = "",
+        owner_username: str = "",
+    ) -> Optional[str]:
         try:
             code = VoucherService.generate_code(prefix)
             existing = db.vouchers.find_one({"code": code})
             if existing:
-                return VoucherService.create_voucher(price, uptime, data_limit, profile_name, prefix, owner_username)
+                return VoucherService.create_voucher(
+                    price, uptime, data_limit, profile_name, prefix, owner_username
+                )
 
-            expiry_date = datetime.now() + timedelta(days=30)
+            expiry_date = datetime.datetime.now() + datetime.timedelta(days=30)
             voucher_doc = {
                 "id": random.randint(10000, 99999),
                 "code": code,
@@ -307,10 +390,10 @@ class VoucherService:
                 "uptime": str(uptime),
                 "data_limit": str(data_limit),
                 "status": "unused",
-                "created_at": datetime.now(),
+                "created_at": datetime.datetime.now(),
                 "expires_at": expiry_date,
                 "used_by": "",
-                "owner_username": owner_username.strip()
+                "owner_username": owner_username.strip(),
             }
             db.vouchers.insert_one(voucher_doc)
             logger.info(f"Voucher created: {code} for owner: {owner_username}")
@@ -319,7 +402,7 @@ class VoucherService:
                 threading.Thread(
                     target=MikrotikService.sync_voucher_to_mikrotik,
                     args=(code, uptime),
-                    daemon=True
+                    daemon=True,
                 ).start()
 
             return code
@@ -348,10 +431,20 @@ class VoucherService:
     @staticmethod
     def mark_used(voucher_id, client_mac: str = "") -> bool:
         try:
-            query = {"id": int(voucher_id)} if str(voucher_id).isdigit() else {"_id": ObjectId(str(voucher_id))}
+            query = (
+                {"id": int(voucher_id)}
+                if str(voucher_id).isdigit()
+                else {"_id": ObjectId(str(voucher_id))}
+            )
             result = db.vouchers.update_one(
                 query,
-                {"$set": {"status": "used", "used_by": client_mac, "used_at": datetime.now()}}
+                {
+                    "$set": {
+                        "status": "used",
+                        "used_by": client_mac,
+                        "used_at": datetime.datetime.now(),
+                    }
+                },
             )
             return result.modified_count > 0
         except Exception as e:
@@ -364,14 +457,14 @@ class VoucherService:
             v = VoucherService.get_voucher(voucher_id)
             if not v:
                 return False
-            
+
             query = {"_id": v["_id"]}
             db.vouchers.update_one(query, {"$set": {"status": "expired"}})
             if mikrotik_config.ENABLED:
                 threading.Thread(
                     target=MikrotikService.remove_user_from_mikrotik,
                     args=(v["code"],),
-                    daemon=True
+                    daemon=True,
                 ).start()
             return True
         except Exception as e:
@@ -390,7 +483,7 @@ class VoucherService:
                 threading.Thread(
                     target=MikrotikService.remove_user_from_mikrotik,
                     args=(code,),
-                    daemon=True
+                    daemon=True,
                 ).start()
             return True
         except Exception as e:
@@ -416,18 +509,22 @@ class VoucherService:
     def check_and_expire_vouchers() -> int:
         expired_count = 0
         try:
-            now = datetime.now()
-            vouchers = list(db.vouchers.find({"status": "unused", "expires_at": {"$lt": now}}))
+            now = datetime.datetime.now()
+            vouchers = list(
+                db.vouchers.find({"status": "unused", "expires_at": {"$lt": now}})
+            )
             for v in vouchers:
-                db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "expired"}})
+                db.vouchers.update_one(
+                    {"_id": v["_id"]}, {"$set": {"status": "expired"}}
+                )
                 expired_count += 1
                 if mikrotik_config.ENABLED:
                     threading.Thread(
                         target=MikrotikService.remove_user_from_mikrotik,
                         args=(v["code"],),
-                        daemon=True
+                        daemon=True,
                     ).start()
-            
+
             if mikrotik_config.ENABLED:
                 MikrotikService.sync_live_voucher_statuses()
 
@@ -447,7 +544,7 @@ class MikrotikService:
                 username=mikrotik_config.USER,
                 password=mikrotik_config.PASS,
                 port=mikrotik_config.PORT,
-                timeout=5
+                timeout=5,
             )
         except Exception as e:
             logger.error(f"Mikrotik connection error: {e}")
@@ -490,7 +587,7 @@ class MikrotikService:
             hotspot_users.add(
                 name=voucher_code,
                 password=voucher_code,
-                **{"limit-uptime": mikrotik_uptime, "comment": "Auto Voucher"}
+                **{"limit-uptime": mikrotik_uptime, "comment": "Auto Voucher"},
             )
             return True
         except Exception as e:
@@ -512,7 +609,9 @@ class MikrotikService:
                 return False
             hotspot_users = api.path("ip", "hotspot", "user")
             users = list(hotspot_users)
-            target_user = next((u for u in users if u.get("name") == voucher_code), None)
+            target_user = next(
+                (u for u in users if u.get("name") == voucher_code), None
+            )
             if target_user:
                 hotspot_users.remove(target_user[".id"])
             return True
@@ -536,7 +635,9 @@ class MikrotikService:
 
             hotspot_users = api.path("ip", "hotspot", "user")
             users = list(hotspot_users)
-            target_user = next((u for u in users if u.get("name") == voucher_code), None)
+            target_user = next(
+                (u for u in users if u.get("name") == voucher_code), None
+            )
 
             if target_user:
                 user_id = target_user[".id"]
@@ -559,10 +660,10 @@ class MikrotikService:
             api = MikrotikService.get_api()
             if not api:
                 return []
-            
+
             active_path = api.path("ip", "hotspot", "active")
             active_list = list(active_path)
-            
+
             formatted_users = []
             for u in active_list:
                 formatted_users.append({
@@ -573,7 +674,7 @@ class MikrotikService:
                     "uptime": u.get("uptime", "0s"),
                     "bytes_in": u.get("bytes-in", "0"),
                     "bytes_out": u.get("bytes-out", "0"),
-                    "login_by": u.get("login-by", "-")
+                    "login_by": u.get("login-by", "-"),
                 })
             return formatted_users
         except Exception as e:
@@ -593,10 +694,12 @@ class MikrotikService:
             api = MikrotikService.get_api()
             if not api:
                 return False
-            
+
             active_path = api.path("ip", "hotspot", "active")
             active_path.remove(active_id)
-            logger.info(f"User with active ID {active_id} disconnected from MikroTik.")
+            logger.info(
+                f"User with active ID {active_id} disconnected from MikroTik."
+            )
             return True
         except Exception as e:
             logger.error(f"Error disconnecting user {active_id}: {e}")
@@ -616,10 +719,16 @@ class MikrotikService:
             if not api:
                 return
 
-            mt_users = {u.get("name"): u for u in list(api.path("ip", "hotspot", "user"))}
-            mt_active = [u.get("user") for u in list(api.path("ip", "hotspot", "active"))]
+            mt_users = {
+                u.get("name"): u for u in list(api.path("ip", "hotspot", "user"))
+            }
+            mt_active = [
+                u.get("user") for u in list(api.path("ip", "hotspot", "active"))
+            ]
 
-            db_vouchers = list(db.vouchers.find({"status": {"$in": ["unused", "used"]}}))
+            db_vouchers = list(
+                db.vouchers.find({"status": {"$in": ["unused", "used"]}})
+            )
 
             for v in db_vouchers:
                 code = v.get("code")
@@ -627,27 +736,41 @@ class MikrotikService:
 
                 if code in mt_active:
                     if v.get("status") != "used":
-                        db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "used", "used_at": datetime.now()}})
+                        db.vouchers.update_one(
+                            {"_id": v["_id"]},
+                            {
+                                "$set": {
+                                    "status": "used",
+                                    "used_at": datetime.datetime.now(),
+                                }
+                            },
+                        )
                     continue
 
                 if mt_u:
                     uptime = str(mt_u.get("uptime", "0s"))
                     limit_uptime = str(mt_u.get("limit-uptime", ""))
-                    
+
                     try:
                         bytes_out = int(mt_u.get("bytes-out", 0) or 0)
                     except (ValueError, TypeError):
                         bytes_out = 0
 
                     if limit_uptime and uptime == limit_uptime:
-                        db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "expired"}})
+                        db.vouchers.update_one(
+                            {"_id": v["_id"]}, {"$set": {"status": "expired"}}
+                        )
                         MikrotikService.remove_user_from_mikrotik(code)
                     elif bytes_out > 0 or uptime != "0s":
                         if v.get("status") != "used":
-                            db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "used"}})
+                            db.vouchers.update_one(
+                                {"_id": v["_id"]}, {"$set": {"status": "used"}}
+                            )
                 else:
                     if v.get("status") == "used":
-                        db.vouchers.update_one({"_id": v["_id"]}, {"$set": {"status": "expired"}})
+                        db.vouchers.update_one(
+                            {"_id": v["_id"]}, {"$set": {"status": "expired"}}
+                        )
 
         except Exception as e:
             logger.error(f"Error syncing live status with Mikrotik: {e}")
@@ -663,7 +786,12 @@ class MikrotikService:
 class UserService:
 
     @staticmethod
-    def create_user(username: str, password: str, role: str = "Staff", status: str = "Active") -> bool:
+    def create_user(
+        username: str,
+        password: str,
+        role: str = "Staff",
+        status: str = "Active",
+    ) -> bool:
         try:
             existing = db.users.find_one({"username": username.strip()})
             if existing:
@@ -674,7 +802,7 @@ class UserService:
                 "password_hash": hash_password(password),
                 "role": role,
                 "status": status,
-                "created_at": datetime.now()
+                "created_at": datetime.datetime.now(),
             }
             db.users.insert_one(user_doc)
             return True
@@ -683,7 +811,13 @@ class UserService:
             return False
 
     @staticmethod
-    def create_customer(first_name: str, last_name: str, phone: str, email: str, password: str) -> bool:
+    def create_customer(
+        first_name: str,
+        last_name: str,
+        phone: str,
+        email: str,
+        password: str,
+    ) -> bool:
         try:
             clean_email = email.lower().strip()
             existing = db.users.find_one({"username": clean_email})
@@ -699,7 +833,7 @@ class UserService:
                 "password_hash": hash_password(password),
                 "role": "customer",
                 "status": "pending",
-                "created_at": datetime.now()
+                "created_at": datetime.datetime.now(),
             }
             db.users.insert_one(user_doc)
             return True
@@ -724,7 +858,9 @@ class UserService:
             u = UserService.get_user(user_id)
             if not u:
                 return False
-            result = db.users.update_one({"_id": u["_id"]}, {"$set": {"status": "active"}})
+            result = db.users.update_one(
+                {"_id": u["_id"]}, {"$set": {"status": "active"}}
+            )
             return result.modified_count > 0
         except Exception as e:
             logger.error(f"Error approving user: {e}")
@@ -745,24 +881,37 @@ class UserService:
     @staticmethod
     def authenticate(username: str, password: str):
         try:
-            user = db.users.find_one({"username": username.strip()})
+            clean_user = username.strip().lower()
+            user = db.users.find_one(
+                {"$or": [{"username": clean_user}, {"email": clean_user}]}
+            )
             if not user:
                 return None
             if not verify_password(password, user.get("password_hash", "")):
                 return None
             return user
-        except Exception:
+        except Exception as e:
+            logger.error(f"Authentication error: {e}")
             return None
 
     @staticmethod
-    def update_user(user_id, username: str, password: str, role: str, status: str) -> bool:
+    def update_user(
+        user_id, username: str, password: str, role: str, status: str
+    ) -> bool:
         try:
             u = UserService.get_user(user_id)
             if not u:
                 return False
             result = db.users.update_one(
                 {"_id": u["_id"]},
-                {"$set": {"username": username.strip(), "password_hash": hash_password(password), "role": role, "status": status}}
+                {
+                    "$set": {
+                        "username": username.strip(),
+                        "password_hash": hash_password(password),
+                        "role": role,
+                        "status": status,
+                    }
+                },
             )
             return result.modified_count > 0
         except Exception as e:
@@ -793,7 +942,13 @@ class UserService:
 class PackageService:
 
     @staticmethod
-    def create_package(name: str, price: int, uptime: str = "1 Day", data_limit: str = "Unlimited", owner_username: str = "") -> bool:
+    def create_package(
+        name: str,
+        price: int,
+        uptime: str = "1 Day",
+        data_limit: str = "Unlimited",
+        owner_username: str = "",
+    ) -> bool:
         try:
             pkg_doc = {
                 "id": random.randint(10000, 99999),
@@ -801,7 +956,7 @@ class PackageService:
                 "price": int(price),
                 "uptime": uptime.strip(),
                 "data_limit": data_limit.strip(),
-                "owner_username": owner_username.strip()
+                "owner_username": owner_username.strip(),
             }
             db.packages.insert_one(pkg_doc)
             return True
@@ -822,14 +977,23 @@ class PackageService:
             return None
 
     @staticmethod
-    def update_package(pkg_id, name: str, price: int, uptime: str, data_limit: str) -> bool:
+    def update_package(
+        pkg_id, name: str, price: int, uptime: str, data_limit: str
+    ) -> bool:
         try:
             pkg = PackageService.get_package(pkg_id)
             if not pkg:
                 return False
             result = db.packages.update_one(
                 {"_id": pkg["_id"]},
-                {"$set": {"name": name.strip(), "price": int(price), "uptime": uptime.strip(), "data_limit": data_limit.strip()}}
+                {
+                    "$set": {
+                        "name": name.strip(),
+                        "price": int(price),
+                        "uptime": uptime.strip(),
+                        "data_limit": data_limit.strip(),
+                    }
+                },
             )
             return result.modified_count > 0
         except Exception as e:
@@ -858,12 +1022,19 @@ class PackageService:
 
 # ================= HELPERS & DECORATOR =================
 def login_required(f):
+
     @wraps(f)
     async def decorated_function(request: Request, *args, **kwargs):
         if not request.session.get("logged_in"):
             return RedirectResponse("/login", status_code=303)
-        return await f(request, *args, **kwargs) if asyncio_iscoroutinefunction(f) else f(request, *args, **kwargs)
+        return (
+            await f(request, *args, **kwargs)
+            if asyncio_iscoroutinefunction(f)
+            else f(request, *args, **kwargs)
+        )
+
     return decorated_function
+
 
 def get_current_user(request: Request) -> str:
     return request.session.get("user", "Guest")
@@ -878,10 +1049,12 @@ def expiry_worker():
             logger.error(f"Error in expiry worker: {e}")
         time.sleep(15)
 
+
 threading.Thread(target=expiry_worker, daemon=True).start()
 
 
 # ================= AUTH ROUTES =================
+
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
@@ -889,10 +1062,15 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Permissions-Policy"] = (
+        "camera=(), microphone=(), geolocation=()"
+    )
     if ENVIRONMENT == "production":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
     return response
+
 
 @app.get("/")
 @app.get("/login")
@@ -903,46 +1081,52 @@ def login_page(request: Request):
             return RedirectResponse("/dashboard", status_code=303)
         elif role == "customer":
             return RedirectResponse("/customer/dashboard", status_code=303)
-            
+
     error = request.session.pop("login_error", None)
     success = request.session.pop("register_success", None)
     return templates.TemplateResponse(
         request=request,
         name="login.html",
-        context={"request": request, "error": error, "success": success}
+        context={"request": request, "error": error, "success": success},
     )
 
 
 @app.post("/login")
 def handle_login(
-    request: Request,
-    username: str = Form(...),
-    password: str = Form(...)
+    request: Request, username: str = Form(...), password: str = Form(...)
 ):
     username = username.strip()
 
     admin_user = os.getenv("ADMIN_USER", "").strip()
     admin_pass = os.getenv("ADMIN_PASS", "")
 
-    if username == admin_user and password == admin_pass:
-        request.session.update({
-            "logged_in": True,
-            "user": "SuperAdmin",
-            "role": "admin"
-        })
-        logger.info("SuperAdmin logged in")
+    # Check SuperAdmin Credentials
+    if (
+        admin_user
+        and admin_pass
+        and username == admin_user
+        and password == admin_pass
+    ):
+        request.session.update(
+            {"logged_in": True, "user": "SuperAdmin", "role": "admin"}
+        )
+        logger.info("SuperAdmin logged in successfully.")
         return RedirectResponse("/dashboard", status_code=303)
 
+    # Check Mongo DB Users
     user = UserService.authenticate(username, password)
     if not user:
-        logger.warning(f"Failed login attempt: {username}")
+        logger.warning(f"Failed login attempt for: {username}")
         request.session["login_error"] = "Username au password si sahihi!"
         return RedirectResponse("/login", status_code=303)
 
     status = str(user.get("status", "pending")).lower()
     if status != "active":
         logger.warning(f"Inactive account login attempt: {username}")
-        request.session["login_error"] = "Akaunti yako bado ipo kwenye uhakiki (pending). Subiri Admin aipitishe."
+        request.session["login_error"] = (
+            "Akaunti yako bado ipo kwenye uhakiki (pending). Subiri Admin"
+            " aipitishe."
+        )
         return RedirectResponse("/login", status_code=303)
 
     role = str(user.get("role", "customer")).lower()
@@ -951,10 +1135,10 @@ def handle_login(
         "logged_in": True,
         "user": user.get("username", username),
         "role": role,
-        "user_id": str(user.get("id", ""))
+        "user_id": str(user.get("id", user.get("_id"))),
     })
 
-    logger.info(f"User {username} logged in with role {role}")
+    logger.info(f"User {username} logged in with role '{role}'")
 
     if role == "admin":
         return RedirectResponse("/dashboard", status_code=303)
@@ -965,6 +1149,139 @@ def handle_login(
     request.session.clear()
     request.session["login_error"] = "Role ya account yako haijatambuliwa."
     return RedirectResponse("/login", status_code=303)
+
+
+# ================= FORGOT PASSWORD ROUTES =================
+
+
+# 1. Onyesha Ukurasa wa Form ya Forgot Password
+@app.get("/forgot-password", response_class=HTMLResponse)
+def show_forgot_password_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="forgot_password.html",
+        context={"request": request},
+    )
+
+
+# 2. Pokea Ombi la Email na Tuma Link Halisi Kwa Email Ya Mtumiaji
+@app.post("/forgot-password", response_class=HTMLResponse)
+async def handle_forgot_password(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    email: str = Form(...),
+):
+    clean_email = email.strip().lower()
+
+    # Tengeneza JWT Reset Token inayomalizika muda baada ya dakika 15
+    expiration = datetime.datetime.now(
+        datetime.timezone.utc
+    ) + datetime.timedelta(minutes=15)
+    token_payload = {"sub": clean_email, "exp": expiration}
+    reset_token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
+
+    # Link itakayotumwa kwenye Email ya mteja
+    reset_link = f"http://127.0.0.1:8000/reset-password?token={reset_token}"
+
+    # Tuma email kwenye background ili kuzuia ucheleweshaji wa page
+    background_tasks.add_task(send_reset_email, clean_email, reset_link)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="forgot_password.html",
+        context={
+            "request": request,
+            "success": (
+                "Maelekezo yametumwa! Angalia Inbox au Spam ya barua pepe:"
+                f" {clean_email}"
+            ),
+        },
+    )
+
+
+# 3. Onyesha Ukurasa wa Kuweka Password Mpya (Link ikibofywa kwenye Email)
+@app.get("/reset-password", response_class=HTMLResponse)
+def show_reset_password_page(request: Request, token: str):
+    try:
+        # Hakiki kama Token ni halali na haija-expire
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        email = payload.get("sub")
+        return templates.TemplateResponse(
+            request=request,
+            name="reset_password.html",
+            context={"request": request, "token": token, "email": email},
+        )
+    except jwt.ExpiredSignatureError:
+        return HTMLResponse(
+            content=(
+                "<h3>Link hii imepita muda wake (Expired). Tafadhali omba tena"
+                " link mpya.</h3>"
+            ),
+            status_code=400,
+        )
+    except jwt.PyJWTError:
+        return HTMLResponse(
+            content="<h3>Link hii si halali (Invalid Token).</h3>",
+            status_code=400,
+        )
+
+
+# 4. Process/Hifadhi Password Mpya baada ya mteja kuijaza kwenye Form
+@app.post("/reset-password")
+async def handle_reset_password(
+    request: Request,
+    token: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+):
+    if password != confirm_password:
+        return templates.TemplateResponse(
+            request=request,
+            name="reset_password.html",
+            context={
+                "request": request,
+                "token": token,
+                "error": "Password mpya hazifanani!",
+            },
+        )
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        clean_email = payload.get("sub")
+
+        new_hash = hash_password(password)
+
+        result = db.users.update_one(
+            {"$or": [{"email": clean_email}, {"username": clean_email}]},
+            {"$set": {"password_hash": new_hash}},
+        )
+
+        if result.matched_count == 0:
+            return templates.TemplateResponse(
+                request=request,
+                name="reset_password.html",
+                context={
+                    "request": request,
+                    "token": token,
+                    "error": "Akaunti hii haikupatikana kwenye mfumo.",
+                },
+            )
+
+        request.session["register_success"] = (
+            "Password yako imebadilishwa kikamilifu! Ingia sasa."
+        )
+        return RedirectResponse("/login", status_code=303)
+
+    except jwt.ExpiredSignatureError:
+        return HTMLResponse(
+            content="<h3>Link hii imepita muda wake (Expired). Omba tena.</h3>",
+            status_code=400,
+        )
+    except jwt.PyJWTError:
+        return HTMLResponse(
+            content="<h3>Link hii si halali (Invalid Token).</h3>",
+            status_code=400,
+        )
 
 
 @app.get("/logout")
@@ -978,10 +1295,9 @@ def logout(request: Request):
 @app.get("/register")
 def show_register_page(request: Request):
     return templates.TemplateResponse(
-        request=request, 
-        name="register.html", 
-        context={"request": request}
+        request=request, name="register.html", context={"request": request}
     )
+
 
 @app.post("/register")
 async def handle_register(
@@ -992,25 +1308,32 @@ async def handle_register(
     phone: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
-    confirm_password: str = Form(...)
+    confirm_password: str = Form(...),
 ):
     if password != confirm_password:
         return templates.TemplateResponse(
             request=request,
-            name="register.html", 
-            context={"request": request, "error": "Password hazifanani!"}
+            name="register.html",
+            context={"request": request, "error": "Password hazifanani!"},
         )
-    
-    success = UserService.create_customer(first_name, last_name, phone, email, password)
-    
+
+    success = UserService.create_customer(
+        first_name, last_name, phone, email, password
+    )
+
     if not success:
         return templates.TemplateResponse(
             request=request,
-            name="register.html", 
-            context={"request": request, "error": "Email tayari imeshasajiliwa. Tafadhali tumia nyingine au ingia (Login)."}
+            name="register.html",
+            context={
+                "request": request,
+                "error": (
+                    "Email tayari imeshasajiliwa. Tafadhali tumia nyingine au"
+                    " ingia (Login)."
+                ),
+            },
         )
 
-    # Usajili haujampi mtumiaji access moja kwa moja - anasubiri Admin amuidhinishe.
     request.session["register_success"] = (
         "Usajili umefanikiwa! Akaunti yako inasubiri uhakiki wa Admin. "
         "Utaweza kuingia (login) mara Admin atakapokuidhinisha."
@@ -1025,7 +1348,7 @@ def pending_registrations_page(request: Request):
     role = str(request.session.get("role", "")).lower()
     if role != "admin":
         return RedirectResponse("/customer/dashboard", status_code=303)
-    
+
     pending_users = list(db.users.find({"status": "pending"}))
     return HTMLResponse(content=f"""
     <!DOCTYPE html>
@@ -1060,6 +1383,7 @@ def pending_registrations_page(request: Request):
     </html>
     """)
 
+
 @app.get("/approve-user/{user_id}")
 @login_required
 def approve_user_route(request: Request, user_id: str):
@@ -1084,6 +1408,8 @@ def reject_user_route(request: Request, user_id: str):
         UserService.reject_user(user_id)
         logger.info(f"User {user_id} rejected and deleted by Admin.")
     return RedirectResponse("/dashboard", status_code=303)
+
+
 # ================= HOTSPOT ROUTES =================
 @app.get("/hotspot", response_class=HTMLResponse)
 @app.get("/hotspot-login", response_class=HTMLResponse)
@@ -1091,28 +1417,41 @@ def get_hotspot_page(request: Request, mac: str = ""):
     return templates.TemplateResponse(
         request=request,
         name="hotspot.html",
-        context={"request": request, "mac": mac}
+        context={"request": request, "mac": mac},
     )
+
 
 @app.post("/hotspot-login")
 def hotspot_login(voucher: str = Form(...), mac: str = Form("")):
     voucher_obj = VoucherService.get_voucher_by_code(voucher.strip().upper())
 
     if not voucher_obj:
-        return JSONResponse({"status": "error", "message": "Voucher haipo au ni makosa!"}, status_code=400)
+        return JSONResponse(
+            {"status": "error", "message": "Voucher haipo au ni makosa!"},
+            status_code=400,
+        )
 
     if voucher_obj["status"] == "expired":
-        return JSONResponse({"status": "error", "message": "Voucher muda wake umekwisha!"}, status_code=400)
+        return JSONResponse(
+            {"status": "error", "message": "Voucher muda wake umekwisha!"},
+            status_code=400,
+        )
 
     success = VoucherService.mark_used(voucher_obj["id"], mac)
     if not success:
-        return JSONResponse({"status": "error", "message": "Imeshindwa kusasisha voucher kwenye database"}, status_code=500)
+        return JSONResponse(
+            {
+                "status": "error",
+                "message": "Imeshindwa kusasisha voucher kwenye database",
+            },
+            status_code=500,
+        )
 
     if mikrotik_config.ENABLED:
         threading.Thread(
             target=MikrotikService.lock_voucher_to_mac,
             args=(voucher_obj["code"], mac),
-            daemon=True
+            daemon=True,
         ).start()
 
     return RedirectResponse("https://www.google.com", status_code=303)
@@ -1130,9 +1469,10 @@ def active_users(request: Request):
             "request": request,
             "active_users": active_list,
             "total_active": len(active_list),
-            "user": get_current_user(request)
-        }
+            "user": get_current_user(request),
+        },
     )
+
 
 @app.get("/kick-user/{active_id:path}")
 @login_required
@@ -1146,17 +1486,18 @@ def kick_user(request: Request, active_id: str):
 @login_required
 def transactions_page(request: Request):
     all_vouchers = VoucherService.get_all_vouchers()
-    used_vouchers = [v for v in all_vouchers if v.get('status') == 'used']
-    
+    used_vouchers = [v for v in all_vouchers if v.get("status") == "used"]
+
     return templates.TemplateResponse(
         request=request,
         name="transactions.html",
         context={
             "request": request,
             "transactions": used_vouchers,
-            "user": get_current_user(request)
-        }
+            "user": get_current_user(request),
+        },
     )
+
 
 @app.get("/sms-gateway", response_class=HTMLResponse)
 @login_required
@@ -1164,10 +1505,7 @@ def sms_gateway_page(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="sms_gateway.html",
-        context={
-            "request": request,
-            "user": get_current_user(request)
-        }
+        context={"request": request, "user": get_current_user(request)},
     )
 
 
@@ -1183,21 +1521,29 @@ def dashboard(request: Request):
         MikrotikService.sync_live_voucher_statuses()
 
     all_vouchers = VoucherService.get_all_vouchers()
-    expired_vouchers = [v for v in all_vouchers if v.get('status') == 'expired']
+    expired_vouchers = [
+        v for v in all_vouchers if v.get("status") == "expired"
+    ]
     active_list = MikrotikService.get_active_users()
     all_packages = PackageService.get_all_packages()
-    
+
     recent_vouchers = VoucherService.get_recent_vouchers(10)
     pending_users = list(db.users.find({"status": "pending"}))
 
     pending_requests = [
         {
             "id": str(u.get("_id")),
-            "name": (f"{u.get('first_name', '')} {u.get('last_name', '')}".strip()
-                     or u.get("username", "Mteja")),
+            "name": (
+                f"{u.get('first_name', '')} {u.get('last_name', '')}".strip()
+                or u.get("username", "Mteja")
+            ),
             "phone": u.get("phone", "-"),
             "package": u.get("package", "-"),
-            "date": u.get("created_at").strftime("%d/%m/%Y %H:%M") if u.get("created_at") else "-",
+            "date": (
+                u.get("created_at").strftime("%d/%m/%Y %H:%M")
+                if u.get("created_at")
+                else "-"
+            ),
         }
         for u in pending_users
     ]
@@ -1205,8 +1551,8 @@ def dashboard(request: Request):
     context = {
         "request": request,
         "total": len(all_vouchers),
-        "used": len([v for v in all_vouchers if v.get('status') == 'used']),
-        "unused": len([v for v in all_vouchers if v.get('status') == 'unused']),
+        "used": len([v for v in all_vouchers if v.get("status") == "used"]),
+        "unused": len([v for v in all_vouchers if v.get("status") == "unused"]),
         "expired": len(expired_vouchers),
         "expired_count": len(expired_vouchers),
         "total_active": len(active_list),
@@ -1216,9 +1562,13 @@ def dashboard(request: Request):
         "pending_users": pending_users,
         "pending_count": len(pending_users),
         "pending_requests": pending_requests,
-        "router_status": "Connected" if MikrotikService.check_connection() else "Disconnected"
+        "router_status": (
+            "Connected" if MikrotikService.check_connection() else "Disconnected"
+        ),
     }
-    return templates.TemplateResponse(request=request, name="dashboard.html", context=context)
+    return templates.TemplateResponse(
+        request=request, name="dashboard.html", context=context
+    )
 
 
 # ================= QUICK VOUCHER GENERATOR AJAX ROUTE =================
@@ -1232,7 +1582,7 @@ async def generate_vouchers_fast(
     custom_duration: Optional[str] = Form("1 Day"),
     custom_data_limit: Optional[str] = Form("Unlimited"),
     quantity: int = Form(1),
-    prefix: str = Form("")
+    prefix: str = Form(""),
 ):
     try:
         guard = require_admin(request)
@@ -1241,7 +1591,11 @@ async def generate_vouchers_fast(
         username = request.session.get("user", "")
         if generation_type == "package" and package_id:
             pkg = PackageService.get_package(package_id)
-            if pkg and pkg.get("owner_username") not in (None, username) and not is_admin(request):
+            if (
+                pkg
+                and pkg.get("owner_username") not in (None, username)
+                and not is_admin(request)
+            ):
                 return safe_error("Package hauruhusiwi.")
             price = pkg.get("price", 1000) if pkg else 1000
             uptime = pkg.get("uptime", "1 Day") if pkg else "1 Day"
@@ -1250,7 +1604,9 @@ async def generate_vouchers_fast(
         else:
             price = custom_price if custom_price is not None else 1000
             uptime = custom_duration if custom_duration else "1 Day"
-            data_limit = custom_data_limit if custom_data_limit else "Unlimited"
+            data_limit = (
+                custom_data_limit if custom_data_limit else "Unlimited"
+            )
             profile_name = f"{data_limit}_{uptime}"
 
         generated_codes = []
@@ -1263,49 +1619,71 @@ async def generate_vouchers_fast(
                 data_limit=data_limit,
                 profile_name=profile_name,
                 prefix=clean_prefix,
-                owner_username=username
+                owner_username=username,
             )
             if code:
                 generated_codes.append(code)
 
         if generated_codes:
-            return JSONResponse({
-                "success": True,
-                "message": f"Vocha {len(generated_codes)} zimetengenezwa kikamilifu!",
-                "count": len(generated_codes),
-                "vouchers": generated_codes
-            }, status_code=200)
+            return JSONResponse(
+                {
+                    "success": True,
+                    "message": (
+                        f"Vocha {len(generated_codes)} zimetengenezwa"
+                        " kikamilifu!"
+                    ),
+                    "count": len(generated_codes),
+                    "vouchers": generated_codes,
+                },
+                status_code=200,
+            )
 
-        return JSONResponse({"success": False, "message": "Imeshindwa kutengeneza vocha!"}, status_code=400)
+        return JSONResponse(
+            {"success": False, "message": "Imeshindwa kutengeneza vocha!"},
+            status_code=400,
+        )
 
     except Exception as e:
         logger.error(f"Error in fast voucher generation: {e}")
-        return JSONResponse({"success": False, "message": "Server error. Jaribu tena."}, status_code=500)
+        return JSONResponse(
+            {"success": False, "message": "Server error. Jaribu tena."},
+            status_code=500,
+        )
 
 
 # ================= AZAMPAY CHECKOUT & MOCK PAYMENT ROUTE =================
 @app.api_route("/lipa", methods=["GET", "POST"])
-async def lipa_internet(request: Request, amount: int = 1000, phone: str = "0712345678"):
-    # Production safety: this endpoint no longer fabricates a successful payment.
-    # Real voucher issuance must happen only after verified AzamPay callback.
-    return JSONResponse({
-        "status": "pending",
-        "message": "Payment endpoint iko kwenye verified-payment flow. Hakuna voucher inayotolewa kabla ya malipo kuthibitishwa."
-    }, status_code=202)
+async def lipa_internet(
+    request: Request, amount: int = 1000, phone: str = "0712345678"
+):
+    return JSONResponse(
+        {
+            "status": "pending",
+            "message": (
+                "Payment endpoint iko kwenye verified-payment flow. Hakuna"
+                " voucher inayotolewa kabla ya malipo kuthibitishwa."
+            ),
+        },
+        status_code=202,
+    )
+
 
 @app.post("/azampay-callback")
 async def azampay_callback(request: Request):
     try:
         data = await request.json()
         logger.info(f"AzamPay Callback Received: {data}")
-        
+
         status = data.get("status") or data.get("success")
         external_id = data.get("externalId")
         amount = data.get("amount")
-        
+
         if status in [True, "success", "completed", "successful"]:
-            logger.info(f"Malipo yamethibitishwa kikamilifu kwa External ID: {external_id}, Kiasi: {amount}")
-            
+            logger.info(
+                "Malipo yamethibitishwa kikamilifu kwa External ID:"
+                f" {external_id}, Kiasi: {amount}"
+            )
+
         return {"status": "success"}
     except Exception as e:
         logger.error(f"Error handling AzamPay callback: {e}")
@@ -1357,17 +1735,25 @@ def users(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="users.html",
-        context={"request": request, "users": UserService.get_all_users(), "user": get_current_user(request)}
+        context={
+            "request": request,
+            "users": UserService.get_all_users(),
+            "user": get_current_user(request),
+        },
     )
+
 
 @app.post("/add-user")
 @login_required
-def add_user(request: Request, username: str = Form(...), password: str = Form(...)):
+def add_user(
+    request: Request, username: str = Form(...), password: str = Form(...)
+):
     guard = require_admin(request)
     if guard:
         return guard
     UserService.create_user(username, password)
     return RedirectResponse("/users", status_code=303)
+
 
 @app.get("/edit-user/{user_id}")
 @login_required
@@ -1381,21 +1767,26 @@ def edit_user_form(request: Request, user_id: str):
     return templates.TemplateResponse(
         request=request,
         name="edit_user.html",
-        context={"request": request, "account": user}
+        context={"request": request, "account": user},
     )
+
 
 @app.post("/edit-user/{user_id}")
 @login_required
 def update_user(
-    request: Request, user_id: str,
-    username: str = Form(...), password: str = Form(...),
-    role: str = Form(...), status: str = Form(...)
+    request: Request,
+    user_id: str,
+    username: str = Form(...),
+    password: str = Form(...),
+    role: str = Form(...),
+    status: str = Form(...),
 ):
     guard = require_admin(request)
     if guard:
         return guard
     UserService.update_user(user_id, username, password, role, status)
     return RedirectResponse("/users", status_code=303)
+
 
 @app.get("/delete-user/{user_id}")
 @login_required
@@ -1417,24 +1808,32 @@ def packages(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="packages.html",
-        context={"request": request, "packages": PackageService.get_all_packages(), "user": get_current_user(request)}
+        context={
+            "request": request,
+            "packages": PackageService.get_all_packages(),
+            "user": get_current_user(request),
+        },
     )
+
 
 @app.post("/add-package")
 @login_required
 def add_package(
-    request: Request, 
-    name: str = Form(...), 
-    price: int = Form(...), 
-    uptime: str = Form(""), 
-    data_limit: str = Form("")
+    request: Request,
+    name: str = Form(...),
+    price: int = Form(...),
+    uptime: str = Form(""),
+    data_limit: str = Form(""),
 ):
     guard = require_admin(request)
     if guard:
         return guard
     username = request.session.get("user", "")
-    PackageService.create_package(name, price, uptime, data_limit, owner_username=username)
+    PackageService.create_package(
+        name, price, uptime, data_limit, owner_username=username
+    )
     return RedirectResponse("/packages", status_code=303)
+
 
 @app.get("/edit-package/{pkg_id}")
 @login_required
@@ -1448,24 +1847,26 @@ def edit_package_form(request: Request, pkg_id: str):
     return templates.TemplateResponse(
         request=request,
         name="edit_package.html",
-        context={"request": request, "package": pkg}
+        context={"request": request, "package": pkg},
     )
+
 
 @app.post("/edit-package/{pkg_id}")
 @login_required
 def update_package(
-    request: Request, 
-    pkg_id: str, 
-    name: str = Form(...), 
+    request: Request,
+    pkg_id: str,
+    name: str = Form(...),
     price: int = Form(...),
     uptime: str = Form(""),
-    data_limit: str = Form("")
+    data_limit: str = Form(""),
 ):
     guard = require_admin(request)
     if guard:
         return guard
     PackageService.update_package(pkg_id, name, price, uptime, data_limit)
     return RedirectResponse("/packages", status_code=303)
+
 
 @app.get("/delete-package/{pkg_id}")
 @login_required
@@ -1486,12 +1887,17 @@ def vouchers(request: Request):
         return guard
     if mikrotik_config.ENABLED:
         MikrotikService.sync_live_voucher_statuses()
-        
+
     return templates.TemplateResponse(
         request=request,
         name="vouchers.html",
-        context={"request": request, "vouchers": VoucherService.get_all_vouchers(), "user": get_current_user(request)}
+        context={
+            "request": request,
+            "vouchers": VoucherService.get_all_vouchers(),
+            "user": get_current_user(request),
+        },
     )
+
 
 @app.post("/generate-voucher")
 @login_required
@@ -1500,16 +1906,23 @@ def generate_voucher(
     price: int = Form(...),
     duration: str = Form(...),
     data_limit: str = Form(...),
-    profile_name: Optional[str] = Form("Standard")
+    profile_name: Optional[str] = Form("Standard"),
 ):
     guard = require_admin(request)
     if guard:
         return guard
     username = request.session.get("user", "")
-    code = VoucherService.create_voucher(price, duration, data_limit, profile_name=profile_name or "Standard", owner_username=username)
+    code = VoucherService.create_voucher(
+        price,
+        duration,
+        data_limit,
+        profile_name=profile_name or "Standard",
+        owner_username=username,
+    )
     if not code:
         logger.error("Failed to generate voucher")
     return RedirectResponse("/vouchers", status_code=303)
+
 
 @app.get("/activate-voucher/{voucher_id}")
 @login_required
@@ -1520,6 +1933,7 @@ def activate_voucher(request: Request, voucher_id: str):
     VoucherService.mark_used(voucher_id)
     return RedirectResponse("/vouchers", status_code=303)
 
+
 @app.get("/expire-voucher/{voucher_id}")
 @login_required
 def expire_voucher(request: Request, voucher_id: str):
@@ -1528,6 +1942,7 @@ def expire_voucher(request: Request, voucher_id: str):
         return guard
     VoucherService.mark_expired(voucher_id)
     return RedirectResponse("/vouchers", status_code=303)
+
 
 @app.get("/delete-voucher/{voucher_id}")
 @login_required
@@ -1538,6 +1953,7 @@ def delete_voucher(request: Request, voucher_id: str):
     VoucherService.delete_voucher(voucher_id)
     return RedirectResponse("/vouchers", status_code=303)
 
+
 @app.get("/clear-expired-vouchers")
 @login_required
 def clear_expired_vouchers(request: Request):
@@ -1547,23 +1963,24 @@ def clear_expired_vouchers(request: Request):
     try:
         expired_vouchers = list(db.vouchers.find({"status": "expired"}))
         count = len(expired_vouchers)
-        
+
         for v in expired_vouchers:
             code = v.get("code")
             if mikrotik_config.ENABLED and code:
                 threading.Thread(
                     target=MikrotikService.remove_user_from_mikrotik,
                     args=(code,),
-                    daemon=True
+                    daemon=True,
                 ).start()
-        
+
         db.vouchers.delete_many({"status": "expired"})
         logger.info(f"Imefuta vocha {count} zilizokwisha muda kwa pamoja.")
-        
+
         return RedirectResponse("/vouchers?msg=expired_cleaned", status_code=303)
     except Exception as e:
         logger.error(f"Kosa wakati wa kufuta expired vouchers: {e}")
         return RedirectResponse("/vouchers?msg=error", status_code=303)
+
 
 @app.get("/print", response_class=HTMLResponse)
 @app.get("/print-vouchers", response_class=HTMLResponse)
@@ -1575,7 +1992,7 @@ def print_vouchers(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="print_vouchers.html",
-        context={"request": request, "vouchers": VoucherService.get_all_vouchers()}
+        context={"request": request, "vouchers": VoucherService.get_all_vouchers()},
     )
 
 
@@ -1595,10 +2012,16 @@ def reports(request: Request):
         "total_sales": sum(int(v.get("price", 0)) for v in used_vouchers),
         "total_issued": len(all_vouchers),
         "total_used": len(used_vouchers),
-        "total_unused": len([v for v in all_vouchers if v.get("status") == "unused"]),
-        "total_expired": len([v for v in all_vouchers if v.get("status") == "expired"])
+        "total_unused": len(
+            [v for v in all_vouchers if v.get("status") == "unused"]
+        ),
+        "total_expired": len(
+            [v for v in all_vouchers if v.get("status") == "expired"]
+        ),
     }
-    return templates.TemplateResponse(request=request, name="reports.html", context=context)
+    return templates.TemplateResponse(
+        request=request, name="reports.html", context=context
+    )
 
 
 # ================= MIKROTIK NEW ROUTER INSTALLER =================
@@ -1617,7 +2040,7 @@ def _installer_connection(host: str, port: int, username: str, password: str):
         username=username.strip(),
         password=password,
         port=port,
-        timeout=8
+        timeout=8,
     )
 
 
@@ -1646,7 +2069,7 @@ def _installer_read_interfaces(api):
                     "name": name,
                     "type": item.get("type", ""),
                     "running": item.get("running", False),
-                    "disabled": item.get("disabled", False)
+                    "disabled": item.get("disabled", False),
                 })
         return result
     except Exception:
@@ -1688,7 +2111,7 @@ def _installer_detect(host: str, port: int, username: str, password: str):
             "total_memory": resource.get("total-memory", ""),
             "free_memory": resource.get("free-memory", ""),
             "uptime": resource.get("uptime", ""),
-            "interfaces": interfaces
+            "interfaces": interfaces,
         }
     finally:
         if api:
@@ -1710,7 +2133,7 @@ def _installer_script(
     install_dhcp: bool,
     install_dns: bool,
     install_hotspot: bool,
-    lan_ports=None
+    lan_ports=None,
 ):
     lan_ports = lan_ports or []
     lines = [
@@ -1726,9 +2149,15 @@ def _installer_script(
         "/system backup save name=corewisp-before-install",
         "/export file=corewisp-before-install",
         "",
-        f"/ip dhcp-client add interface={wan} disabled=no comment=\"CORE-WISP WAN DHCP\"",
+        (
+            f'/ip dhcp-client add interface={wan} disabled=no comment="CORE-WISP'
+            ' WAN DHCP"'
+        ),
         "",
-        "/interface bridge add name=bridge-hotspot comment=\"CORE-WISP Hotspot Bridge\"",
+        (
+            "/interface bridge add name=bridge-hotspot comment=\"CORE-WISP"
+            ' Hotspot Bridge"'
+        ),
     ]
 
     for port in lan_ports:
@@ -1738,34 +2167,53 @@ def _installer_script(
 
     lines += [
         "",
-        f"/ip address add address={ip_cidr} interface=bridge-hotspot comment=\"CORE-WISP Gateway\""
+        (
+            f"/ip address add address={ip_cidr} interface=bridge-hotspot"
+            ' comment="CORE-WISP Gateway"'
+        ),
     ]
 
     if install_dns:
         lines += [
             "",
-            "/ip dns set allow-remote-requests=yes servers=8.8.8.8,1.1.1.1"
+            "/ip dns set allow-remote-requests=yes servers=8.8.8.8,1.1.1.1",
         ]
 
     if install_nat:
         lines += [
             "",
-            f"/ip firewall nat add chain=srcnat out-interface={wan} action=masquerade comment=\"CORE-WISP Internet NAT\""
+            (
+                f"/ip firewall nat add chain=srcnat out-interface={wan}"
+                ' action=masquerade comment="CORE-WISP Internet NAT"'
+            ),
         ]
 
     if install_dhcp:
         lines += [
             "",
             f"/ip pool add name=hs-pool-core ranges={pool_range}",
-            "/ip dhcp-server add name=dhcp-hotspot interface=bridge-hotspot address-pool=hs-pool-core lease-time=30m disabled=no",
-            "/ip dhcp-server network add address=10.10.10.0/24 gateway=10.10.10.1 dns-server=10.10.10.1"
+            (
+                "/ip dhcp-server add name=dhcp-hotspot interface=bridge-hotspot"
+                " address-pool=hs-pool-core lease-time=30m disabled=no"
+            ),
+            (
+                "/ip dhcp-server network add address=10.10.10.0/24"
+                " gateway=10.10.10.1 dns-server=10.10.10.1"
+            ),
         ]
 
     if install_hotspot:
         lines += [
             "",
-            f"/ip hotspot profile add name=hsprof-core hotspot-address=10.10.10.1 dns-name={dns_name} html-directory=hotspot login-by=http-chap,http-pap",
-            f"/ip hotspot add name={hotspot_name} interface=bridge-hotspot address-pool=hs-pool-core profile=hsprof-core disabled=no"
+            (
+                "/ip hotspot profile add name=hsprof-core"
+                f" hotspot-address=10.10.10.1 dns-name={dns_name}"
+                " html-directory=hotspot login-by=http-chap,http-pap"
+            ),
+            (
+                f"/ip hotspot add name={hotspot_name} interface=bridge-hotspot"
+                " address-pool=hs-pool-core profile=hsprof-core disabled=no"
+            ),
         ]
 
     lines += [
@@ -1775,7 +2223,7 @@ def _installer_script(
         "/ip service set www disabled=yes",
         "/ip service set api disabled=no",
         "",
-        "# END CORE-WISP INSTALL"
+        "# END CORE-WISP INSTALL",
     ]
     return "\n".join(lines)
 
@@ -1793,7 +2241,7 @@ def _installer_apply(
     install_nat: bool,
     install_dhcp: bool,
     install_dns: bool,
-    install_hotspot: bool
+    install_hotspot: bool,
 ):
     api = None
     changes = []
@@ -1821,7 +2269,8 @@ def _installer_apply(
 
         interfaces = _installer_read_interfaces(api)
         ethernet_ports = [
-            x["name"] for x in interfaces
+            x["name"]
+            for x in interfaces
             if x.get("name", "").lower().startswith("ether")
             and x.get("name") != wan
             and not x.get("disabled", False)
@@ -1832,7 +2281,7 @@ def _installer_apply(
             bridge_path,
             lambda x: x.get("name") == "bridge-hotspot",
             name="bridge-hotspot",
-            comment="CORE-WISP Hotspot Bridge"
+            comment="CORE-WISP Hotspot Bridge",
         )
         if bridge_created:
             changes.append("Created bridge-hotspot")
@@ -1844,7 +2293,7 @@ def _installer_apply(
                 lambda x, pn=port_name: x.get("bridge") == "bridge-hotspot"
                 and x.get("interface") == pn,
                 bridge="bridge-hotspot",
-                interface=port_name
+                interface=port_name,
             ):
                 changes.append(f"Added {port_name} to bridge-hotspot")
 
@@ -1854,7 +2303,7 @@ def _installer_apply(
             lambda x: x.get("interface") == wan,
             interface=wan,
             disabled="no",
-            comment="CORE-WISP WAN DHCP"
+            comment="CORE-WISP WAN DHCP",
         ):
             changes.append(f"WAN DHCP client on {wan}")
 
@@ -1869,14 +2318,17 @@ def _installer_apply(
             and str(x.get("address", "")).split("/")[0] == gateway_ip,
             address=ip_cidr,
             interface="bridge-hotspot",
-            comment="CORE-WISP Gateway"
+            comment="CORE-WISP Gateway",
         ):
             changes.append(f"Gateway address {ip_cidr}")
 
         if install_dns:
             try:
                 api.path("ip", "dns").set(
-                    **{"allow-remote-requests": "yes", "servers": "8.8.8.8,1.1.1.1"}
+                    **{
+                        "allow-remote-requests": "yes",
+                        "servers": "8.8.8.8,1.1.1.1",
+                    }
                 )
                 changes.append("DNS configured")
             except Exception as exc:
@@ -1892,7 +2344,7 @@ def _installer_apply(
                 chain="srcnat",
                 **{"out-interface": wan},
                 action="masquerade",
-                comment="CORE-WISP Internet NAT"
+                comment="CORE-WISP Internet NAT",
             ):
                 changes.append("Internet NAT configured")
 
@@ -1902,7 +2354,7 @@ def _installer_apply(
                 pool_path,
                 lambda x: x.get("name") == "hs-pool-core",
                 name="hs-pool-core",
-                ranges=pool_range
+                ranges=pool_range,
             )
             if pool_created:
                 changes.append(f"DHCP pool {pool_range}")
@@ -1913,7 +2365,11 @@ def _installer_apply(
                 lambda x: x.get("name") == "dhcp-hotspot",
                 name="dhcp-hotspot",
                 interface="bridge-hotspot",
-                **{"address-pool": "hs-pool-core", "lease-time": "30m", "disabled": "no"}
+                **{
+                    "address-pool": "hs-pool-core",
+                    "lease-time": "30m",
+                    "disabled": "no",
+                },
             ):
                 changes.append("DHCP server created")
 
@@ -1924,7 +2380,7 @@ def _installer_apply(
                 lambda x: x.get("address") == network_address,
                 address=network_address,
                 gateway=gateway_ip,
-                **{"dns-server": gateway_ip}
+                **{"dns-server": gateway_ip},
             ):
                 changes.append(f"DHCP network {network_address}")
 
@@ -1938,8 +2394,8 @@ def _installer_apply(
                     "hotspot-address": gateway_ip,
                     "dns-name": dns_name,
                     "html-directory": "hotspot",
-                    "login-by": "http-chap,http-pap"
-                }
+                    "login-by": "http-chap,http-pap",
+                },
             ):
                 changes.append("Hotspot profile created")
 
@@ -1949,7 +2405,11 @@ def _installer_apply(
                 lambda x: x.get("name") == hotspot_name,
                 name=hotspot_name,
                 interface="bridge-hotspot",
-                **{"address-pool": "hs-pool-core", "profile": "hsprof-core", "disabled": "no"}
+                **{
+                    "address-pool": "hs-pool-core",
+                    "profile": "hsprof-core",
+                    "disabled": "no",
+                },
             ):
                 changes.append(f"Hotspot {hotspot_name} created")
 
@@ -1957,7 +2417,10 @@ def _installer_apply(
             services = api.path("ip", "service")
             service_rows = list(services)
             for service_name in ("telnet", "ftp", "www"):
-                row = next((x for x in service_rows if x.get("name") == service_name), None)
+                row = next(
+                    (x for x in service_rows if x.get("name") == service_name),
+                    None,
+                )
                 if row and row.get("disabled") != "true":
                     services.set(**{".id": row[".id"], "disabled": "yes"})
             changes.append("Disabled telnet/ftp/www services")
@@ -1972,7 +2435,7 @@ def _installer_apply(
             "wan": wan,
             "gateway": gateway_ip,
             "network": str(network),
-            "ethernet_ports_used": ethernet_ports
+            "ethernet_ports_used": ethernet_ports,
         }
 
     except Exception as exc:
@@ -1981,7 +2444,7 @@ def _installer_apply(
             "success": False,
             "message": f"Installation failed: {str(exc)}",
             "changes": changes,
-            "warnings": warnings
+            "warnings": warnings,
         }
     finally:
         if api:
@@ -2012,14 +2475,17 @@ async def mikrotik_detect(request: Request):
             host=str(data.get("host", "")).strip(),
             port=int(data.get("port") or 8728),
             username=str(data.get("username", "")).strip(),
-            password=str(data.get("password", ""))
+            password=str(data.get("password", "")),
         )
         return JSONResponse(result, status_code=200)
     except Exception as exc:
         logger.error(f"MikroTik detection failed: {exc}")
         return JSONResponse(
-            {"success": False, "message": f"Imeshindwa ku-detect router: {str(exc)}"},
-            status_code=400
+            {
+                "success": False,
+                "message": f"Imeshindwa ku-detect router: {str(exc)}",
+            },
+            status_code=400,
         )
 
 
@@ -2039,7 +2505,9 @@ async def mikrotik_install(request: Request):
 
         wan = str(data.get("wan") or "ether1").strip()
         ip_cidr = str(data.get("ip_cidr") or "10.10.10.1/24").strip()
-        pool_range = str(data.get("pool_range") or "10.10.10.10-10.10.10.254").strip()
+        pool_range = str(
+            data.get("pool_range") or "10.10.10.10-10.10.10.254"
+        ).strip()
         dns_name = str(data.get("dns_name") or "vicentwifi.local").strip()
         hotspot_name = str(data.get("hotspot_name") or "hotspot1").strip()
 
@@ -2062,8 +2530,8 @@ async def mikrotik_install(request: Request):
         valid_interfaces = {x.get("name") for x in interfaces}
         if valid_interfaces and wan not in valid_interfaces:
             raise ValueError(
-                f"WAN interface '{wan}' haipo kwenye router. "
-                f"Interfaces: {', '.join(sorted(valid_interfaces))}"
+                f"WAN interface '{wan}' haipo kwenye router. Interfaces:"
+                f" {', '.join(sorted(valid_interfaces))}"
             )
 
         result = _installer_apply(
@@ -2079,22 +2547,24 @@ async def mikrotik_install(request: Request):
             install_nat=install_nat,
             install_dhcp=install_dhcp,
             install_dns=install_dns,
-            install_hotspot=install_hotspot
+            install_hotspot=install_hotspot,
         )
 
         result.update({
             "model": detected.get("model"),
             "routeros": detected.get("routeros"),
             "architecture": detected.get("architecture"),
-            "serial": detected.get("serial")
+            "serial": detected.get("serial"),
         })
-        return JSONResponse(result, status_code=200 if result.get("success") else 400)
+        return JSONResponse(
+            result, status_code=200 if result.get("success") else 400
+        )
 
     except Exception as exc:
         logger.error(f"MikroTik installation request failed: {exc}")
         return JSONResponse(
             {"success": False, "message": f"Kosa la installation: {str(exc)}"},
-            status_code=400
+            status_code=400,
         )
 
 
@@ -2114,7 +2584,8 @@ async def mikrotik_generate_script(request: Request):
         detected = _installer_detect(host, port, username, password)
         interfaces = detected.get("interfaces", [])
         ethernet = [
-            x.get("name") for x in interfaces
+            x.get("name")
+            for x in interfaces
             if x.get("name", "").lower().startswith("ether")
             and x.get("name") != str(data.get("wan") or "ether1")
         ]
@@ -2131,7 +2602,7 @@ async def mikrotik_generate_script(request: Request):
             install_dhcp=bool(data.get("install_dhcp", True)),
             install_dns=bool(data.get("install_dns", True)),
             install_hotspot=bool(data.get("install_hotspot", True)),
-            lan_ports=ethernet
+            lan_ports=ethernet,
         )
         return JSONResponse({
             "success": True,
@@ -2140,13 +2611,16 @@ async def mikrotik_generate_script(request: Request):
             "routeros": detected.get("routeros"),
             "architecture": detected.get("architecture"),
             "serial": detected.get("serial"),
-            "interfaces": interfaces
+            "interfaces": interfaces,
         })
     except Exception as exc:
         logger.error(f"MikroTik script generation failed: {exc}")
         return JSONResponse(
-            {"success": False, "message": f"Script generation failed: {str(exc)}"},
-            status_code=400
+            {
+                "success": False,
+                "message": f"Script generation failed: {str(exc)}",
+            },
+            status_code=400,
         )
 
 
@@ -2161,9 +2635,10 @@ def settings(request: Request):
             "request": request,
             "user": get_current_user(request),
             "mikrotik_status": MikrotikService.check_connection(),
-            "mikrotik_host": mikrotik_config.HOST
-        }
+            "mikrotik_host": mikrotik_config.HOST,
+        },
     )
+
 
 @app.post("/save-settings")
 @login_required
@@ -2172,7 +2647,3 @@ def save_settings(request: Request):
     if guard:
         return guard
     return RedirectResponse("/settings", status_code=303)
-from fastapi.staticfiles import StaticFiles
-
-# Ongeza hii chini ya kuunda app yako (app = FastAPI())
-app.mount("/static", StaticFiles(directory="static"), name="static")
