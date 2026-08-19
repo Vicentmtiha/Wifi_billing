@@ -200,18 +200,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ================= EMAIL / SMTP CONFIGURATION =================
+# ================= EMAIL / SMTP CONFIGURATION (DYNAMIC FROM RENDER ENV) =================
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "vicentmtiha4@gmail.com")
 SENDER_PASSWORD = os.getenv("SENDER_PASSWORD", "dcbgczltrfhuvnmw")
+APP_NAME = os.getenv("APP_NAME", "Core-wisp Billing")
 
 
 def send_reset_email(to_email: str, reset_link: str):
     """Function ya kutuma barua pepe halisi kwenda kwa mtumiaji."""
     try:
         msg = MIMEMultipart()
-        msg["From"] = f"Core-wisp Billing <{SENDER_EMAIL}>"
+        msg["From"] = f"{APP_NAME} <{SENDER_EMAIL}>"
         msg["To"] = to_email
         msg["Subject"] = "Ombi la Kubadilisha Password - Core-wisp"
 
@@ -1042,7 +1043,11 @@ def get_current_user(request: Request) -> str:
 
 # Helper Function ya kutambua Render / Production Host URL kwa Usahihi
 def get_base_url(request: Request) -> str:
-    """Inatengeneza Base URL kiotomatiki (Inasoma Render Domain au Host Header)"""
+    """Inatengeneza Base URL kiotomatiki (Inasoma Render Domain, ENV au Host Header)"""
+    render_external_url = os.getenv("RENDER_EXTERNAL_URL")
+    if render_external_url:
+        return render_external_url.rstrip("/")
+
     forwarded_proto = request.headers.get("x-forwarded-proto")
     forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host")
     
