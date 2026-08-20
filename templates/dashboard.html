@@ -1,1809 +1,1069 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="sw" data-bs-theme="dark">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CORE-WISP | Administrator Command Center</title>
-
-<!-- Bootstrap 5.3.3 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-<!-- Font Awesome 6.5.2 -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- Google Fonts (Orbitron & Plus Jakarta Sans) -->
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CORE-WISP | Next-Gen Enterprise Command Center</title>
+<!-- Google Fonts & CDN Icon Libraries -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
 <style>
-  :root {
-    --primary: #6366f1;
-    --neon-cyan: #00f3ff;
-    --neon-purple: #b537f2;
-    --neon-green: #00ff88;
-    --neon-red: #ff0055;
-    --neon-yellow: #ffcc00;
-    
-    --bg-core: #02040a;
-    --bg-surface: rgba(8, 14, 28, 0.88);
-    --bg-sidebar: #040710;
-    --border-cyber: rgba(0, 243, 255, 0.22);
-    --text-main: #f1f5f9;
-    --text-muted: #64748b;
-  }
+:root {
+  --bg-dark: #030712;
+  --panel-bg: rgba(15, 23, 42, 0.75);
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --panel-border-hover: rgba(34, 211, 238, 0.4);
+  --accent-cyan: #22d3ee;
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --accent-green: #10b981;
+  --accent-yellow: #f59e0b;
+  --accent-red: #ef4444;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --sidebar-width: 270px;
+}
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background-color: var(--bg-dark);
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(59, 130, 246, 0.12), transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.12), transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.05), transparent 60%);
+  background-attachment: fixed;
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
 
-  body {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    background-color: var(--bg-core);
-    color: var(--text-main);
-    overflow-x: hidden;
-    min-height: 100vh;
-    position: relative;
-  }
+code, pre, .font-mono {
+  font-family: var(--font-mono);
+}
 
-  /* Futuristic Cyber Grid Background */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background-image: 
-      radial-gradient(circle at 50% 15%, rgba(0, 243, 255, 0.08) 0%, transparent 65%),
-      linear-gradient(90deg, rgba(0, 243, 255, 0.02) 1px, transparent 1px),
-      linear-gradient(rgba(0, 243, 255, 0.02) 1px, transparent 1px);
-    background-size: 100% 100%, 45px 45px, 45px 45px;
-    z-index: -2;
-    pointer-events: none;
-  }
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-cyan); }
 
-  /* SIDEBAR STYLING */
-  .sidebar {
-    position: fixed;
-    left: 0; top: 0; bottom: 0;
-    width: 280px;
-    background-color: var(--bg-sidebar);
-    border-right: 1px solid var(--border-cyber);
-    padding: 30px 20px;
-    z-index: 999;
-    backdrop-filter: blur(25px);
-    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.85);
-    overflow-y: auto;
-    transition: transform 0.3s ease;
-  }
+/* Sidebar Glassmorphism */
+.sidebar {
+  position: fixed;
+  top: 0; bottom: 0; left: 0;
+  width: var(--sidebar-width);
+  background: rgba(8, 15, 30, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid var(--panel-border);
+  padding: 24px 18px;
+  z-index: 1040;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
 
-  .logo {
-    text-align: center;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 20px;
-    font-weight: 900;
-    color: #fff;
-    margin-bottom: 35px;
-    letter-spacing: 2px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .logo i {
-    font-size: 40px;
-    margin-bottom: 10px;
-    background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 18px rgba(0, 243, 255, 0.7));
-  }
+.brand {
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 1.5px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--panel-border);
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #fff 0%, var(--accent-cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
-  .sidebar a {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 13px 18px;
-    margin: 6px 0;
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 600;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    text-decoration: none;
-    color: var(--text-muted);
-    border: 1px solid transparent;
-  }
+.brand i {
+  -webkit-text-fill-color: initial;
+  color: var(--accent-cyan);
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.8));
+}
 
-  .sidebar a:hover {
-    background: rgba(0, 243, 255, 0.05);
-    color: var(--neon-cyan);
-    border-color: rgba(0, 243, 255, 0.3);
-    transform: translateX(6px);
-    box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
-  }
+.venom-tag {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--accent-purple);
+  font-weight: 800;
+  margin-top: -15px;
+  margin-bottom: 15px;
+  display: block;
+}
 
-  .sidebar a.active {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(181, 55, 242, 0.3));
-    color: #fff;
-    border: 1px solid var(--neon-cyan);
-    box-shadow: 0 0 25px rgba(0, 243, 255, 0.35);
-  }
+.nav-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 18px 10px 8px;
+}
 
-  /* MOBILE NAVBAR TOGGLER */
-  .mobile-nav-bar {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    height: 70px;
-    background: var(--bg-sidebar);
-    border-bottom: 1px solid var(--border-cyber);
-    z-index: 1000;
-    padding: 0 20px;
-    align-items: center;
-    justify-content: space-between;
-    backdrop-filter: blur(25px);
-  }
+.nav-link {
+  color: var(--text-muted);
+  border-radius: 12px;
+  margin: 3px 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent;
+}
 
-  /* MAIN AREA */
-  .main {
-    margin-left: 280px;
-    padding: 35px 45px;
-    transition: margin 0.3s ease;
-  }
+.nav-link:hover, .nav-link.active {
+  background: rgba(34, 211, 238, 0.08);
+  color: #fff;
+  border-color: rgba(34, 211, 238, 0.25);
+  box-shadow: 0 0 15px rgba(34, 211, 238, 0.15);
+  transform: translateX(3px);
+}
 
-  .topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 35px;
-    border-bottom: 1px solid var(--border-cyber);
-    padding-bottom: 20px;
-  }
+.nav-link i { width: 18px; text-align: center; }
 
-  .title h2 {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 23px;
-    font-weight: 800;
-    letter-spacing: 1.5px;
-    background: linear-gradient(90deg, #fff, var(--neon-cyan));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
+/* Main Section Layout */
+.main {
+  margin-left: var(--sidebar-width);
+  padding: 32px 35px;
+  transition: margin 0.3s ease;
+}
 
-  .status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 18px;
-    border-radius: 50px;
-    font-size: 11px;
-    font-weight: 700;
-    font-family: 'Orbitron', sans-serif;
-    letter-spacing: 0.5px;
-  }
+/* Glass Card Component */
+.cardx {
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  padding: 24px;
+  height: 100%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
 
-  .online {
-    background: rgba(0, 255, 136, 0.1);
-    color: var(--neon-green);
-    border: 1px solid rgba(0, 255, 136, 0.4);
-    box-shadow: 0 0 15px rgba(0, 255, 136, 0.25);
-  }
+.cardx::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+}
 
-  .offline {
-    background: rgba(255, 0, 85, 0.1);
-    color: var(--neon-red);
-    border: 1px solid rgba(255, 0, 85, 0.4);
-    box-shadow: 0 0 15px rgba(255, 0, 85, 0.25);
-  }
+.cardx:hover {
+  border-color: var(--panel-border-hover);
+  box-shadow: 0 20px 40px rgba(34, 211, 238, 0.12);
+}
 
-  .card-box {
-    background: var(--bg-surface);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--border-cyber);
-    border-radius: 14px;
-    padding: 22px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-  }
+.kpi {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-top: 8px;
+  font-family: var(--font-sans);
+}
 
-  .card-box::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
-    opacity: 0.7;
-  }
+.pill {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(10px);
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
 
-  .card-box:hover {
-    transform: translateY(-5px);
-    border-color: rgba(0, 243, 255, 0.6);
-    box-shadow: 0 12px 35px rgba(0, 243, 255, 0.25);
-  }
+/* Glowing Indicator Lights Animation */
+.led-light {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+  position: relative;
+}
 
-  .card-icon {
-    font-size: 22px;
-    height: 48px;
-    width: 48px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: 10px;
-    background: rgba(0, 243, 255, 0.05);
-    border: 1px solid var(--border-cyber);
-  }
+.led-green {
+  background-color: var(--accent-green);
+  box-shadow: 0 0 10px var(--accent-green), 0 0 20px var(--accent-green);
+  animation: pulse-green 1.8s infinite ease-in-out;
+}
 
-  .number {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 24px;
-    font-weight: 700;
-    margin-top: 6px;
-  }
+.led-yellow {
+  background-color: var(--accent-yellow);
+  box-shadow: 0 0 10px var(--accent-yellow), 0 0 20px var(--accent-yellow);
+  animation: pulse-yellow 1.8s infinite ease-in-out;
+}
 
-  .chart-box {
-    background: var(--bg-surface);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--border-cyber);
-    border-radius: 14px;
-    padding: 24px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
-  }
+.led-red {
+  background-color: var(--accent-red);
+  box-shadow: 0 0 10px var(--accent-red), 0 0 20px var(--accent-red);
+  animation: pulse-red 1.8s infinite ease-in-out;
+}
 
-  /* HARDWARE MATRIX & ANIMATED WIRE OVERLAY */
-  .matrix-wrapper {
-    position: relative;
-    width: 100%;
-    height: 330px;
-    background: radial-gradient(circle at 50% 30%, rgba(4, 15, 36, 0.95), rgba(1, 4, 10, 0.99));
-    border-radius: 16px;
-    border: 1px solid rgba(0, 243, 255, 0.4);
-    overflow: hidden;
-    box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.95), 0 0 30px rgba(0, 243, 255, 0.15);
-  }
+@keyframes pulse-green {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
 
-  .matrix-scanline {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
-    background-size: 100% 4px;
-    z-index: 3;
-    pointer-events: none;
-    opacity: 0.5;
-  }
+@keyframes pulse-yellow {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
 
-  .port-container-fixed {
-    display: flex;
-    justify-content: space-around;
-    align-items: flex-start;
-    padding-top: 20px;
-    width: 100%;
-    position: absolute;
-    top: 0; left: 0;
-    z-index: 10;
-  }
+@keyframes pulse-red {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
 
-  .lan-port {
-    width: 80px;
-    height: 85px;
-    background: linear-gradient(145deg, #0f172a, #060a12);
-    border-radius: 10px;
-    border: 2px solid #334155;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 4px;
-    box-shadow: 0 8px 22px rgba(0,0,0,0.85), inset 0 2px 4px rgba(255,255,255,0.08);
-  }
+/* Tables Styling */
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--text-main);
+  --bs-table-border-color: var(--panel-border);
+  font-size: 13px;
+}
 
-  .lan-port::after {
-    content: '';
-    width: 36px;
-    height: 12px;
-    background: #020408;
-    border-radius: 3px;
-    position: absolute;
-    bottom: 6px;
-    border: 1px solid #475569;
-  }
+.table th {
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  color: #64748b;
+  font-weight: 700;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--panel-border);
+}
 
-  .port-led {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: #1e293b;
-  }
+.table td { padding: 14px 12px; }
 
-  .wan-link { background: var(--neon-cyan); box-shadow: 0 0 14px var(--neon-cyan); animation: cyberBlink 0.2s infinite alternate; }
-  .active-link { background: var(--neon-green); box-shadow: 0 0 14px var(--neon-green); animation: cyberBlink 0.5s infinite alternate; }
-  .sfp-link { background: var(--neon-purple); box-shadow: 0 0 14px var(--neon-purple); animation: cyberBlink 0.35s infinite alternate; }
+.customer-card {
+  transition: all 0.2s ease;
+}
 
-  @keyframes cyberBlink {
-    0% { opacity: 0.3; transform: scale(0.8); }
-    100% { opacity: 1; transform: scale(1.2); }
-  }
+.customer-card:hover {
+  background: rgba(255, 255, 255, 0.02) !important;
+  transform: scale(1.002);
+}
 
-  .port-label {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 9px;
-    font-weight: 700;
-    color: var(--text-muted);
-  }
+/* Custom Soft Badges */
+.badge-soft {
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
 
-  .packet-rate {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 8px;
-    color: var(--neon-cyan);
-    margin-top: -2px;
-  }
+.ok { color: var(--accent-green); background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); }
+.warn { color: var(--accent-yellow); background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); }
+.bad { color: var(--accent-red); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); }
 
-  .cyber-hub {
-    position: absolute;
-    bottom: 15px; left: 50%;
-    transform: translateX(-50%);
-    width: 92%;
-    height: 52px;
-    background: rgba(6, 14, 30, 0.94);
-    border: 1px solid var(--neon-cyan);
-    border-radius: 12px;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    padding: 0 20px;
-    z-index: 10;
-    box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
-  }
+/* Custom Inputs & Controls */
+.form-control, .form-select {
+  background-color: rgba(3, 7, 18, 0.6) !important;
+  border: 1px solid var(--panel-border) !important;
+  color: var(--text-main) !important;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
 
-  .hub-node {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 11px;
-    font-weight: 700;
-  }
+.form-control:focus, .form-select:focus {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.25) !important;
+}
 
-  /* SVG ANIMATED DATA CABLE STYLES */
-  .svg-wire-overlay {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 5;
-    pointer-events: none;
-  }
+/* Buttons */
+.btn {
+  border-radius: 10px;
+  font-weight: 600;
+  padding: 8px 16px;
+  transition: all 0.2s ease;
+}
 
-  .wire-flow-cyan {
-    stroke-dasharray: 8, 12;
-    animation: wireDash 1s linear infinite;
-  }
-  .wire-flow-green {
-    stroke-dasharray: 8, 12;
-    animation: wireDash 0.7s linear infinite;
-  }
-  .wire-flow-purple {
-    stroke-dasharray: 8, 12;
-    animation: wireDash 0.85s linear infinite;
-  }
+.btn-sm { font-size: 11px; padding: 6px 12px; }
 
-  @keyframes wireDash {
-    to { stroke-dashoffset: -40; }
-  }
+.btn-cyan {
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+  color: #000;
+  border: none;
+  font-weight: 700;
+}
 
-  /* TABLES & BADGES */
-  .table-dark {
-    --bs-table-bg: transparent;
-    --bs-table-hover-bg: rgba(0, 243, 255, 0.03);
-    border-color: var(--border-cyber);
-  }
+.btn-cyan:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.4);
+}
 
-  .table th {
-    color: var(--text-muted) !important;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    padding: 12px;
-    border-bottom: 1px solid var(--border-cyber);
-  }
+/* Mobile Header */
+.mobile-header {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 65px;
+  background: rgba(5, 10, 20, 0.9);
+  backdrop-filter: blur(15px);
+  border-bottom: 1px solid var(--panel-border);
+  z-index: 1030;
+  padding: 0 20px;
+  align-items: center;
+  justify-content: space-between;
+}
 
-  .table td {
-    padding: 12px;
-    font-size: 12px;
-    border-bottom: 1px solid var(--border-cyber);
-    vertical-align: middle;
-  }
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1035;
+}
 
-  .quick-btn {
-    padding: 12px 16px;
-    font-weight: 600;
-    font-size: 12px;
-    border-radius: 9px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    transition: all 0.3s ease;
-    border: 1px solid var(--border-cyber);
-    background: rgba(0, 243, 255, 0.02);
-    color: #fff;
-    text-decoration: none;
-  }
+/* Mobile Responsive Adjustments */
+@media(max-width: 991px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.show { transform: translateX(0); }
+  .sidebar-overlay.show { display: block; }
+  .main { margin-left: 0; padding: 85px 16px 30px; }
+  .mobile-header { display: flex; }
+}
 
-  .quick-btn:hover {
-    transform: translateY(-2px);
-    background: linear-gradient(135deg, rgba(0, 243, 255, 0.18), rgba(181, 55, 242, 0.18));
-    border-color: var(--neon-cyan);
-    color: #fff;
-  }
-
-  .progress {
-    background-color: rgba(255, 255, 255, 0.04);
-    border-radius: 8px;
-    border: 1px solid var(--border-cyber);
-    overflow: hidden;
-  }
-
-  .live-pulse {
-    width: 8px; height: 8px;
-    background-color: var(--neon-green);
-    border-radius: 50%;
-    display: inline-block;
-    box-shadow: 0 0 10px var(--neon-green);
-    animation: pulse 1.2s infinite;
-  }
-
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
-  }
-
-  footer {
-    margin-top: 50px;
-    padding: 22px 0;
-    border-top: 1px solid var(--border-cyber);
-    text-align: center;
-    font-size: 12px;
-    color: var(--text-muted);
-    font-family: 'Orbitron', sans-serif;
-    letter-spacing: 1px;
-  }
-
-  .venom-brand {
-    color: var(--neon-cyan);
-    font-weight: 700;
-  }
-
-  /* MIKROTIK INSTALLER */
-  .installer-card {
-    background: linear-gradient(135deg, rgba(0,243,255,.06), rgba(181,55,242,.06));
-    border: 1px solid rgba(0,243,255,.28);
-    border-radius: 14px;
-    padding: 22px;
-    box-shadow: 0 8px 30px rgba(0,0,0,.55);
-  }
-  .installer-chip {
-    display:inline-flex;
-    align-items:center;
-    gap:7px;
-    padding:6px 10px;
-    border-radius:999px;
-    font-family:'Orbitron',sans-serif;
-    font-size:9px;
-    border:1px solid var(--border-cyber);
-    background:rgba(0,243,255,.04);
-  }
-  .router-field {
-    background:#050b16 !important;
-    color:#f1f5f9 !important;
-    border:1px solid rgba(0,243,255,.22) !important;
-    border-radius:9px !important;
-  }
-  .router-field:focus {
-    border-color:var(--neon-cyan) !important;
-    box-shadow:0 0 0 .2rem rgba(0,243,255,.08) !important;
-  }
-  .terminal-box {
-    background:#010409;
-    border:1px solid rgba(0,243,255,.2);
-    border-radius:10px;
-    padding:14px;
-    color:#b9faff;
-    font-family:monospace;
-    font-size:11px;
-    line-height:1.55;
-    min-height:180px;
-    max-height:320px;
-    overflow:auto;
-    white-space:pre-wrap;
-  }
-  .model-box {
-    border:1px solid rgba(0,255,136,.25);
-    background:rgba(0,255,136,.035);
-    border-radius:12px;
-    padding:15px;
-  }
-  .step-dot {
-    width:28px;height:28px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;
-    background:rgba(0,243,255,.08);
-    border:1px solid rgba(0,243,255,.35);
-    color:var(--neon-cyan);
-    font-family:'Orbitron';font-size:10px;font-weight:800;
-  }
-
-  /* MEDIA QUERIES FOR PROFESSIONAL MOBILE RESPONSIVENESS */
-  @media(max-width: 991px){
-    .sidebar{
-      transform: translateX(-100%);
-    }
-    .sidebar.show{
-      transform: translateX(0);
-    }
-    .main{
-      margin-left: 0;
-      padding: 95px 15px 20px 15px;
-    }
-    .mobile-nav-bar{
-      display: flex;
-    }
-  }
+.section { scroll-margin-top: 80px; }
+.muted { color: var(--text-muted); }
+.smallx { font-size: 11px; }
 </style>
 </head>
 <body>
 
-<!-- MOBILE TOP NAVBAR FOR PHONES -->
-<div class="mobile-nav-bar">
-    <div class="d-flex align-items-center gap-2">
-        <i class="fa-solid fa-network-wired text-info fs-4"></i>
-        <span style="font-family:'Orbitron'; font-size:14px; font-weight:800; color:#fff;">CORE WISP</span>
+<!-- Mobile Header Nav -->
+<header class="mobile-header">
+  <div class="d-flex align-items-center gap-2">
+    <i class="fa-solid fa-network-wired text-info fs-5"></i>
+    <span class="fw-bold fs-6">CORE-WISP</span>
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill smallx ms-1">VENOM OS</span>
+  </div>
+  <button class="btn btn-outline-light btn-sm" id="sidebar-toggle" aria-label="Toggle Menu">
+    <i class="fa-solid fa-bars-staggered fs-6"></i>
+  </button>
+</header>
+
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- Sidebar Navigation -->
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <i class="fa-solid fa-network-wired"></i>
+    <span>CORE-WISP</span>
+  </div>
+  <span class="venom-tag"><i class="fa-solid fa-shield-halved me-1"></i> BY VENOM COMPANY</span>
+
+  <div class="nav-title">Command Center</div>
+  <a class="nav-link active" href="#overview"><i class="fa-solid fa-chart-pie"></i>Overview</a>
+  <a class="nav-link" href="#customers"><i class="fa-solid fa-users"></i>Customers</a>
+  <a class="nav-link" href="/pending-registrations"><i class="fa-solid fa-user-clock"></i>Pending Requests</a>
+  <a class="nav-link" href="/active-users"><i class="fa-solid fa-wifi"></i>All Active Clients</a>
+
+  <div class="nav-title">Billing & Enterprise</div>
+  <a class="nav-link" href="/vouchers"><i class="fa-solid fa-ticket"></i>Global Vouchers</a>
+  <a class="nav-link" href="/transactions"><i class="fa-solid fa-money-bill-wave"></i>Transactions</a>
+  <a class="nav-link" href="/reports"><i class="fa-solid fa-chart-column"></i>Analytics & Reports</a>
+
+  <div class="nav-title">Engine & Automation</div>
+  <a class="nav-link" href="/users"><i class="fa-solid fa-user-shield"></i>Staff & Roles</a>
+  <a class="nav-link" href="#mikrotik-tools"><i class="fa-solid fa-screwdriver-wrench"></i>MikroTik Tools</a>
+  <a class="nav-link" href="#voucher-generator"><i class="fa-solid fa-bolt text-warning"></i>Voucher Generator</a>
+  <a class="nav-link" href="/settings"><i class="fa-solid fa-gear"></i>System Settings</a>
+
+  <div class="mt-auto pt-3">
+    <a class="nav-link text-danger border border-danger-subtle bg-danger-subtle bg-opacity-10" href="/logout">
+      <i class="fa-solid fa-right-from-bracket"></i> Logout System
+    </a>
+  </div>
+</aside>
+
+<!-- Main Workspace -->
+<main class="main">
+  <!-- Top Command Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+      <h1 class="h3 fw-black mb-1 d-flex align-items-center gap-2">
+        <i class="fa-solid fa-shield-halved text-info"></i> Administrator Command Center
+      </h1>
+      <div class="muted smallx">Enterprise Control Panel · Real-time Router, Voucher & Revenue Telemetry</div>
     </div>
-    <button class="btn btn-outline-info btn-sm" id="sidebarToggleBtn" onclick="toggleSidebar()">
-        <i class="fa-solid fa-bars"></i> Menu
-    </button>
-</div>
-
-<!-- SIDEBAR MENU -->
-<div class="sidebar" id="appSidebar">
-    <div class="logo">
-        <i class="fa-solid fa-network-wired"></i>
-        <span>CORE WISP</span>
-    </div>
-    <a href="/dashboard" class="active"><i class="fa fa-chart-line"></i> Dashboard</a>
-    <a href="/active-users"><i class="fa fa-users-gear"></i> Active Users</a>
-    <a href="/vouchers"><i class="fa fa-ticket"></i> Vouchers</a>
-    <a href="/print" target="_blank"><i class="fa fa-print"></i> Printing Page</a>
-    <a href="/packages"><i class="fa fa-box"></i> Packages</a>
-    <a href="/transactions"><i class="fa fa-money-bill-transfer"></i> Transactions</a>
-    <a href="/sms-gateway"><i class="fa fa-comment-sms"></i> SMS & Gateways</a>
-    <a href="/users"><i class="fa fa-users"></i> Staff Users</a>
-    <a href="/reports"><i class="fa fa-chart-column"></i> Reports</a>
-    <a href="/settings"><i class="fa fa-gear"></i> Settings</a>
-    <a href="/mikrotik-installer"><i class="fa-solid fa-screwdriver-wrench"></i> MikroTik Installer</a>
-    <a href="/pending-registrations"><i class="fa-solid fa-user-clock text-warning"></i> Pending Requests</a>
-</div>
-
-<!-- MAIN CONTENT AREA -->
-<div class="main">
-    <!-- Top Bar -->
-    <div class="topbar">
-        <div class="title">
-            <h2>CORE-WISP ADMINISTRATOR COMMAND CENTER</h2>
-            <p class="text-muted small mb-0">Enterprise ISP Bandwidth, Realtime Data-Flow & Billing Engine</p>
-        </div>
-        <div class="d-flex align-items-center gap-3 flex-wrap">
-            <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="background: rgba(181,55,242,0.03); border: 1px solid rgba(181,55,242,0.35);">
-                <i class="fa-solid fa-comment-sms" style="color: var(--neon-purple);"></i>
-                <span class="small fw-bold" style="font-family: 'Orbitron'; font-size: 10px; color: var(--neon-purple);">SMS: 0 LEFT</span>
-            </div>
-            <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill" style="background: rgba(0,243,255,0.03); border: 1px solid var(--border-cyber);">
-                <span class="live-pulse"></span>
-                <span class="small fw-bold text-success" style="font-family: 'Orbitron'; font-size: 10px;">QUANTUM SYNC ACTIVE</span>
-            </div>
-            <div>
-                {% if router_status == "Connected" %}
-                <span class="status online"><i class="fa-solid fa-shield-halved"></i> MIKROTIK CONNECTED</span>
-                {% else %}
-                <span class="status offline"><i class="fa-solid fa-triangle-exclamation"></i> MIKROTIK OFFLINE</span>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- KPI Summary Grid -->
-    <div class="row g-4 mb-4">
-        <div class="col-lg-3 col-md-6">
-            <div class="card-box d-flex justify-content-between align-items-center">
-                <div>
-                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Today's Revenue</small>
-                    <div class="number text-success" style="font-size: 21px;">TZS 0</div>
-                </div>
-                <div class="card-icon text-success"><i class="fa-solid fa-wallet"></i></div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card-box d-flex justify-content-between align-items-center">
-                <div>
-                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Active Users</small>
-                    <div class="number text-info">{{ total_active | default(0) }}</div>
-                </div>
-                <div class="card-icon text-info"><i class="fa-solid fa-users-rays"></i></div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card-box d-flex justify-content-between align-items-center">
-                <div>
-                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Used Vouchers</small>
-                    <div class="number text-warning">{{ used | default(0) }}</div>
-                </div>
-                <div class="card-icon text-warning"><i class="fa-solid fa-wifi"></i></div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card-box d-flex justify-content-between align-items-center">
-                <div>
-                    <small class="text-uppercase fw-bold text-secondary" style="font-size: 10px; letter-spacing: 1px;">Total Vouchers</small>
-                    <div class="number" style="color: var(--neon-purple);">{{ total | default(0) }}</div>
-                </div>
-                <div class="card-icon" style="color: var(--neon-purple);"><i class="fa-solid fa-ticket"></i></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- PENDING REQUESTS REGISTRATION SECTION -->
-    <div class="row g-4 mb-4">
-        <div class="col-12">
-            <div class="chart-box p-4" style="border: 1px solid rgba(255, 204, 0, 0.35); background: rgba(8, 14, 28, 0.92);">
-                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                    <div>
-                        <h5 class="mb-0 fw-bold text-warning" style="font-family: 'Orbitron'; font-size: 15px;">
-                            <i class="fa-solid fa-user-clock me-2"></i> Pending Registration Requests (Maombi Yanayosubiri Uhakiki)
-                        </h5>
-                        <small class="text-muted">Wateja wapya walioomba usajili au kuunganishwa kwenye mtandao</small>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3 py-1" style="font-family: 'Orbitron'; font-size: 10px;">
-                            PENDING: {{ pending_requests | length if pending_requests else 0 }}
-                        </span>
-                        <a href="/pending-registrations" class="btn btn-outline-warning btn-sm px-3 rounded-pill" style="font-size: 10px; font-family: 'Orbitron';">VIEW ALL</a>
-                    </div>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-dark table-hover mb-0 align-middle">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Jina la Mteja</th>
-                                <th>Namba ya Simu</th>
-                                <th>Kifurushi Kilichochaguliwa</th>
-                                <th>Tarehe ya Maombi</th>
-                                <th>Hali</th>
-                                <th class="text-end">Vitendo (Actions)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        {% if pending_requests %}
-                            {% for req in pending_requests %}
-                            <tr>
-                                <td>{{ loop.index }}</td>
-                                <td><strong class="text-light"><i class="fa-solid fa-user-tag me-1 text-warning"></i> {{ req.name }}</strong></td>
-                                <td><span class="font-monospace text-info">{{ req.phone }}</span></td>
-                                <td class="small text-muted">{{ req.package }}</td>
-                                <td class="small text-secondary">{{ req.date }}</td>
-                                <td><span class="badge bg-warning bg-opacity-15 text-warning border border-warning border-opacity-25">Inasubiriwa</span></td>
-                                <td class="text-end">
-                                    <a href="/approve-user/{{ req.id }}" class="btn btn-outline-success btn-sm px-2 rounded me-1" title="Kubali Usajili" onclick="return confirm('Idhinisha maombi ya {{ req.name }}?')">
-                                        <i class="fa-solid fa-check"></i>
-                                    </a>
-                                    <a href="/reject-user/{{ req.id }}" class="btn btn-outline-danger btn-sm px-2 rounded" title="Kataa Maombi" onclick="return confirm('Kataa maombi haya?')">
-                                        <i class="fa-solid xmark fa-xmark"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
-                                    <i class="fa-solid fa-circle-check d-block mb-2 fs-4 text-success"></i>
-                                    Hakuna maombi ya usajili yanayosubiri kwa sasa.
-                                </td>
-                            </tr>
-                        {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- HARDWARE MATRIX & REAL ANIMATED CABLE FLOW INTERCONNECT -->
-    <div class="row g-4 mb-4">
-        <div class="col-12">
-            <div class="chart-box">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 15px;">
-                        <i class="fa-solid fa-diagram-project me-2 text-info"></i> Advanced Fiber & Neural Cable Interconnect Matrix (Live Data Flow)
-                    </h5>
-                    <span class="badge bg-opacity-10 text-success border border-success border-opacity-50 px-3 py-1 rounded-pill" style="font-family: 'Orbitron'; font-size: 9px;">
-                        <i class="fa-solid fa-bolt me-1"></i> 10GBPS QUANTUM BUS
-                    </span>
-                </div>
-
-                <div class="matrix-wrapper">
-                    <div class="matrix-scanline"></div>
-
-                    <!-- ROUTER PHYSICAL PORTS -->
-                    <div class="port-container-fixed">
-                        <div class="lan-port">
-                            <div class="port-led wan-link"></div>
-                            <div class="port-label">WAN 1</div>
-                            <div class="packet-rate"><span id="p-wan1">2.4K</span> p/s</div>
-                        </div>
-                        <div class="lan-port">
-                            <div class="port-led active-link"></div>
-                            <div class="port-label">ETH 2</div>
-                            <div class="packet-rate"><span id="p-eth2">1.8K</span> p/s</div>
-                        </div>
-                        <div class="lan-port">
-                            <div class="port-led active-link"></div>
-                            <div class="port-label">ETH 3</div>
-                            <div class="packet-rate"><span id="p-eth3">890</span> p/s</div>
-                        </div>
-                        <div class="lan-port" style="opacity: 0.35;">
-                            <div class="port-led"></div>
-                            <div class="port-label">ETH 4</div>
-                            <div class="packet-rate">OFFLINE</div>
-                        </div>
-                        <div class="lan-port">
-                            <div class="port-led active-link"></div>
-                            <div class="port-label">ETH 5</div>
-                            <div class="packet-rate"><span id="p-eth5">1.2K</span> p/s</div>
-                        </div>
-                        <div class="lan-port">
-                            <div class="port-led sfp-link"></div>
-                            <div class="port-label">SFP+ 1</div>
-                            <div class="packet-rate"><span id="p-sfp">5.1K</span> p/s</div>
-                        </div>
-                    </div>
-
-                    <!-- SVG ANIMATED CABLES WITH LASER PARTICLES -->
-                    <svg class="svg-wire-overlay" viewBox="0 0 1000 330" preserveAspectRatio="none">
-                        <defs>
-                            <filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
-                                <feGaussianBlur stdDeviation="4" result="blur" />
-                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                            </filter>
-                            <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
-                                <feGaussianBlur stdDeviation="4" result="blur" />
-                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                            </filter>
-                            <filter id="glow-purple" x="-20%" y="-20%" width="140%" height="140%">
-                                <feGaussianBlur stdDeviation="4" result="blur" />
-                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                            </filter>
-
-                            <linearGradient id="grad-cyan" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stop-color="#00f3ff" stop-opacity="1"/>
-                                <stop offset="100%" stop-color="#0088ff" stop-opacity="0.8"/>
-                            </linearGradient>
-                            <linearGradient id="grad-green" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stop-color="#00ff88" stop-opacity="1"/>
-                                <stop offset="100%" stop-color="#00cc44" stop-opacity="0.8"/>
-                            </linearGradient>
-                            <linearGradient id="grad-purple" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stop-color="#b537f2" stop-opacity="1"/>
-                                <stop offset="100%" stop-color="#791aab" stop-opacity="0.8"/>
-                            </linearGradient>
-                        </defs>
-
-                        <!-- STATIC BACKBONE CABLE PATHS -->
-                        <path id="path-wan1" d="M 83,105 L 83,195 L 180,250" fill="none" stroke="url(#grad-cyan)" stroke-width="3" opacity="0.4" />
-                        <path id="path-eth2" d="M 250,105 L 250,185 L 430,250" fill="none" stroke="url(#grad-green)" stroke-width="3" opacity="0.4" />
-                        <path id="path-eth3" d="M 416,105 L 416,195 L 500,250" fill="none" stroke="url(#grad-green)" stroke-width="3" opacity="0.4" />
-                        <path id="path-eth5" d="M 750,105 L 750,195 L 570,250" fill="none" stroke="url(#grad-green)" stroke-width="3" opacity="0.4" />
-                        <path id="path-sfp" d="M 916,105 L 916,195 L 820,250" fill="none" stroke="url(#grad-purple)" stroke-width="3" opacity="0.4" />
-
-                        <!-- ANIMATED LASER DASH FLOW LAYERS -->
-                        <path d="M 83,105 L 83,195 L 180,250" fill="none" stroke="#00f3ff" stroke-width="3.5" class="wire-flow-cyan" filter="url(#glow-cyan)" />
-                        <path d="M 250,105 L 250,185 L 430,250" fill="none" stroke="#00ff88" stroke-width="3" class="wire-flow-green" filter="url(#glow-green)" />
-                        <path d="M 416,105 L 416,195 L 500,250" fill="none" stroke="#00ff88" stroke-width="3" class="wire-flow-green" filter="url(#glow-green)" />
-                        <path d="M 750,105 L 750,195 L 570,250" fill="none" stroke="#00ff88" stroke-width="3" class="wire-flow-green" filter="url(#glow-green)" />
-                        <path d="M 916,105 L 916,195 L 820,250" fill="none" stroke="#b537f2" stroke-width="3.5" class="wire-flow-purple" filter="url(#glow-purple)" />
-
-                        <!-- REALTIME MOVING DATA PARTICLES -->
-                        <circle r="4" fill="#ffffff" filter="url(#glow-cyan)">
-                            <animateMotion path="M 83,105 L 83,195 L 180,250" dur="1.2s" repeatCount="indefinite" />
-                        </circle>
-                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)">
-                            <animateMotion path="M 250,105 L 250,185 L 430,250" dur="1.6s" repeatCount="indefinite" />
-                        </circle>
-                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)">
-                            <animateMotion path="M 416,105 L 416,195 L 500,250" dur="1.4s" repeatCount="indefinite" />
-                        </circle>
-                        <circle r="3.5" fill="#ffffff" filter="url(#glow-green)">
-                            <animateMotion path="M 750,105 L 750,195 L 570,250" dur="1.5s" repeatCount="indefinite" />
-                        </circle>
-                        <circle r="4" fill="#ffffff" filter="url(#glow-purple)">
-                            <animateMotion path="M 916,105 L 916,195 L 820,250" dur="0.9s" repeatCount="indefinite" />
-                        </circle>
-                    </svg>
-
-                    <!-- HARDWARE CORE HUBS -->
-                    <div class="cyber-hub">
-                        <div class="hub-node text-info"><i class="fa-solid fa-globe"></i> ISP BACKBONE CORE</div>
-                        <div class="hub-node text-success"><i class="fa-solid fa-server"></i> MIKROTIK HOTSPOT GATEWAY</div>
-                        <div class="hub-node" style="color: var(--neon-purple);"><i class="fa-solid fa-bolt"></i> AZAMPAY & SMS ENGINE</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MIKROTIK NEW ROUTER INSTALLER -->
-    <div class="row g-4 mb-4">
-        <div class="col-12">
-            <div class="installer-card">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-                    <div>
-                        <h5 class="mb-1 fw-bold" style="font-family:'Orbitron';font-size:15px;">
-                            <i class="fa-solid fa-screwdriver-wrench me-2 text-info"></i>
-                            MikroTik NEW Router Installer
-                        </h5>
-                        <small class="text-muted">
-                            Tambua model, ports na RouterOS kisha tengeneza script ya initial setup.
-                        </small>
-                    </div>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <span class="installer-chip text-info"><i class="fa-solid fa-microchip"></i> MODEL DETECTION</span>
-                        <span class="installer-chip text-success"><i class="fa-solid fa-shield-halved"></i> SAFE PREVIEW</span>
-                    </div>
-                </div>
-
-                <div class="row g-3">
-                    <div class="col-xl-4">
-                        <div class="chart-box h-100">
-                            <div class="d-flex align-items-center gap-2 mb-3">
-                                <div class="step-dot">01</div>
-                                <div>
-                                    <div class="fw-bold small">Router Connection</div>
-                                    <div class="text-muted" style="font-size:10px;">Weka taarifa za MikroTik mpya</div>
-                                </div>
-                            </div>
-
-                            <div class="mb-2">
-                                <label class="form-label small text-secondary">Router IP / Host</label>
-                                <input id="installerHost" class="form-control router-field" value="192.168.88.1" placeholder="192.168.88.1">
-                            </div>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label class="form-label small text-secondary">API Port</label>
-                                    <input id="installerPort" type="number" class="form-control router-field" value="8728">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small text-secondary">Username</label>
-                                    <input id="installerUser" class="form-control router-field" value="admin">
-                                </div>
-                            </div>
-                            <div class="mt-2">
-                                <label class="form-label small text-secondary">Password</label>
-                                <input id="installerPass" type="password" class="form-control router-field" placeholder="Password ya router">
-                            </div>
-
-                            <div class="d-grid gap-2 mt-3">
-                                <button id="btnDetectRouter" class="btn btn-outline-info rounded-pill fw-bold">
-                                    <i class="fa-solid fa-magnifying-glass me-2"></i> DETECT MODEL
-                                </button>
-                            </div>
-                            <div id="installerAlert" class="alert d-none mt-3 mb-0 small"></div>
-                        </div>
-                    </div>
-
-                    <div class="col-xl-4">
-                        <div class="chart-box h-100">
-                            <div class="d-flex align-items-center gap-2 mb-3">
-                                <div class="step-dot">02</div>
-                                <div>
-                                    <div class="fw-bold small">Detected Hardware</div>
-                                    <div class="text-muted" style="font-size:10px;">Taarifa zitakazotumika kuchagua ports</div>
-                                </div>
-                            </div>
-
-                            <div class="model-box mb-3">
-                                <div class="d-flex justify-content-between">
-                                    <span class="text-muted small">Model</span>
-                                    <strong id="detectedModel" class="text-info">Not detected</strong>
-                                </div>
-                                <div class="d-flex justify-content-between mt-2">
-                                    <span class="text-muted small">RouterOS</span>
-                                    <strong id="detectedRos" class="text-success">—</strong>
-                                </div>
-                                <div class="d-flex justify-content-between mt-2">
-                                    <span class="text-muted small">Architecture</span>
-                                    <strong id="detectedArch" class="text-warning">—</strong>
-                                </div>
-                                <div class="d-flex justify-content-between mt-2">
-                                    <span class="text-muted small">Board Serial</span>
-                                    <strong id="detectedSerial" class="text-secondary">—</strong>
-                                </div>
-                            </div>
-
-                            <div class="mb-2">
-                                <label class="form-label small text-secondary">WAN Interface</label>
-                                <select id="installerWan" class="form-select router-field">
-                                    <option value="ether1">ether1</option>
-                                </select>
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small text-secondary">LAN / Hotspot Interface</label>
-                                <select id="installerLan" class="form-select router-field">
-                                    <option value="bridge-hotspot">bridge-hotspot</option>
-                                </select>
-                            </div>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label class="form-label small text-secondary">Hotspot IP</label>
-                                    <input id="installerIp" class="form-control router-field" value="10.10.10.1/24">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small text-secondary">Pool</label>
-                                    <input id="installerPool" class="form-control router-field" value="10.10.10.10-10.10.10.254">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-xl-4">
-                        <div class="chart-box h-100">
-                            <div class="d-flex align-items-center gap-2 mb-3">
-                                <div class="step-dot">03</div>
-                                <div>
-                                    <div class="fw-bold small">Installation Profile</div>
-                                    <div class="text-muted" style="font-size:10px;">Chagua huduma unazotaka kuandaliwa</div>
-                                </div>
-                            </div>
-
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="installNat" checked>
-                                <label class="form-check-label small" for="installNat">NAT / Internet Sharing</label>
-                            </div>
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="installDhcp" checked>
-                                <label class="form-check-label small" for="installDhcp">DHCP Server</label>
-                            </div>
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="installDns" checked>
-                                <label class="form-check-label small" for="installDns">DNS / Allow Remote Requests</label>
-                            </div>
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" id="installHotspot" checked>
-                                <label class="form-check-label small" for="installHotspot">Hotspot Base</label>
-                            </div>
-
-                            <div class="mb-2">
-                                <label class="form-label small text-secondary">Hotspot DNS Name</label>
-                                <input id="installerDnsName" class="form-control router-field" value="vicentwifi.local">
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small text-secondary">Hotspot Name</label>
-                                <input id="installerHotspotName" class="form-control router-field" value="hotspot1">
-                            </div>
-
-                            <div class="d-grid gap-2 mt-3">
-                                <button id="btnGenerateInstall" class="btn btn-info rounded-pill fw-bold text-dark">
-                                    <i class="fa-solid fa-code me-2"></i> GENERATE INSTALL SCRIPT
-                                </button>
-                                <button id="btnApplyInstall" class="btn btn-outline-danger rounded-pill fw-bold">
-                                    <i class="fa-solid fa-play me-2"></i> APPLY TO ROUTER
-                                </button>
-                            </div>
-                            <small class="text-muted d-block mt-2">
-                                APPLY itahitaji backend endpoint yako ya MikroTik API. Usitumie kwenye router yenye configuration muhimu bila backup.
-                            </small>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row g-4 mt-1">
-                    <div class="col-lg-8">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="small fw-bold text-info" style="font-family:'Orbitron';">GENERATED ROUTEROS SCRIPT</span>
-                            <button id="btnCopyInstallScript" class="btn btn-sm btn-outline-info rounded-pill">
-                                <i class="fa-regular fa-copy me-1"></i> COPY
-                            </button>
-                        </div>
-                        <pre id="installerScriptPreview" class="terminal-box"># Detect router first, then click GENERATE INSTALL SCRIPT.</pre>
-                    </div>
-                    <div class="col-lg-4">
-                        <div class="chart-box h-100">
-                            <div class="small fw-bold text-success mb-2">INSTALLATION CHECKLIST</div>
-                            <div class="small text-muted">
-                                <div class="mb-2"><i class="fa-solid fa-circle-check text-success me-2"></i> Backup existing config</div>
-                                <div class="mb-2"><i class="fa-solid fa-circle-check text-success me-2"></i> Detect RouterOS version</div>
-                                <div class="mb-2"><i class="fa-solid fa-circle-check text-success me-2"></i> Detect board model</div>
-                                <div class="mb-2"><i class="fa-solid fa-circle-check text-success me-2"></i> Detect ethernet ports</div>
-                                <div><i class="fa-solid fa-circle-check text-success me-2"></i> Preview script before applying</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Analytics Charts Section -->
-    <div class="row g-4 mb-4">
-        <div class="col-lg-8">
-            <div class="chart-box">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 15px;"><i class="fa-solid fa-chart-line me-2 text-info"></i> Real-time Bandwidth Throughput</h5>
-                    <div class="d-flex gap-2" style="font-family: 'Orbitron'; font-size: 10px;">
-                        <span class="badge bg-opacity-10 text-info border border-info border-opacity-25 px-2 py-1">DL: <span id="currentDl">0</span> Mbps</span>
-                        <span class="badge bg-opacity-10 border border-opacity-25 px-2 py-1" style="color: var(--neon-purple); border-color: var(--neon-purple) !important;">UL: <span id="currentUl">0</span> Mbps</span>
-                    </div>
-                </div>
-                <canvas id="trafficChart" height="110"></canvas>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="chart-box h-100 d-flex flex-column justify-content-between">
-                <h5 class="mb-3 fw-bold" style="font-family: 'Orbitron'; font-size: 15px;"><i class="fa-solid fa-chart-pie me-2 text-warning"></i> Voucher Distribution</h5>
-                <div style="max-height: 220px; position: relative;" class="my-auto">
-                    <canvas id="voucherPie"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- TOP PACKAGES & RECENT TRANSACTIONS -->
-    <div class="row g-4 mb-4">
-        <div class="col-lg-5">
-            <div class="chart-box h-100 p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 15px;">
-                        <i class="fa-solid fa-ranking-star me-2 text-warning"></i> Top Selling Packages
-                    </h5>
-                    <small class="text-muted">Popularity metrics</small>
-                </div>
-                <div style="position: relative; height: 210px;">
-                    <canvas id="topPackagesChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-7">
-            <div class="chart-box h-100 p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                        <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 15px;">
-                            <i class="fa-solid fa-money-bill-transfer me-2 text-success"></i> Recent Payment Transactions
-                        </h5>
-                        <small class="text-muted">AzamPay / M-Pesa automated billing logs</small>
-                    </div>
-                    <a href="/transactions" class="btn btn-outline-success btn-sm px-3 rounded-pill" style="font-size: 10px; font-family: 'Orbitron';">VIEW ALL</a>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-dark table-hover mb-0 align-middle">
-                        <thead>
-                            <tr>
-                                <th>Mteja / Namba</th>
-                                <th>Kifurushi</th>
-                                <th>Kiasi (TZS)</th>
-                                <th>Gateway</th>
-                                <th class="text-end">Hali</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        {% if recent_transactions %}
-                            {% for tx in recent_transactions %}
-                            <tr>
-                                <td><strong class="font-monospace text-light">{{ tx.phone }}</strong></td>
-                                <td class="small text-muted">{{ tx.package }}</td>
-                                <td><strong class="text-success">TZS {{ tx.amount }}</strong></td>
-                                <td><span class="badge bg-secondary bg-opacity-25 text-info">{{ tx.gateway }}</span></td>
-                                <td class="text-end"><span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25">Imekamilika</span></td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-4">Hakuna miamala ya hivi karibuni iliyorekodiwa.</td>
-                            </tr>
-                        {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ACTIVE USERS TABLE -->
-    <div class="row g-4 mb-4">
-        <div class="col-12">
-            <div class="chart-box p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                        <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 15px;">
-                            <i class="fa-solid fa-wifi me-2 text-success"></i> Active Hotspot Users (Wateja Waliopo Hewani)
-                        </h5>
-                        <small class="text-muted">Mikrotik live active sessions database</small>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1" style="font-family: 'Orbitron'; font-size: 10px;">
-                            JUMLA: {{ total_active | default(0) }} ONLINE
-                        </span>
-                        <a href="/active-users" class="btn btn-outline-info btn-sm px-3 rounded-pill" style="font-size: 10px; font-family: 'Orbitron';">VIEW ALL</a>
-                    </div>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-dark table-hover mb-0 align-middle">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Mteja / Vocha</th>
-                                <th>IP Address</th>
-                                <th>MAC Address</th>
-                                <th>Uptime</th>
-                                <th>Data In / Out</th>
-                                <th class="text-end">Kitendo</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        {% if active_users %}
-                            {% for u in active_users %}
-                            <tr>
-                                <td>{{ loop.index }}</td>
-                                <td><strong class="font-monospace text-info"><i class="fa-solid fa-user me-1 text-secondary"></i> {{ u.user }}</strong></td>
-                                <td><span class="badge bg-dark border border-secondary text-light font-monospace">{{ u.address }}</span></td>
-                                <td><code style="color: var(--neon-purple);">{{ u.mac }}</code></td>
-                                <td><span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">{{ u.uptime }}</span></td>
-                                <td class="small text-muted font-monospace">{{ u.bytes_in }} / {{ u.bytes_out }} B</td>
-                                <td class="text-end">
-                                    <a href="/kick-user/{{ u.id }}" class="btn btn-outline-danger btn-sm px-3 rounded-pill" style="font-size: 10px; font-family: 'Orbitron';" onclick="return confirm('Je, una uhakika unataka kumtoa {{ u.user }} hewani?')">
-                                        <i class="fa-solid fa-user-slash me-1"></i> DISCONNECT
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
-                                    <i class="fa-solid fa-triangle-exclamation d-block mb-2 fs-4 text-warning"></i>
-                                    Hakuna mteja anayetumia intaneti kwa sasa au MikroTik haipo hewani.
-                                </td>
-                            </tr>
-                        {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- RECENT VOUCHERS TABLE -->
-    <div class="row g-4 mb-4">
-        <div class="col-12">
-            <div class="chart-box p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                        <h5 class="mb-0 fw-bold" style="font-family: 'Orbitron'; font-size: 15px;">
-                            <i class="fa-solid fa-ticket me-2 text-warning"></i> Vocha Mpya Zilizotengenezwa (Recent Vouchers)
-                        </h5>
-                        <small class="text-muted">Orodha ya vocha za hivi karibuni zilizozalishwa</small>
-                    </div>
-                    <a href="/vouchers" class="btn btn-outline-warning btn-sm px-3 rounded-pill" style="font-size: 10px; font-family: 'Orbitron';">VIEW ALL VOUCHERS</a>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-dark table-hover mb-0 align-middle">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Namba ya Vocha (PIN)</th>
-                                <th>Kifurushi (Package)</th>
-                                <th>Kikomo (Limit)</th>
-                                <th>Hali (Status)</th>
-                                <th class="text-end">Kitendo</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        {% if recent_vouchers %}
-                            {% for v in recent_vouchers %}
-                            <tr>
-                                <td>{{ loop.index }}</td>
-                                <td><strong class="font-monospace" style="color: var(--neon-cyan); font-size: 14px; letter-spacing: 2px;">{{ v.code }}</strong></td>
-                                <td>{{ v.profile }}</td>
-                                <td>
-                                    <span class="badge bg-secondary bg-opacity-25 text-light border border-secondary" style="font-family: 'Orbitron'; font-size: 10px;">
-                                        {{ v.uptime }} | {{ v.data_limit }}
-                                    </span>
-                                </td>
-                                <td>
-                                    {% if v.status == 'unused' %}
-                                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-50">Haijatumika</span>
-                                    {% elif v.status == 'used' %}
-                                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-50">Imetumika</span>
-                                    {% else %}
-                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-50">Imeisha Muda</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-end">
-                                    <button class="btn btn-outline-info btn-sm px-2 rounded" onclick="navigator.clipboard.writeText('{{ v.code }}'); alert('Vocha imekopiwa!')" title="Kopi PIN">
-                                        <i class="fa-regular fa-copy"></i>
-                                    </button>
-                                    <a href="/print" target="_blank" class="btn btn-outline-secondary btn-sm px-2 rounded" title="Print Ukurasa">
-                                        <i class="fa-solid fa-print"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-4">Hakuna vocha zilizotengenezwa hivi karibuni.</td>
-                            </tr>
-                        {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Server Health Metrics & Quick Actions -->
-    <div class="row g-4 mb-4">
-        <div class="col-lg-8">
-            <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="card-box">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="fw-bold text-muted small" style="font-family: 'Orbitron'; font-size: 10px;">CPU PROCESSOR</span>
-                            <span id="cpuValue" class="fw-bold text-info">24%</span>
-                        </div>
-                        <div class="progress" style="height:6px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-info" id="cpuBar" style="width:24%;"></div></div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card-box">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="fw-bold text-muted small" style="font-family: 'Orbitron'; font-size: 10px;">SYSTEM RAM</span>
-                            <span id="ramValue" class="fw-bold text-success">45%</span>
-                        </div>
-                        <div class="progress" style="height:6px;"><div class="progress-bar progress-bar-striped progress-bar-animated bg-success" id="ramBar" style="width:45%;"></div></div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card-box">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="fw-bold text-muted small" style="font-family: 'Orbitron'; font-size: 10px;">STORAGE DISK</span>
-                            <span class="fw-bold text-warning">18%</span>
-                        </div>
-                        <div class="progress" style="height:6px;"><div class="progress-bar bg-warning" id="diskBar" style="width:18%;"></div></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-4">
-            <div class="chart-box p-4">
-                <h5 class="mb-3 fw-bold" style="font-family: 'Orbitron'; font-size: 15px;"><i class="fa-solid fa-bolt me-2 text-warning"></i> Quick Actions</h5>
-                <div class="d-grid gap-2">
-                    <button type="button" class="quick-btn w-100 border-0 text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#quickVoucherModal" style="background: linear-gradient(135deg, var(--neon-cyan), var(--primary)); cursor: pointer;">
-                        <i class="fa-solid fa-bolt text-warning"></i> Quick Generate Vouchers
-                    </button>
-                    <button type="button" class="quick-btn border-danger text-danger" onclick="if(confirm('TAHADHARI: Je, una hakika unataka kuwasha Maintenance Mode?')) { alert('Maintenance Mode imewashwa!'); }" style="background: rgba(255,0,85,0.04);">
-                        <i class="fa-solid fa-triangle-exclamation text-danger"></i> Emergency System Killswitch
-                    </button>
-                    <a href="/vouchers" class="quick-btn"><i class="fa-solid fa-ticket text-success"></i> Manage Vouchers</a>
-                    <a href="/print" target="_blank" class="quick-btn"><i class="fa-solid fa-print text-info"></i> Print Vouchers Page</a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ADMINISTRATOR COMMAND MATRIX -->
-    <div class="row g-4 mb-4">
-        <div class="col-12">
-            <div class="chart-box p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                    <div>
-                        <h5 class="mb-0 fw-bold" style="font-family:'Orbitron';font-size:15px;"><i class="fa-solid fa-shield-halved me-2 text-info"></i>Administrator Control Matrix</h5>
-                        <small class="text-muted">Quick access ya modules zote za current CORE-WISP backend.</small>
-                    </div>
-                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">ADMIN ONLY</span>
-                </div>
-                <div class="row g-2">
-                    <div class="col-md-3"><a href="/users" class="quick-btn"><i class="fa-solid fa-user-shield text-info"></i>Users & Roles</a></div>
-                    <div class="col-md-3"><a href="/packages" class="quick-btn"><i class="fa-solid fa-box text-success"></i>Packages</a></div>
-                    <div class="col-md-3"><a href="/vouchers" class="quick-btn"><i class="fa-solid fa-ticket text-warning"></i>Voucher Engine</a></div>
-                    <div class="col-md-3"><a href="/transactions" class="quick-btn"><i class="fa-solid fa-receipt text-success"></i>Transactions</a></div>
-                    <div class="col-md-3"><a href="/reports" class="quick-btn"><i class="fa-solid fa-chart-column text-info"></i>Reports</a></div>
-                    <div class="col-md-3"><a href="/active-users" class="quick-btn"><i class="fa-solid fa-users-viewfinder text-success"></i>Live Sessions</a></div>
-                    <div class="col-md-3"><a href="/sms-gateway" class="quick-btn"><i class="fa-solid fa-comment-sms" style="color:var(--neon-purple)"></i>SMS & Gateway</a></div>
-                    <div class="col-md-3"><a href="/settings" class="quick-btn"><i class="fa-solid fa-gear text-secondary"></i>System Settings</a></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <footer>
-        <i class="fa-solid fa-shield-virus me-2 text-info"></i> CORE WISP v3.5 Enterprise Neural Engine | Developed by <span class="venom-brand">Venom Company</span> © 2026
-    </footer>
-</div>
-
-<!-- QUICK VOUCHER GENERATOR MODAL -->
-<div class="modal fade" id="quickVoucherModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="background: var(--bg-surface); backdrop-filter: blur(30px); border: 1px solid var(--neon-cyan); color: var(--text-main); border-radius: 14px;">
-      <div class="modal-header border-bottom border-secondary border-opacity-25">
-        <h5 class="modal-title fw-bold text-info" style="font-family: 'Orbitron'; font-size: 16px;">
-          <i class="fa-solid fa-bolt text-warning me-2"></i> Quick Voucher Generator
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <form id="quickVoucherForm">
-        <div class="modal-body p-4">
-          <div id="modalAlert" class="alert d-none" role="alert"></div>
-          <div class="mb-3">
-            <label class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; font-size: 10px;">Aina ya Utengenezaji</label>
-            <div class="btn-group w-100" role="group">
-              <input type="radio" class="btn-check" name="generation_type" id="genTypePackage" value="package" checked autocomplete="off">
-              <label class="btn btn-outline-info btn-sm" for="genTypePackage" style="font-family: 'Orbitron'; font-size: 10px;">Kutumia Kifurushi</label>
-              <input type="radio" class="btn-check" name="generation_type" id="genTypeCustom" value="custom" autocomplete="off">
-              <label class="btn btn-outline-info btn-sm" for="genTypeCustom" style="font-family: 'Orbitron'; font-size: 10px;">Weka Bei na GB Maalum</label>
-            </div>
-          </div>
-          <div class="mb-3" id="packageSection">
-            <label for="packageSelect" class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; font-size: 10px;">Chagua Kifurushi</label>
-            <select class="form-select bg-dark text-light border-secondary" id="packageSelect" name="package_id" style="border-radius: 8px; font-size: 12px;">
-              <option value="" disabled selected>-- Chagua Kifurushi --</option>
-              {% if packages %}
-                {% for pkg in packages %}
-                  <option value="{{ pkg.id }}">{{ pkg.name }} - TZS {{ pkg.price }} ({{ pkg.uptime }} | {{ pkg.data_limit }})</option>
-                {% endfor %}
-              {% endif %}
-            </select>
-          </div>
-          <div id="customSection" class="d-none">
-            <div class="row g-2">
-              <div class="col-md-6 mb-3">
-                <label for="customPrice" class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; font-size: 10px;">Bei (TZS)</label>
-                <input type="number" class="form-control bg-dark text-light border-secondary" id="customPrice" name="custom_price" min="100" value="1000" style="border-radius: 8px; font-size: 12px;">
-              </div>
-              <div class="col-md-6 mb-3">
-                <label for="customDuration" class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; font-size: 10px;">Muda (Uptime)</label>
-                <input type="text" class="form-control bg-dark text-light border-secondary" id="customDuration" name="custom_duration" value="1 Day" style="border-radius: 8px; font-size: 12px;">
-              </div>
-            </div>
-            <div class="mb-3">
-              <label for="customDataLimit" class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; font-size: 10px;">Kikomo cha GB</label>
-              <input type="text" class="form-control bg-dark text-light border-secondary" id="customDataLimit" name="custom_data_limit" value="Unlimited" style="border-radius: 8px; font-size: 12px;">
-            </div>
-          </div>
-          <div class="mb-3">
-            <label for="voucherQty" class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; font-size: 10px;">Idadi ya Vocha</label>
-            <input type="number" class="form-control bg-dark text-light border-secondary" id="voucherQty" name="quantity" min="1" max="100" value="1" style="border-radius: 8px; font-size: 12px;" required>
-          </div>
-          <div class="mb-3">
-            <label for="voucherPrefix" class="form-label small fw-bold text-uppercase text-secondary" style="font-family: 'Orbitron'; font-size: 10px;">Prefix / Tag (Hiari)</label>
-            <input type="text" class="form-control bg-dark text-light border-secondary" id="voucherPrefix" name="prefix" placeholder="Mfano: VIP" style="border-radius: 8px; font-size: 12px;">
-          </div>
-        </div>
-        <div class="modal-footer border-top border-secondary border-opacity-25">
-          <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" data-bs-dismiss="modal" style="font-family: 'Orbitron'; font-size: 11px;">Funga</button>
-          <button type="submit" id="btnGenerateSubmit" class="btn btn-info px-4 rounded-pill font-monospace fw-bold text-dark" style="background: linear-gradient(135deg, var(--neon-cyan), var(--primary)); border: none;">
-            <i class="fa-solid fa-ticket me-1"></i> TENGENEZA SASA
-          </button>
-        </div>
-      </form>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <span class="pill"><i class="fa-solid fa-user-shield text-info me-1"></i> SUPER ADMIN</span>
+      <span class="pill border-success"><span class="led-light led-green"></span> SYSTEM ONLINE</span>
+      <span class="pill text-purple border-purple"><i class="fa-solid fa-code me-1"></i> VENOM ENGINE</span>
     </div>
   </div>
-</div>
 
-<!-- JavaScript Engine -->
+  <!-- Overview Metrics Section -->
+  <section id="overview" class="section">
+    <div class="row g-3 mb-4">
+      <div class="col-xl-3 col-md-6">
+        <div class="cardx">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="muted smallx fw-bold">TOTAL CUSTOMERS</span>
+            <i class="fa-solid fa-users text-info opacity-50"></i>
+          </div>
+          <div class="kpi">{{ customer_count|default(0) }}</div>
+          <div class="smallx text-success mt-2 d-flex align-items-center gap-1">
+            <span class="led-light led-green"></span> {{ active_customer_count|default(0) }} active overall
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-3 col-md-6">
+        <div class="cardx">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="muted smallx fw-bold">PENDING REQUESTS</span>
+            <i class="fa-solid fa-clock text-warning opacity-50"></i>
+          </div>
+          <div class="kpi text-warning">{{ pending_customer_count|default(0) }}</div>
+          <div class="smallx mt-2">
+            <a href="/pending-registrations" class="text-warning text-decoration-none fw-semibold">Review Pending Requests →</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-3 col-md-6">
+        <div class="cardx">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="muted smallx fw-bold">REGISTERED ROUTERS</span>
+            <i class="fa-solid fa-router text-info opacity-50"></i>
+          </div>
+          <div class="kpi text-info">{{ total_customer_routers|default(0) }}</div>
+          <div class="smallx mt-2 text-muted d-flex align-items-center gap-1">
+            <span class="led-light led-green"></span>
+            <span class="text-success fw-bold">{{ total_online_customer_routers|default(0) }}</span> Routers online
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-3 col-md-6">
+        <div class="cardx">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="muted smallx fw-bold">CUSTOMER REVENUE</span>
+            <i class="fa-solid fa-sack-dollar text-success opacity-50"></i>
+          </div>
+          <div class="kpi text-success">TZS {{ "{:,}".format(total_customer_revenue|default(0)) }}</div>
+          <div class="smallx mt-2 muted">Generated from redeemed vouchers</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Secondary Telemetry Stats -->
+    <div class="row g-3 mb-4">
+      <div class="col-lg-3 col-md-6">
+        <div class="cardx">
+          <div class="muted smallx fw-bold mb-1">GLOBAL ACTIVE CLIENTS</div>
+          <div class="kpi fs-2 d-flex align-items-center justify-content-between">
+            <span>{{ total_active|default(0) }}</span>
+            <span class="led-light led-green"></span>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6">
+        <div class="cardx">
+          <div class="muted smallx fw-bold mb-1">GLOBAL VOUCHERS</div>
+          <div class="kpi fs-2">{{ total|default(0) }}</div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6">
+        <div class="cardx">
+          <div class="muted smallx fw-bold mb-1">USED VOUCHERS</div>
+          <div class="kpi fs-2 text-warning">{{ used|default(0) }}</div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6">
+        <div class="cardx">
+          <div class="muted smallx fw-bold mb-1">MIKROTIK SYSTEM STATUS</div>
+          <div class="kpi fs-5 mt-3 {% if router_status == 'Connected' or router_status == 'Online' or router_status == 'ONLINE' %}text-success{% else %}text-danger{% endif %} d-flex align-items-center gap-2">
+            {% if router_status == 'Connected' or router_status == 'Online' or router_status == 'ONLINE' %}
+              <span class="led-light led-green"></span>
+            {% else %}
+              <span class="led-light led-red"></span>
+            {% endif %}
+            <i class="fa-solid fa-plug"></i> {{ router_status }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Customer Control Center Section -->
+  <section id="customers" class="section">
+    <div class="cardx mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+          <h5 class="mb-1 fw-bold"><i class="fa-solid fa-users-gear text-info me-2"></i>Customer Control Center</h5>
+          <div class="muted smallx">Global network visibility with deep granular account telemetry.</div>
+        </div>
+        <a href="/pending-registrations" class="btn btn-outline-warning btn-sm">
+          <i class="fa-solid fa-user-clock me-1"></i> Pending Approvals
+        </a>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th>Customer Info</th>
+              <th>Status</th>
+              <th>Routers</th>
+              <th>Active Clients</th>
+              <th>Vouchers</th>
+              <th>Revenue</th>
+              <th>Last Login</th>
+              <th class="text-end">Controls</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in customers %}
+            <tr class="customer-card">
+              <td>
+                <div class="fw-bold text-light">{{ c.name }}</div>
+                <div class="muted smallx font-mono">{{ c.username }} · {{ c.phone }}</div>
+              </td>
+              <td>
+                {% if c.status=='active' %}
+                  <span class="badge-soft ok"><span class="led-light led-green" style="width:7px; height:7px;"></span> ACTIVE</span>
+                {% elif c.status=='pending' %}
+                  <span class="badge-soft warn"><span class="led-light led-yellow" style="width:7px; height:7px;"></span> PENDING</span>
+                {% elif c.status=='disabled' %}
+                  <span class="badge-soft bad"><span class="led-light led-red" style="width:7px; height:7px;"></span> DISABLED</span>
+                {% else %}
+                  <span class="badge-soft bad">{{ c.status|upper }}</span>
+                {% endif %}
+              </td>
+              <td>{{ c.routers }} <span class="muted smallx">({{ c.online_routers }} online)</span></td>
+              <td class="fw-bold">{{ c.active_clients }}</td>
+              <td>{{ c.vouchers }} <span class="muted smallx">/ {{ c.used_vouchers }} used</span></td>
+              <td class="text-success fw-bold font-mono">TZS {{ "{:,}".format(c.revenue) }}</td>
+              <td class="smallx muted">{{ c.last_login or 'Never' }}</td>
+              <td class="text-end">
+                <div class="btn-group gap-1">
+                  <a href="/admin/customers/{{ c.id }}" class="btn btn-outline-info btn-sm">View</a>
+                  {% if c.status=='active' %}
+                    <a href="/admin/customers/impersonate/{{ c.id }}" class="btn btn-outline-warning btn-sm" onclick="return confirm('Ingia kama {{ c.name }}?')">Enter</a>
+                  {% elif c.status=='pending' %}
+                    <a href="/admin/customers/approve/{{ c.id }}" class="btn btn-success btn-sm">Approve</a>
+                  {% endif %}
+                  {% if c.status=='active' %}
+                    <a href="/admin/customers/disable/{{ c.id }}" class="btn btn-outline-danger btn-sm">Disable</a>
+                  {% elif c.status=='disabled' %}
+                    <a href="/admin/customers/activate/{{ c.id }}" class="btn btn-outline-success btn-sm">Activate</a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center muted py-5">Hakuna customer aliyesajiliwa bado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Selected Customer Deep-Dive Details -->
+    {% if selected_customer %}
+    <div class="row g-3 mb-4">
+      <div class="col-lg-4">
+        <div class="cardx">
+          <div class="muted smallx fw-bold">SELECTED CUSTOMER PROFILE</div>
+          <h4 class="mt-2 fw-bold">{{ selected_customer.get('first_name','') }} {{ selected_customer.get('last_name','') }}</h4>
+          <div class="muted font-mono smallx mb-3">{{ selected_customer.username }}</div>
+          <hr class="border-secondary opacity-25">
+          <div class="row g-3 smallx">
+            <div class="col-6">Routers: <strong>{{ selected_customer.stats.routers }}</strong></div>
+            <div class="col-6">Online: <strong class="text-success">{{ selected_customer.stats.online_routers }}</strong></div>
+            <div class="col-6">Active Clients: <strong>{{ selected_customer.stats.active_clients }}</strong></div>
+            <div class="col-6">Vouchers: <strong>{{ selected_customer.stats.vouchers }}</strong></div>
+            <div class="col-6">Used Vouchers: <strong>{{ selected_customer.stats.used_vouchers }}</strong></div>
+            <div class="col-6">Revenue: <strong class="text-success">TZS {{ "{:,}".format(selected_customer.stats.revenue) }}</strong></div>
+          </div>
+          <a href="/admin/customers/impersonate/{{ selected_customer._id }}" class="btn btn-warning w-100 mt-4" onclick="return confirm('Enter this customer account?')">
+            <i class="fa-solid fa-user-secret me-1"></i> Impersonate Customer
+          </a>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="cardx">
+          <h6 class="fw-bold mb-3"><i class="fa-solid fa-router text-info me-2"></i>Customer Routers</h6>
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead><tr><th>Router Name</th><th>Host Endpoint</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody>
+                {% for r in selected_customer.routers_list %}
+                <tr>
+                  <td class="fw-bold">{{ r.name }}</td>
+                  <td class="font-mono">{{ r.host }}:{{ r.port }}</td>
+                  <td><span class="badge-soft ok"><span class="led-light led-green" style="width:6px; height:6px;"></span> {{ r.status }}</span></td>
+                  <td>
+                    {% if r.status=='pending' %}
+                      <a href="/admin/routers/approve/{{ r._id }}" class="btn btn-success btn-sm">Approve</a>
+                      <a href="/admin/routers/reject/{{ r._id }}" class="btn btn-danger btn-sm">Reject</a>
+                    {% else %}
+                      <span class="badge-soft ok">Approved</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="muted">No routers registered for this customer.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cardx mb-4">
+      <h6 class="fw-bold mb-3"><i class="fa-solid fa-ticket text-warning me-2"></i>Customer Recent Vouchers</h6>
+      <div class="table-responsive">
+        <table class="table">
+          <thead><tr><th>Code</th><th>Price</th><th>Status</th><th>Created Timestamp</th></tr></thead>
+          <tbody>
+            {% for v in selected_customer.vouchers_list %}
+            <tr>
+              <td><code class="text-info fs-6">{{ v.code }}</code></td>
+              <td class="font-mono">TZS {{ "{:,}".format(v.price|default(0)) }}</td>
+              <td><span class="badge-soft warn">{{ v.status }}</span></td>
+              <td class="smallx muted">{{ v.created_at }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="muted">No vouchers available.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- MikroTik Installer & Automation Suite -->
+  <section id="mikrotik-tools" class="section mt-4">
+    <div class="cardx">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+        <div>
+          <h5 class="mb-1 fw-bold"><i class="fa-solid fa-screwdriver-wrench text-info me-2"></i>MikroTik Installer & Remote Provisioning</h5>
+          <div class="muted smallx">Automation engine leveraging real <code>main.py</code> API endpoints: detect, install & generate-script.</div>
+        </div>
+        <span id="mt-status" class="badge-soft warn"><span class="led-light led-yellow" style="width:6px; height:6px;"></span> READY ENGINE</span>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <div class="p-3 rounded-3 bg-dark bg-opacity-50 border border-secondary border-opacity-25">
+            <label class="form-label smallx fw-bold">Router Host / IP Address</label>
+            <input id="mt-host" class="form-control font-mono mb-2" value="10.176.235.121">
+
+            <label class="form-label smallx fw-bold">API Port</label>
+            <input id="mt-port" type="number" class="form-control font-mono mb-2" value="8728">
+
+            <label class="form-label smallx fw-bold">API Username</label>
+            <input id="mt-user" class="form-control font-mono mb-2" value="admin">
+
+            <label class="form-label smallx fw-bold">Password</label>
+            <input id="mt-pass" type="password" class="form-control font-mono mb-3" autocomplete="off">
+
+            <button id="btn-detect" class="btn btn-outline-info btn-sm w-100">
+              <i class="fa-solid fa-radar me-1"></i> Detect Router & Interfaces
+            </button>
+
+            <div id="mt-detected" class="smallx mt-3 muted font-mono">No detection telemetry available yet.</div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="p-3 rounded-3 bg-dark bg-opacity-50 border border-secondary border-opacity-25">
+            <label class="form-label smallx fw-bold">WAN Interface</label>
+            <select id="mt-wan" class="form-select mb-2 font-mono">
+              <option value="ether1">ether1</option>
+            </select>
+
+            <label class="form-label smallx fw-bold">Hotspot IP / CIDR Subnet</label>
+            <input id="mt-ip" class="form-control font-mono mb-2" value="10.10.10.1/24">
+
+            <label class="form-label smallx fw-bold">DHCP Address Pool</label>
+            <input id="mt-pool" class="form-control font-mono mb-2" value="10.10.10.10-10.10.10.254">
+
+            <label class="form-label smallx fw-bold">DNS Name Domain</label>
+            <input id="mt-dns" class="form-control font-mono mb-2" value="vicentwifi.local">
+
+            <label class="form-label smallx fw-bold">Hotspot Server Name</label>
+            <input id="mt-hotspot" class="form-control font-mono mb-3" value="hotspot1">
+
+            <div class="d-flex flex-wrap gap-3 mb-3">
+              <label class="smallx"><input id="mt-nat" type="checkbox" checked> NAT</label>
+              <label class="smallx"><input id="mt-dhcp" type="checkbox" checked> DHCP</label>
+              <label class="smallx"><input id="mt-dns-enable" type="checkbox" checked> DNS</label>
+              <label class="smallx"><input id="mt-hotspot-enable" type="checkbox" checked> Hotspot</label>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button id="btn-install" class="btn btn-success btn-sm flex-fill">
+                <i class="fa-solid fa-play me-1"></i> Auto Install
+              </button>
+              <button id="btn-script" class="btn btn-warning btn-sm flex-fill">
+                <i class="fa-solid fa-code me-1"></i> Generate Script
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="smallx muted fw-bold"><i class="fa-solid fa-terminal me-1"></i> Realtime Console Output</div>
+            <!-- Kitufe Kipya Cha Kukopi Script -->
+            <button id="btn-copy-script" class="btn btn-outline-info btn-sm py-0 px-2 smallx">
+              <i class="fa-solid fa-copy me-1"></i> Copy Script
+            </button>
+          </div>
+          <pre id="mt-output" class="p-3 rounded-3 border border-secondary border-opacity-25 bg-black text-success font-mono smallx" style="min-height:340px; max-height:430px; overflow:auto; white-space:pre-wrap;">Waiting for commands...</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Fast Voucher Generator Engine -->
+  <section id="voucher-generator" class="section mt-4">
+    <div class="cardx">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+        <div>
+          <h5 class="mb-1 fw-bold"><i class="fa-solid fa-bolt text-warning me-2"></i>Ultra Fast Voucher Engine</h5>
+          <div class="muted smallx">Asynchronous Voucher Generator using API: <code>POST /generate-vouchers-fast</code></div>
+        </div>
+        <span id="voucher-status" class="badge-soft warn"><span class="led-light led-yellow" style="width:6px; height:6px;"></span> ENGINE READY</span>
+      </div>
+
+      <form id="voucher-form">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label smallx fw-bold">Generation Type</label>
+            <select name="generation_type" id="voucher-type" class="form-select">
+              <option value="package">Package</option>
+              <option value="custom">Custom Configuration</option>
+            </select>
+          </div>
+
+          <div class="col-md-3" id="package-wrap">
+            <label class="form-label smallx fw-bold">Target Package</label>
+            <select name="package_id" id="voucher-package" class="form-select">
+              {% for p in packages %}
+              <option value="{{ p.id|default(p._id) }}">{{ p.name }} — TZS {{ "{:,}".format(p.price|default(0)) }} — {{ p.uptime|default('1 Day') }}</option>
+              {% else %}
+              <option value="">No packages available</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-2 custom-voucher-field" style="display:none">
+            <label class="form-label smallx fw-bold">Custom Price</label>
+            <input name="custom_price" type="number" min="0" value="1000" class="form-control font-mono">
+          </div>
+
+          <div class="col-md-2 custom-voucher-field" style="display:none">
+            <label class="form-label smallx fw-bold">Custom Duration</label>
+            <input name="custom_duration" value="1 Day" class="form-control font-mono">
+          </div>
+
+          <div class="col-md-2 custom-voucher-field" style="display:none">
+            <label class="form-label smallx fw-bold">Data Limit</label>
+            <input name="custom_data_limit" value="Unlimited" class="form-control font-mono">
+          </div>
+
+          <div class="col-md-2">
+            <label class="form-label smallx fw-bold">Batch Quantity</label>
+            <input name="quantity" type="number" min="1" max="5000" value="1" class="form-control font-mono">
+          </div>
+
+          <div class="col-md-2">
+            <label class="form-label smallx fw-bold">Voucher Prefix</label>
+            <input name="prefix" placeholder="e.g. VIP" class="form-control font-mono">
+          </div>
+
+          <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-warning btn-sm w-100 fw-bold py-2" type="submit">
+              <i class="fa-solid fa-bolt me-1"></i> Generate
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <div id="voucher-message" class="smallx mt-3"></div>
+      <div id="voucher-results" class="row g-2 mt-2"></div>
+    </div>
+  </section>
+
+  <!-- Global Active Clients Live Monitoring -->
+  <section class="mt-4">
+    <div class="cardx">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold"><i class="fa-solid fa-users-viewfinder text-info me-2"></i>Global Active Hotspot Sessions</h5>
+        <a href="/active-users" class="btn btn-outline-info btn-sm">View Full Network Session Table</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr><th>User / Voucher</th><th>IP Address</th><th>MAC Address</th><th>Uptime</th><th>Data Transferred (In/Out)</th><th>Control</th></tr>
+          </thead>
+          <tbody>
+            {% for u in active_users[:12] %}
+            <tr>
+              <td><code class="text-cyan font-mono fs-6"><span class="led-light led-green" style="width:6px; height:6px;"></span> {{ u.user }}</code></td>
+              <td class="font-mono">{{ u.address }}</td>
+              <td class="font-mono text-muted smallx">{{ u.mac }}</td>
+              <td class="smallx">{{ u.uptime }}</td>
+              <td class="font-mono smallx">{{ u.bytes_in }} / {{ u.bytes_out }}</td>
+              <td><a href="/kick-user/{{ u.id }}" class="btn btn-outline-danger btn-sm">Disconnect</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="muted text-center py-4">No active client sessions at the moment.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- International Grade Footer -->
+  <footer class="text-center muted smallx py-5 mt-4 border-top border-secondary border-opacity-10">
+    <div class="mb-2">
+      <strong class="text-light">CORE-WISP Enterprise Architecture</strong> · Global Control Authority
+    </div>
+    <div class="text-purple fw-bold tracking-wider">
+      ENGINEERED BY VENOM COMPANY &copy; 2026. ALL RIGHTS RESERVED.
+    </div>
+  </footer>
+</main>
+
+<!-- Bootstrap & Dynamic UI Controls -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
-    // Sidebar toggle for mobile view
-    function toggleSidebar() {
-        const sidebar = document.getElementById('appSidebar');
-        if(sidebar) {
-            sidebar.classList.toggle('show');
-        }
-    }
+(() => {
+  const $ = id => document.getElementById(id);
 
-    // Interface visualization: do not fabricate live traffic values.
-    // Real interface counters should come from a backend monitoring endpoint.
-    ['p-wan1','p-eth2','p-eth3','p-eth5','p-sfp'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = '—';
-    });
+  // Mobile Sidebar Toggle Engine
+  const sidebar = $("sidebar");
+  const overlay = $("sidebar-overlay");
+  const toggleBtn = $("sidebar-toggle");
 
-    // Bandwidth chart intentionally has no fabricated telemetry.
-    // Populate it from a real MikroTik telemetry endpoint when available.
-    const ctxTraffic = document.getElementById("trafficChart");
-    if (ctxTraffic) {
-        new Chart(ctxTraffic, {
-            type: 'line',
-            data: { labels: [], datasets: [{ label: 'Bandwidth (Mbps)', data: [], borderColor: '#00f3ff', backgroundColor: 'rgba(0,243,255,.08)', fill: true, tension: .35, pointRadius: 0 }] },
-            options: { responsive:true, animation:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{color:'#64748b'}},x:{grid:{display:false}}} }
-        });
-    }
+  const toggleSidebar = () => {
+    sidebar.classList.toggle("show");
+    overlay.classList.toggle("show");
+  };
 
-    // Voucher Doughnut Chart
-    const ctxPie = document.getElementById('voucherPie');
-    if (ctxPie) {
-        new Chart(ctxPie, {
-            type: 'doughnut',
-            data: {
-                labels: ['Unused', 'Used', 'Expired'],
-                datasets: [{
-                    data: [{{ unused | default(0) }}, {{ used | default(0) }}, {{ expired | default(0) }}],
-                    backgroundColor: ['#fbbf24', '#00f3ff', '#ff0055'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 12, font: { family: 'Orbitron', size: 10 } } } },
-                cutout: '75%'
-            }
-        });
-    }
+  if (toggleBtn) toggleBtn.addEventListener("click", toggleSidebar);
+  if (overlay) overlay.addEventListener("click", toggleSidebar);
 
-    // Top Packages Bar Chart
-    const ctxTopPkgs = document.getElementById('topPackagesChart');
-    if (ctxTopPkgs) {
-        new Chart(ctxTopPkgs, {
-            type: 'bar',
-            data: {
-                labels: ['24 Hours', '7 Days', '1 Hour', '30 Days'],
-                datasets: [{ data: [142, 85, 64, 29], backgroundColor: ['#00f3ff', '#00ff88', '#fbbf24', '#b537f2'], borderRadius: 6 }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { grid: { color: 'rgba(0, 243, 255, 0.04)' }, ticks: { color: '#64748b', font: { family: 'Orbitron', size: 9 } } },
-                    x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } }
-                }
-            }
-        });
-    }
-
-    // System health values are intentionally not fabricated.
-    // Backend telemetry can populate these fields later.
-
-
-    // Modal Radio Toggle Logic
-    const radioPackage = document.getElementById('genTypePackage');
-    const radioCustom = document.getElementById('genTypeCustom');
-    const packageSection = document.getElementById('packageSection');
-    const customSection = document.getElementById('customSection');
-    const packageSelect = document.getElementById('packageSelect');
-
-    if (radioPackage && radioCustom) {
-      radioPackage.addEventListener('change', function() {
-        if (this.checked) { packageSection.classList.remove('d-none'); customSection.classList.add('d-none'); packageSelect.setAttribute('required', 'required'); }
+  // Logic ya Kukopi Script kutoka kwenye Console
+  const copyBtn = $("btn-copy-script");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", () => {
+      const outputText = $("mt-output").textContent;
+      if (!outputText || outputText.trim() === "Waiting for commands...") {
+        alert("Hakuna script ya kukopi kwa sasa!");
+        return;
+      }
+      navigator.clipboard.writeText(outputText).then(() => {
+        const oldHTML = copyBtn.innerHTML;
+        copyBtn.innerHTML = `<i class="fa-solid fa-check me-1 text-success"></i> Copied!`;
+        copyBtn.classList.replace("btn-outline-info", "btn-success");
+        setTimeout(() => {
+          copyBtn.innerHTML = oldHTML;
+          copyBtn.classList.replace("btn-success", "btn-outline-info");
+        }, 2000);
+      }).catch(err => {
+        alert("Imefeli kukopi: " + err);
       });
-      radioCustom.addEventListener('change', function() {
-        if (this.checked) { customSection.classList.remove('d-none'); packageSection.classList.add('d-none'); packageSelect.removeAttribute('required'); }
-      });
-    }
-
-    // Fast Voucher Generator AJAX
-    const quickVoucherForm = document.getElementById('quickVoucherForm');
-    if(quickVoucherForm){
-        quickVoucherForm.addEventListener('submit', async function(e) {
-          e.preventDefault();
-          const submitBtn = document.getElementById('btnGenerateSubmit');
-          const alertBox = document.getElementById('modalAlert');
-          submitBtn.disabled = true;
-          submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> Inatengeneza...`;
-          alertBox.className = 'alert d-none';
-
-          try {
-            const response = await fetch('/generate-vouchers-fast', { method: 'POST', body: new FormData(this) });
-            const result = await response.json();
-            if (response.ok && result.success) {
-              alertBox.className = 'alert alert-success d-block bg-success bg-opacity-25 text-success border-success';
-              alertBox.innerHTML = `<i class="fa-solid fa-circle-check me-2"></i> Imefanikiwa! Vocha <strong>${result.count}</strong> zimetengenezwa.`;
-              quickVoucherForm.reset();
-              setTimeout(() => { window.location.reload(); }, 1500);
-            } else {
-              alertBox.className = 'alert alert-danger d-block bg-danger bg-opacity-25 text-danger border-danger';
-              alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-2"></i> ${result.message || 'Kuna tatizo limetokea!'}`;
-            }
-          } catch (err) {
-            alertBox.className = 'alert alert-danger d-block bg-danger bg-opacity-25 text-danger border-danger';
-            alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-2"></i> Imeshindwa kuunganisha na Server!`;
-          } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = `<i class="fa-solid fa-ticket me-1"></i> TENGENEZA SASA`;
-          }
-        });
-    }
-
-    // MikroTik New Router Installer
-    const installerState = {
-        model: null,
-        ros: null,
-        architecture: null,
-        serial: null,
-        interfaces: []
-    };
-
-    function installerEl(id){ return document.getElementById(id); }
-
-    function showInstallerAlert(message, type='info'){
-        const box = installerEl('installerAlert');
-        if(!box) return;
-        box.className = `alert alert-${type} d-block mt-3 mb-0 small`;
-        box.innerHTML = message;
-    }
-
-    function escapeRouterValue(value){
-        return String(value ?? '').replace(/"/g, '\\"');
-    }
-
-    function populateInterfaces(interfaces){
-        const wan = installerEl('installerWan');
-        const lan = installerEl('installerLan');
-        if(!wan || !lan) return;
-
-        wan.innerHTML = '';
-        lan.innerHTML = '<option value="bridge-hotspot">bridge-hotspot</option>';
-
-        (interfaces || []).forEach((item, index) => {
-            const name = typeof item === 'string' ? item : (item.name || '');
-            if(!name) return;
-
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            wan.appendChild(opt);
-
-            if(name !== (index === 0 ? name : '')) {
-                const lanOpt = document.createElement('option');
-                lanOpt.value = name;
-                lanOpt.textContent = name;
-                lan.appendChild(lanOpt);
-            }
-        });
-
-        if(interfaces && interfaces.length){
-            const first = typeof interfaces[0] === 'string' ? interfaces[0] : interfaces[0].name;
-            wan.value = first || 'ether1';
-        }
-    }
-
-    async function detectMikroTik(){
-        const btn = installerEl('btnDetectRouter');
-        const host = installerEl('installerHost').value.trim();
-        const port = installerEl('installerPort').value.trim();
-        const username = installerEl('installerUser').value.trim();
-        const password = installerEl('installerPass').value;
-
-        if(!host || !username){
-            showInstallerAlert('Weka Router IP/Host na username kwanza.', 'warning');
-            return;
-        }
-
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> DETECTING...';
-
-        try{
-            const response = await fetch('/mikrotik/detect', {
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({host, port:Number(port || 8728), username, password})
-            });
-
-            const result = await response.json();
-
-            if(!response.ok || !result.success){
-                throw new Error(result.message || 'Router detection failed');
-            }
-
-            installerState.model = result.model || result.board_name || 'Unknown';
-            installerState.ros = result.routeros || result.version || 'Unknown';
-            installerState.architecture = result.architecture || 'Unknown';
-            installerState.serial = result.serial || 'Unknown';
-            installerState.interfaces = result.interfaces || [];
-
-            installerEl('detectedModel').textContent = installerState.model;
-            installerEl('detectedRos').textContent = installerState.ros;
-            installerEl('detectedArch').textContent = installerState.architecture;
-            installerEl('detectedSerial').textContent = installerState.serial;
-            populateInterfaces(installerState.interfaces);
-
-            showInstallerAlert(
-                `<i class="fa-solid fa-circle-check me-2"></i> Router imeonekana: <strong>${installerState.model}</strong>`,
-                'success'
-            );
-        }catch(err){
-            showInstallerAlert(
-                `<i class="fa-solid fa-triangle-exclamation me-2"></i> ${err.message || 'Imeshindwa ku-detect MikroTik.'}`,
-                'danger'
-            );
-        }finally{
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-magnifying-glass me-2"></i> DETECT MODEL';
-        }
-    }
-
-    function buildRouterScript(){
-        const wan = escapeRouterValue(installerEl('installerWan').value || 'ether1');
-        const lan = escapeRouterValue(installerEl('installerLan').value || 'bridge-hotspot');
-        const ipCidr = escapeRouterValue(installerEl('installerIp').value || '10.10.10.1/24');
-        const pool = escapeRouterValue(installerEl('installerPool').value || '10.10.10.10-10.10.10.254');
-        const dnsName = escapeRouterValue(installerEl('installerDnsName').value || 'vicentwifi.local');
-        const hotspotName = escapeRouterValue(installerEl('installerHotspotName').value || 'hotspot1');
-
-        const doNat = installerEl('installNat').checked;
-        const doDhcp = installerEl('installDhcp').checked;
-        const doDns = installerEl('installDns').checked;
-        const doHotspot = installerEl('installHotspot').checked;
-
-        let s = `# =========================================================
-# CORE-WISP MikroTik Initial Installer
-# Model: ${installerState.model || 'NOT DETECTED'}
-# RouterOS: ${installerState.ros || 'NOT DETECTED'}
-# Generated: ${new Date().toISOString()}
-# IMPORTANT: Review before applying.
-# =========================================================
-
-# BACKUP
-/system backup save name=corewisp-before-install
-/export file=corewisp-before-install
-
-# INTERFACES
-# WAN: ${wan}
-# LAN/HOTSPOT: ${lan}
-
-`;
-
-        s += `# BRIDGE
-/interface bridge
-add name=bridge-hotspot comment="CORE-WISP Hotspot Bridge"`;
-
-        s += `
-
-# BRIDGE PORTS
-# Add only the LAN ports you actually want in the hotspot bridge.
-`;
-
-        s += `
-# IP ADDRESS
-/ip address
-add address=${ipCidr} interface=bridge-hotspot comment="CORE-WISP Hotspot Gateway"
-`;
-
-        if(doDns){
-            s += `
-# DNS
-/ip dns
-set allow-remote-requests=yes servers=8.8.8.8,1.1.1.1
-`;
-        }
-
-        if(doNat){
-            s += `
-# NAT
-/ip firewall nat
-add chain=srcnat out-interface=${wan} action=masquerade comment="CORE-WISP Internet NAT"
-`;
-        }
-
-        if(doDhcp){
-            s += `
-# DHCP POOL
-/ip pool
-add name=hs-pool-core ranges=${pool}
-
-# DHCP SERVER
-/ip dhcp-server
-add name=dhcp-hotspot interface=bridge-hotspot address-pool=hs-pool-core lease-time=30m disabled=no
-
-/ip dhcp-server network
-add address=10.10.10.0/24 gateway=10.10.10.1 dns-server=10.10.10.1
-`;
-        }
-
-        if(doHotspot){
-            s += `
-# HOTSPOT BASE
-/ip hotspot profile
-add name=hsprof-core hotspot-address=10.10.10.1 dns-name=${dnsName} html-directory=hotspot login-by=http-chap,http-pap
-
-/ip hotspot
-add name=${hotspotName} interface=bridge-hotspot address-pool=hs-pool-core profile=hsprof-core disabled=no
-`;
-        }
-
-        s += `
-# BASIC SAFETY
-/ip service
-set telnet disabled=yes
-set ftp disabled=yes
-set www disabled=yes
-set api disabled=no
-set api-ssl disabled=yes
-
-# FINISHED
-`;
-
-        return s;
-    }
-
-    function generateInstallScript(){
-        const script = buildRouterScript();
-        installerEl('installerScriptPreview').textContent = script;
-        showInstallerAlert('Script imetengenezwa. I-review kabla ya APPLY.', 'info');
-        return script;
-    }
-
-    async function applyInstallScript(){
-        const script = generateInstallScript();
-        const host = installerEl('installerHost').value.trim();
-        const port = Number(installerEl('installerPort').value || 8728);
-        const username = installerEl('installerUser').value.trim();
-        const password = installerEl('installerPass').value;
-
-        if(!host || !username){
-            showInstallerAlert('Weka connection details kwanza.', 'warning');
-            return;
-        }
-
-        if(!confirm('TAHADHARI: Hii inaweza kubadilisha configuration ya MikroTik. Umefanya backup na ume-review script?')) return;
-
-        try{
-            const response = await fetch('/mikrotik/install', {
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({
-                    host, port, username, password,
-                    model:installerState.model,
-                    routeros:installerState.ros,
-                    script,
-                    wan: installerEl('installerWan').value || 'ether1',
-                    ip_cidr: installerEl('installerIp').value || '10.10.10.1/24',
-                    pool_range: installerEl('installerPool').value || '10.10.10.10-10.10.10.254',
-                    dns_name: installerEl('installerDnsName').value || 'vicentwifi.local',
-                    hotspot_name: installerEl('installerHotspotName').value || 'hotspot1',
-                    install_nat: installerEl('installNat').checked,
-                    install_dhcp: installerEl('installDhcp').checked,
-                    install_dns: installerEl('installDns').checked,
-                    install_hotspot: installerEl('installHotspot').checked
-                })
-            });
-
-            const result = await response.json();
-
-            if(!response.ok || !result.success){
-                throw new Error(result.message || 'Installation failed');
-            }
-
-            showInstallerAlert(
-                '<i class="fa-solid fa-circle-check me-2"></i> Installation imekamilika kwenye MikroTik.',
-                'success'
-            );
-        }catch(err){
-            showInstallerAlert(
-                `<i class="fa-solid fa-triangle-exclamation me-2"></i> ${err.message || 'Installation endpoint haipatikani.'}`,
-                'danger'
-            );
-        }
-    }
-
-    const detectBtn = installerEl('btnDetectRouter');
-    const genBtn = installerEl('btnGenerateInstall');
-    const applyBtn = installerEl('btnApplyInstall');
-    const copyBtn = installerEl('btnCopyInstallScript');
-
-    if(detectBtn) detectBtn.addEventListener('click', detectMikroTik);
-    if(genBtn) genBtn.addEventListener('click', generateInstallScript);
-    if(applyBtn) applyBtn.addEventListener('click', applyInstallScript);
-    if(copyBtn) copyBtn.addEventListener('click', async ()=>{
-        const script = installerEl('installerScriptPreview').textContent;
-        try{
-            await navigator.clipboard.writeText(script);
-            showInstallerAlert('Script imenakiliwa clipboard.', 'success');
-        }catch(e){
-            showInstallerAlert('Browser imekataa clipboard. Copy manually kutoka terminal box.', 'warning');
-        }
     });
+  }
 
+  // MikroTik API Integration Logic
+  const mt = () => ({
+    host: $("mt-host").value.trim(),
+    port: Number($("mt-port").value || 8728),
+    username: $("mt-user").value.trim(),
+    password: $("mt-pass").value,
+    wan: $("mt-wan").value || "ether1",
+    ip_cidr: $("mt-ip").value.trim(),
+    pool_range: $("mt-pool").value.trim(),
+    dns_name: $("mt-dns").value.trim(),
+    hotspot_name: $("mt-hotspot").value.trim(),
+    install_nat: $("mt-nat").checked,
+    install_dhcp: $("mt-dhcp").checked,
+    install_dns: $("mt-dns-enable").checked,
+    install_hotspot: $("mt-hotspot-enable").checked
+  });
+
+  async function jsonPost(url, payload) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "Accept": "application/json"},
+      credentials: "same-origin",
+      body: JSON.stringify(payload)
+    });
+    let data = {};
+    try { data = await res.json(); } catch (_) {}
+    if (!res.ok && !data.message) data.message = `HTTP ${res.status}`;
+    return {res, data};
+  }
+
+  function showMt(data, fallback="") {
+    $("mt-output").textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+    const ok = !!data.success;
+    $("mt-status").innerHTML = ok 
+      ? `<span class="led-light led-green" style="width:6px; height:6px;"></span> SUCCESS` 
+      : `<span class="led-light led-red" style="width:6px; height:6px;"></span> ERROR`;
+    $("mt-status").className = "badge-soft " + (ok ? "ok" : "bad");
+    if (data.message || fallback) $("mt-detected").textContent = data.message || fallback;
+  }
+
+  $("btn-detect").addEventListener("click", async () => {
+    $("btn-detect").disabled = true;
+    $("mt-status").innerHTML = `<span class="led-light led-yellow" style="width:6px; height:6px;"></span> DETECTING...`;
+    $("mt-status").className = "badge-soft warn";
+    try {
+      const {data} = await jsonPost("/mikrotik/detect", {
+        host: $("mt-host").value.trim(),
+        port: Number($("mt-port").value || 8728),
+        username: $("mt-user").value.trim(),
+        password: $("mt-pass").value
+      });
+      showMt(data, "Detection completed successfully.");
+      if (data.success) {
+        const interfaces = Array.isArray(data.interfaces) ? data.interfaces : [];
+        const wan = $("mt-wan");
+        const old = wan.value;
+        wan.innerHTML = "";
+        const names = interfaces.map(x => x.name).filter(Boolean);
+        (names.length ? names : ["ether1"]).forEach(name => {
+          const op = document.createElement("option");
+          op.value = name; op.textContent = name;
+          wan.appendChild(op);
+        });
+        if (names.includes(old)) wan.value = old;
+        $("mt-detected").innerHTML =
+          `<strong>${data.model || "RouterOS"}</strong> · v${data.routeros || "Unknown"} · ` +
+          `${data.architecture || "x86"} · ${data.interfaces ? data.interfaces.length : 0} interfaces detected`;
+      }
+    } catch (e) {
+      showMt({success:false, message:e.message});
+    } finally {
+      $("btn-detect").disabled = false;
+    }
+  });
+
+  $("btn-install").addEventListener("click", async () => {
+    if (!confirm("Start MikroTik auto-configuration on remote device?")) return;
+    $("btn-install").disabled = true;
+    $("mt-status").innerHTML = `<span class="led-light led-yellow" style="width:6px; height:6px;"></span> INSTALLING...`;
+    $("mt-status").className = "badge-soft warn";
+    try {
+      const {data} = await jsonPost("/mikrotik/install", mt());
+      showMt(data, "Installation executed.");
+    } catch (e) {
+      showMt({success:false, message:e.message});
+    } finally {
+      $("btn-install").disabled = false;
+    }
+  });
+
+  $("btn-script").addEventListener("click", async () => {
+    $("btn-script").disabled = true;
+    $("mt-status").innerHTML = `<span class="led-light led-yellow" style="width:6px; height:6px;"></span> GENERATING...`;
+    $("mt-status").className = "badge-soft warn";
+    try {
+      const {data} = await jsonPost("/mikrotik/generate-script", mt());
+      showMt(data, "Script generated.");
+      if (data.success && data.script) {
+        $("mt-output").textContent = data.script;
+      }
+    } catch (e) {
+      showMt({success:false, message:e.message});
+    } finally {
+      $("btn-script").disabled = false;
+    }
+  });
+
+  // Fast Voucher Generator Toggle & Form Handler
+  const voucherType = $("voucher-type");
+  function toggleVoucherFields() {
+    const custom = voucherType.value === "custom";
+    $("package-wrap").style.display = custom ? "none" : "";
+    document.querySelectorAll(".custom-voucher-field").forEach(el => {
+      el.style.display = custom ? "" : "none";
+    });
+  }
+  voucherType.addEventListener("change", toggleVoucherFields);
+  toggleVoucherFields();
+
+  $("voucher-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const btn = e.submitter;
+    btn.disabled = true;
+    $("voucher-status").innerHTML = `<span class="led-light led-yellow" style="width:6px; height:6px;"></span> GENERATING...`;
+    $("voucher-status").className = "badge-soft warn";
+    $("voucher-message").textContent = "";
+    $("voucher-results").innerHTML = "";
+
+    try {
+      const fd = new FormData(e.target);
+      const res = await fetch("/generate-vouchers-fast", {
+        method: "POST",
+        body: new URLSearchParams(fd),
+        credentials: "same-origin",
+        headers: {"Accept":"application/json"}
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || `HTTP ${res.status}`);
+
+      $("voucher-status").innerHTML = `<span class="led-light led-green" style="width:6px; height:6px;"></span> SUCCESS`;
+      $("voucher-status").className = "badge-soft ok";
+      $("voucher-message").innerHTML = `<span class="text-success font-mono fw-bold">${data.message}</span>`;
+
+      (data.vouchers || []).forEach(code => {
+        const col = document.createElement("div");
+        col.className = "col-6 col-md-3 col-lg-2";
+        col.innerHTML = `<div class="cardx p-2 text-center border-info border-opacity-25"><code class="text-info fs-6 font-mono">${code}</code></div>`;
+        $("voucher-results").appendChild(col);
+      });
+    } catch (e) {
+      $("voucher-status").innerHTML = `<span class="led-light led-red" style="width:6px; height:6px;"></span> ERROR`;
+      $("voucher-status").className = "badge-soft bad";
+      $("voucher-message").innerHTML = `<span class="text-danger font-mono">${e.message}</span>`;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
 </script>
 </body>
 </html>

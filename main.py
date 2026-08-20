@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import random
 import re
+import requests
 import secrets
 import smtplib
 import string
@@ -188,10 +189,8 @@ app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Customer router is registered after app setup
-from routers import customer
-
-app.include_router(customer.router, prefix="/customer")
+# Customer routes are defined in this main.py so tenant ownership and permissions
+# are enforced in one place. Do not include the legacy routers/customer.py here.
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1041,6 +1040,559 @@ def get_current_user(request: Request) -> str:
     return request.session.get("user", "Guest")
 
 
+# ================= MULTI-CUSTOMER / TENANT MANAGEMENT =================
+def _customer_username(request: Request) -> str:
+    return str(request.session.get("user", "")).strip().lower()
+
+
+def _owner_filter(username: str):
+    username = str(username or "").strip().lower()
+    return {"$or": [{"owner_username": username}, {"owner_email": username}]}
+
+
+def _object_id(value):
+    try:
+        return ObjectId(str(value))
+    except Exception:
+        return None
+
+
+def _find_user(value):
+    if not value:
+        return None
+    value = str(value)
+    if value.isdigit():
+        user = db.users.find_one({"id": int(value)})
+        if user:
+            return user
+    oid = _object_id(value)
+    if oid:
+        user = db.users.find_one({"_id": oid})
+        if user:
+            return user
+    return db.users.find_one({"$or": [{"username": value.lower()}, {"email": value.lower()}]})
+
+
+def _customer_stats(username: str):
+    owner = _owner_filter(username)
+    vouchers = list(db.vouchers.find(owner))
+    routers = list(db.routers.find(owner)) if "routers" in db.list_collection_names() else []
+    packages = list(db.packages.find(owner)) if "packages" in db.list_collection_names() else []
+    clients = list(db.clients.find({**owner, "status": "active"})) if "clients" in db.list_collection_names() else []
+    used = [v for v in vouchers if v.get("status") == "used"]
+    return {
+        "routers": len(routers),
+        "online_routers": len([r for r in routers if str(r.get("status", "")).lower() == "online"]),
+        "vouchers": len(vouchers),
+        "used_vouchers": len(used),
+        "unused_vouchers": len([v for v in vouchers if v.get("status") == "unused"]),
+        "expired_vouchers": len([v for v in vouchers if v.get("status") == "expired"]),
+        "packages": len(packages),
+        "active_clients": len(clients),
+        "revenue": sum(int(v.get("price", 0) or 0) for v in used),
+    }
+
+
+def _customer_rows():
+    rows = []
+    customers = list(db.users.find({"role": "customer"}).sort("created_at", -1))
+    for c in customers:
+        username = str(c.get("username") or c.get("email") or "")
+        stats = _customer_stats(username)
+        rows.append({
+            "id": str(c.get("_id")),
+            "username": username,
+            "name": f"{c.get('first_name', '')} {c.get('last_name', '')}".strip() or username,
+            "email": c.get("email", username),
+            "phone": c.get("phone", "-"),
+            "status": str(c.get("status", "pending")).lower(),
+            "created_at": c.get("created_at"),
+            "last_login": c.get("last_login"),
+            **stats,
+        })
+    return rows
+
+
+def _customer_from_id(value):
+    user = _find_user(value)
+    if not user or str(user.get("role", "")).lower() != "customer":
+        return None
+    username = str(user.get("username") or user.get("email") or "")
+    return {
+        **user,
+        "stats": _customer_stats(username),
+        "username": username,
+    }
+
+
+def _active_users_for_customer(username: str, active_list=None):
+    active_list = active_list if active_list is not None else MikrotikService.get_active_users()
+    if not active_list:
+        return []
+    codes = {
+        v.get("code")
+        for v in db.vouchers.find(_owner_filter(username), {"code": 1})
+        if v.get("code")
+    }
+    return [u for u in active_list if u.get("user") in codes]
+
+
+@app.get("/admin/customers", response_class=HTMLResponse)
+@login_required
+def admin_customers_page(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    return RedirectResponse("/dashboard#customers", status_code=303)
+
+
+@app.get("/admin/customers/{customer_id}")
+@login_required
+def admin_customer_detail(request: Request, customer_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    if not _customer_from_id(customer_id):
+        return RedirectResponse("/dashboard#customers", status_code=303)
+    return RedirectResponse(f"/dashboard?customer_id={quote_plus(str(customer_id))}#customers", status_code=303)
+
+
+@app.get("/admin/customers/approve/{customer_id}")
+@login_required
+def admin_customer_approve(request: Request, customer_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    user = _find_user(customer_id)
+    if user and str(user.get("role", "")).lower() == "customer":
+        db.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"status": "active", "approved_at": datetime.datetime.now(datetime.timezone.utc),
+                      "approved_by": get_current_user(request)}},
+        )
+        audit_event("customer_approved", request, str(user.get("username")))
+    return RedirectResponse("/dashboard#customers", status_code=303)
+
+
+@app.get("/admin/customers/reject/{customer_id}")
+@login_required
+def admin_customer_reject(request: Request, customer_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    user = _find_user(customer_id)
+    if user and str(user.get("role", "")).lower() == "customer":
+        db.users.update_one({"_id": user["_id"]}, {"$set": {"status": "rejected"}})
+        audit_event("customer_rejected", request, str(user.get("username")))
+    return RedirectResponse("/dashboard#customers", status_code=303)
+
+
+@app.get("/admin/customers/disable/{customer_id}")
+@login_required
+def admin_customer_disable(request: Request, customer_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    user = _find_user(customer_id)
+    if user and str(user.get("role", "")).lower() == "customer":
+        db.users.update_one({"_id": user["_id"]}, {"$set": {"status": "disabled"}})
+        audit_event("customer_disabled", request, str(user.get("username")))
+    return RedirectResponse("/dashboard#customers", status_code=303)
+
+
+@app.get("/admin/customers/activate/{customer_id}")
+@login_required
+def admin_customer_activate(request: Request, customer_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    user = _find_user(customer_id)
+    if user and str(user.get("role", "")).lower() == "customer":
+        db.users.update_one({"_id": user["_id"]}, {"$set": {"status": "active"}})
+        audit_event("customer_activated", request, str(user.get("username")))
+    return RedirectResponse("/dashboard#customers", status_code=303)
+
+
+@app.get("/admin/customers/impersonate/{customer_id}")
+@login_required
+def admin_impersonate_customer(request: Request, customer_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    user = _find_user(customer_id)
+    if not user or str(user.get("role", "")).lower() != "customer":
+        return RedirectResponse("/dashboard#customers", status_code=303)
+    if str(user.get("status", "")).lower() != "active":
+        return RedirectResponse("/dashboard#customers", status_code=303)
+
+    request.session["impersonating"] = True
+    request.session["impersonated_customer_id"] = str(user.get("_id"))
+    request.session["original_admin_user"] = request.session.get("user")
+    request.session["original_admin_role"] = request.session.get("role", "admin")
+    request.session["user"] = user.get("username") or user.get("email")
+    request.session["role"] = "customer"
+    request.session["user_id"] = str(user.get("id", user.get("_id")))
+    audit_event("admin_impersonation_start", request, str(user.get("username")))
+    return RedirectResponse("/customer/dashboard", status_code=303)
+
+
+@app.get("/admin/exit-impersonation")
+def admin_exit_impersonation(request: Request):
+    if not request.session.get("impersonating"):
+        return RedirectResponse("/login", status_code=303)
+    original_user = request.session.get("original_admin_user", ADMIN_USER or "SuperAdmin")
+    request.session["user"] = original_user
+    request.session["role"] = request.session.get("original_admin_role", "admin")
+    request.session["logged_in"] = True
+    request.session.pop("impersonating", None)
+    request.session.pop("impersonated_customer_id", None)
+    request.session.pop("original_admin_user", None)
+    request.session.pop("original_admin_role", None)
+    audit_event("admin_impersonation_end", request, original_user)
+    return RedirectResponse("/dashboard", status_code=303)
+
+
+# ---------------- CUSTOMER ROUTES ----------------
+def _customer_guard(request: Request):
+    if not request.session.get("logged_in"):
+        return RedirectResponse("/login", status_code=303)
+    if str(request.session.get("role", "")).lower() != "customer":
+        return RedirectResponse("/dashboard", status_code=303)
+    return None
+
+
+@app.get("/customer/dashboard", response_class=HTMLResponse)
+def customer_dashboard_v2(request: Request):
+    guard = _customer_guard(request)
+    if guard:
+        return guard
+    username = _customer_username(request)
+    owner = _owner_filter(username)
+
+    vouchers = list(db.vouchers.find(owner).sort("created_at", -1))
+    routers = list(db.routers.find(owner).sort("created_at", -1)) if "routers" in db.list_collection_names() else []
+    packages = list(db.packages.find(owner).sort("created_at", -1)) if "packages" in db.list_collection_names() else []
+    clients = list(db.clients.find({**owner, "status": "active"}).sort("created_at", -1)) if "clients" in db.list_collection_names() else []
+    active_list = _active_users_for_customer(username)
+
+    # Keep the dashboard useful even when the clients collection is not populated:
+    if active_list:
+        clients = active_list
+
+    account = db.users.find_one({"$or": [{"username": username}, {"email": username}]}) or {}
+    used = [v for v in vouchers if v.get("status") == "used"]
+    stats = {
+        "total_vouchers": len(vouchers),
+        "active_vouchers": len([v for v in vouchers if v.get("status") == "active"]),
+        "unused_vouchers": len([v for v in vouchers if v.get("status") == "unused"]),
+        "used_vouchers": len(used),
+        "expired_vouchers": len([v for v in vouchers if v.get("status") == "expired"]),
+        "total_routers": len(routers),
+        "online_routers": len([r for r in routers if str(r.get("status", "")).lower() == "online"]),
+        "total_packages": len(packages),
+        "active_clients": len(clients),
+        "total_revenue": sum(int(v.get("price", 0) or 0) for v in used),
+    }
+    return templates.TemplateResponse(
+        request=request,
+        name="customer_dashboard.html",
+        context={
+            "request": request,
+            "user": username,
+            "account": account,
+            "routers": routers,
+            "vouchers": vouchers,
+            "packages": packages,
+            "active_clients_list": clients,
+            "impersonating": bool(request.session.get("impersonating")),
+            **stats,
+        },
+    )
+
+
+@app.get("/customer/routers", response_class=HTMLResponse)
+def customer_routers_v2(request: Request):
+    guard = _customer_guard(request)
+    if guard:
+        return guard
+    username = _customer_username(request)
+    routers = list(db.routers.find(_owner_filter(username)).sort("created_at", -1)) if "routers" in db.list_collection_names() else []
+    return templates.TemplateResponse(
+        request=request,
+        name="customer_dashboard.html",
+        context={"request": request, "user": username, "routers": routers, "vouchers": [], "packages": [],
+                 "total_routers": len(routers), "total_vouchers": 0, "total_packages": 0, "active_clients": 0,
+                 "active_clients_list": [], "impersonating": bool(request.session.get("impersonating"))},
+    )
+
+
+@app.post("/customer/routers/add")
+def customer_add_router_v2(
+    request: Request,
+    name: str = Form(...),
+    host: str = Form(...),
+    port: int = Form(8728),
+    username: str = Form(...),
+    password: str = Form(""),
+):
+    guard = _customer_guard(request)
+    if guard:
+        return guard
+    owner = _customer_username(request)
+    if "routers" not in db.list_collection_names():
+        db.create_collection("routers")
+    router_doc = {
+        "id": random.randint(10000, 99999),
+        "name": name.strip(),
+        "host": host.strip(),
+        "port": int(port or 8728),
+        "username": username.strip(),
+        "api_username": username.strip(),
+        "api_password": password,
+        "owner_username": owner,
+        "status": "pending",
+        "created_at": datetime.datetime.now(datetime.timezone.utc),
+        "last_seen": None,
+        "approved": False,
+    }
+    db.routers.insert_one(router_doc)
+    audit_event("customer_router_registered", request, f"{owner}:{name}")
+    return RedirectResponse("/customer/dashboard#routers", status_code=303)
+
+
+@app.post("/customer/routers/delete")
+def customer_delete_router_v2(request: Request, item_id: str = Form(...)):
+    guard = _customer_guard(request)
+    if guard:
+        return guard
+    owner = _customer_username(request)
+    router = _find_by_id(db.routers, item_id) if "routers" in db.list_collection_names() else None
+    if router and str(router.get("owner_username", "")).lower() == owner:
+        db.routers.delete_one({"_id": router["_id"]})
+        audit_event("customer_router_deleted", request, f"{owner}:{router.get('name')}")
+    return RedirectResponse("/customer/dashboard#routers", status_code=303)
+
+
+@app.post("/customer/routers/edit")
+def customer_edit_router_v2(
+    request: Request,
+    router_id: str = Form(...),
+    name: str = Form(...),
+    host: str = Form(...),
+    port: int = Form(8728),
+    username: str = Form(...),
+):
+    guard = _customer_guard(request)
+    if guard:
+        return guard
+    owner = _customer_username(request)
+    router = _find_by_id(db.routers, router_id) if "routers" in db.list_collection_names() else None
+    if router and str(router.get("owner_username", "")).lower() == owner:
+        db.routers.update_one({"_id": router["_id"]}, {"$set": {
+            "name": name.strip(), "host": host.strip(), "port": int(port or 8728),
+            "username": username.strip(), "api_username": username.strip(),
+            "updated_at": datetime.datetime.now(datetime.timezone.utc),
+            "status": "pending", "approved": False,
+        }})
+        audit_event("customer_router_updated", request, f"{owner}:{router_id}")
+    return RedirectResponse("/customer/dashboard#routers", status_code=303)
+
+
+@app.post("/customer/vouchers/generate")
+def customer_generate_vouchers_v2(
+    request: Request,
+    price: int = Form(...),
+    validity: str = Form("24 Hours"),
+    data_limit: str = Form("Unlimited"),
+    quantity: int = Form(1),
+    prefix: str = Form(""),
+    code_length: int = Form(6),
+):
+    guard = _customer_guard(request)
+    if guard:
+        return guard
+    quantity = max(1, min(int(quantity or 1), 500))
+    owner = _customer_username(request)
+    generated = []
+    for _ in range(quantity):
+        code = VoucherService.create_voucher(
+            int(price), validity, data_limit,
+            profile_name=f"{data_limit}_{validity}",
+            prefix=prefix.strip().upper(),
+            owner_username=owner,
+        )
+        if code:
+            generated.append(code)
+    audit_event("customer_vouchers_generated", request, f"{owner}:{len(generated)}")
+    return RedirectResponse("/customer/dashboard#vouchers", status_code=303)
+
+
+@app.post("/customer/vouchers/delete")
+def customer_delete_voucher_v2(request: Request, item_id: str = Form(...)):
+    guard = _customer_guard(request)
+    if guard:
+        return guard
+    owner = _customer_username(request)
+    voucher = _find_by_id(db.vouchers, item_id)
+    if voucher and str(voucher.get("owner_username", "")).lower() == owner:
+        VoucherService.delete_voucher(voucher.get("_id"))
+        audit_event("customer_voucher_deleted", request, f"{owner}:{voucher.get('code')}")
+    return RedirectResponse("/customer/dashboard#vouchers", status_code=303)
+
+
+@app.post("/customer/vouchers/edit")
+def customer_edit_voucher_v2(
+    request: Request,
+    voucher_id: str = Form(...),
+    code: str = Form(...),
+    price: int = Form(...),
+    validity: str = Form("24 Hours"),
+    data_limit: str = Form("Unlimited"),
+    status: str = Form("unused"),
+):
+    guard = _customer_guard(request)
+    if guard:
+        return guard
+    owner = _customer_username(request)
+    voucher = _find_by_id(db.vouchers, voucher_id)
+    if voucher and str(voucher.get("owner_username", "")).lower() == owner:
+        db.vouchers.update_one({"_id": voucher["_id"]}, {"$set": {
+            "code": code.strip().upper(), "price": int(price),
+            "uptime": validity.strip(), "data_limit": data_limit.strip(),
+            "status": status.strip().lower(),
+            "updated_at": datetime.datetime.now(datetime.timezone.utc),
+        }})
+        audit_event("customer_voucher_updated", request, f"{owner}:{code}")
+    return RedirectResponse("/customer/dashboard#vouchers", status_code=303)
+
+
+@app.post("/customer/packages/add")
+def customer_add_package_v2(
+    request: Request,
+    name: str = Form(...),
+    price: int = Form(...),
+    validity: str = Form("24 Hours"),
+    data_limit: str = Form("Unlimited"),
+    speed: str = Form("Unlimited"),
+):
+    guard = _customer_guard(request)
+    if guard:
+        return guard
+    owner = _customer_username(request)
+    db.packages.insert_one({
+        "id": random.randint(10000, 99999),
+        "name": name.strip(), "price": int(price), "uptime": validity.strip(),
+        "data_limit": data_limit.strip(), "speed": speed.strip(),
+        "owner_username": owner, "created_at": datetime.datetime.now(datetime.timezone.utc),
+    })
+    audit_event("customer_package_created", request, f"{owner}:{name}")
+    return RedirectResponse("/customer/dashboard#packages", status_code=303)
+
+
+@app.post("/customer/packages/delete")
+def customer_delete_package_v2(request: Request, item_id: str = Form(...)):
+    guard = _customer_guard(request)
+    if guard:
+        return guard
+    owner = _customer_username(request)
+    pkg = _find_by_id(db.packages, item_id)
+    if pkg and str(pkg.get("owner_username", "")).lower() == owner:
+        db.packages.delete_one({"_id": pkg["_id"]})
+        audit_event("customer_package_deleted", request, f"{owner}:{pkg.get('name')}")
+    return RedirectResponse("/customer/dashboard#packages", status_code=303)
+
+
+@app.post("/customer/packages/edit")
+def customer_edit_package_v2(
+    request: Request,
+    package_id: str = Form(...),
+    name: str = Form(...),
+    price: int = Form(...),
+    validity: str = Form("24 Hours"),
+    data_limit: str = Form("Unlimited"),
+    speed: str = Form("Unlimited"),
+):
+    guard = _customer_guard(request)
+    if guard:
+        return guard
+    owner = _customer_username(request)
+    pkg = _find_by_id(db.packages, package_id)
+    if pkg and str(pkg.get("owner_username", "")).lower() == owner:
+        db.packages.update_one({"_id": pkg["_id"]}, {"$set": {
+            "name": name.strip(), "price": int(price), "uptime": validity.strip(),
+            "data_limit": data_limit.strip(), "speed": speed.strip(),
+            "updated_at": datetime.datetime.now(datetime.timezone.utc),
+        }})
+        audit_event("customer_package_updated", request, f"{owner}:{name}")
+    return RedirectResponse("/customer/dashboard#packages", status_code=303)
+
+
+@app.get("/customer/reports", response_class=HTMLResponse)
+def customer_reports_v2(request: Request):
+    guard = _customer_guard(request)
+    if guard:
+        return guard
+    owner = _customer_username(request)
+    vouchers = list(db.vouchers.find(_owner_filter(owner)))
+    used = [v for v in vouchers if v.get("status") == "used"]
+    return templates.TemplateResponse(
+        request=request, name="customer_dashboard.html",
+        context={
+            "request": request, "user": owner, "vouchers": vouchers, "routers": [], "packages": [],
+            "active_clients_list": [], "total_vouchers": len(vouchers), "used_vouchers": len(used),
+            "unused_vouchers": len([v for v in vouchers if v.get("status") == "unused"]),
+            "expired_vouchers": len([v for v in vouchers if v.get("status") == "expired"]),
+            "total_revenue": sum(int(v.get("price", 0) or 0) for v in used),
+            "total_routers": 0, "total_packages": 0, "active_clients": 0,
+            "impersonating": bool(request.session.get("impersonating")),
+        },
+    )
+
+
+def _find_by_id(collection, value):
+    if not value:
+        return None
+    value = str(value)
+    if value.isdigit():
+        item = collection.find_one({"id": int(value)})
+        if item:
+            return item
+    oid = _object_id(value)
+    if oid:
+        return collection.find_one({"_id": oid})
+    return collection.find_one({"id": value})
+
+
+@app.get("/admin/routers/approve/{router_id}")
+@login_required
+def admin_router_approve(request: Request, router_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    if "routers" in db.list_collection_names():
+        router = _find_by_id(db.routers, router_id)
+        if router:
+            db.routers.update_one({"_id": router["_id"]}, {"$set": {"approved": True, "status": "online",
+                                                                   "approved_at": datetime.datetime.now(datetime.timezone.utc)}})
+            audit_event("router_approved", request, str(router.get("name")))
+    return RedirectResponse("/dashboard#customers", status_code=303)
+
+
+@app.get("/admin/routers/reject/{router_id}")
+@login_required
+def admin_router_reject(request: Request, router_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    if "routers" in db.list_collection_names():
+        router = _find_by_id(db.routers, router_id)
+        if router:
+            db.routers.update_one({"_id": router["_id"]}, {"$set": {"approved": False, "status": "rejected"}})
+            audit_event("router_rejected", request, str(router.get("name")))
+    return RedirectResponse("/dashboard#customers", status_code=303)
+
+
+
 # Helper Function ya kutambua Render / Production Host URL kwa Usahihi
 def get_base_url(request: Request) -> str:
     """Inatengeneza Base URL kiotomatiki (Inasoma Render Domain, ENV au Host Header)"""
@@ -1154,6 +1706,14 @@ def handle_login(
         "role": role,
         "user_id": str(user.get("id", user.get("_id"))),
     })
+    try:
+        db.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"last_login": datetime.datetime.now(datetime.timezone.utc),
+                      "last_activity": datetime.datetime.now(datetime.timezone.utc)}},
+        )
+    except Exception:
+        pass
 
     logger.info(f"User {username} logged in with role '{role}'")
 
@@ -1479,6 +2039,9 @@ def hotspot_login(voucher: str = Form(...), mac: str = Form("")):
 @app.get("/active-users")
 @login_required
 def active_users(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     active_list = MikrotikService.get_active_users()
     return templates.TemplateResponse(
         request=request,
@@ -1495,6 +2058,9 @@ def active_users(request: Request):
 @app.get("/kick-user/{active_id:path}")
 @login_required
 def kick_user(request: Request, active_id: str):
+    guard = require_admin(request)
+    if guard:
+        return guard
     MikrotikService.disconnect_user(active_id)
     return RedirectResponse("/active-users", status_code=303)
 
@@ -1566,8 +2132,35 @@ def dashboard(request: Request):
         for u in pending_users
     ]
 
+    customer_rows = _customer_rows()
+    active_customer_count = len([c for c in customer_rows if c.get("status") == "active"])
+    pending_customer_count = len([c for c in customer_rows if c.get("status") == "pending"])
+    total_customer_routers = sum(int(c.get("routers", 0) or 0) for c in customer_rows)
+    total_online_customer_routers = sum(int(c.get("online_routers", 0) or 0) for c in customer_rows)
+    total_customer_revenue = sum(int(c.get("revenue", 0) or 0) for c in customer_rows)
+    selected_customer = None
+    selected_id = request.query_params.get("customer_id")
+    if selected_id:
+        selected_customer = _customer_from_id(selected_id)
+        if selected_customer:
+            selected_customer["routers_list"] = list(
+                db.routers.find(_owner_filter(selected_customer["username"])).sort("created_at", -1)
+            ) if "routers" in db.list_collection_names() else []
+            selected_customer["vouchers_list"] = list(
+                db.vouchers.find(_owner_filter(selected_customer["username"])).sort("created_at", -1).limit(50)
+            )
+            selected_customer["active_clients_list"] = _active_users_for_customer(selected_customer["username"], active_list)
+
     context = {
         "request": request,
+        "customers": customer_rows,
+        "customer_count": len(customer_rows),
+        "active_customer_count": active_customer_count,
+        "pending_customer_count": pending_customer_count,
+        "total_customer_routers": total_customer_routers,
+        "total_online_customer_routers": total_online_customer_routers,
+        "total_customer_revenue": total_customer_revenue,
+        "selected_customer": selected_customer,
         "total": len(all_vouchers),
         "used": len([v for v in all_vouchers if v.get("status") == "used"]),
         "unused": len([v for v in all_vouchers if v.get("status") == "unused"]),
@@ -2646,6 +3239,9 @@ async def mikrotik_generate_script(request: Request):
 @app.get("/settings")
 @login_required
 def settings(request: Request):
+    guard = require_admin(request)
+    if guard:
+        return guard
     return templates.TemplateResponse(
         request=request,
         name="settings.html",
