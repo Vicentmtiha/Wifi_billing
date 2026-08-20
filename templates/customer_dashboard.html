@@ -439,7 +439,11 @@ body {
                 <label class="form-label small text-muted">Validity Duration</label>
                 <input name="validity" id="inputValidity" type="text" class="form-control" value="24 Hours" required>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-6">
+                <label class="form-label small text-muted">Data Limit</label>
+                <input name="data_limit" id="inputDataLimitVisible" type="text" class="form-control" value="Unlimited" placeholder="1GB, 500MB, Unlimited">
+              </div>
+              <div class="col-md-6">
                 <label class="form-label small text-muted">Quantity</label>
                 <input name="quantity" type="number" min="1" max="500" class="form-control" value="10" required>
               </div>
@@ -452,6 +456,7 @@ body {
                 <select name="code_length" class="form-select">
                   <option value="6">6 Digits</option>
                   <option value="8">8 Digits</option>
+                   <option value="10">10 Digits</option>
                 </select>
               </div>
 
@@ -533,7 +538,7 @@ body {
       <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
           <h5 class="fw-bold mb-1"><i class="fa-solid fa-router text-primary me-2"></i>My MikroTik Routers</h5>
-          <div class="text-muted small">Router zilizounganishwa kwenye mfumo wako</div>
+          <div class="text-muted small">Register hapa, mfumo utajaribu connection ya kweli na kuhifadhi credentials za router yako.</div>
         </div>
         <button class="btn btn-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#routerModal">
           <i class="fa-solid fa-plus me-1"></i>Register Router
@@ -568,7 +573,7 @@ body {
                 {% endif %}
               </td>
               <td>
-                <span class="small text-muted">{{ 'Approved' if r.approved else 'Waiting Admin' }}</span>
+                <span class="small text-muted">{{ 'CONNECTED' if (r.approved or r.status=='online') else ('CONNECTING' if r.status=='pending' else 'OFFLINE') }}</span>
               </td>
               <td class="text-end">
                 <button class="btn btn-outline-danger btn-sm" onclick="deleteItem('router','{{ r._id }}','{{ r.name }}')">
@@ -578,7 +583,7 @@ body {
             </tr>
             {% else %}
             <tr>
-              <td colspan="6" class="text-center text-muted py-4">No MikroTik Routers Connected.</td>
+              <td colspan="6" class="text-center text-muted py-4">Hakuna MikroTik router iliyounganishwa bado. Sajili router yako hapo juu.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -606,6 +611,7 @@ body {
               <th>Validity</th>
               <th>Data Limit</th>
               <th>Status</th>
+              <th>Router Sync</th>
               <th>Created Date</th>
               <th class="text-end">Action</th>
             </tr>
@@ -626,6 +632,17 @@ body {
                   <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">{{ v.status|upper }}</span>
                 {% endif %}
               </td>
+              <td>
+                {% if v.sync_status == 'synced' %}
+                  <span class="badge bg-success bg-opacity-10 text-success">SYNCED</span>
+                {% elif v.sync_status == 'failed' %}
+                  <span class="badge bg-danger bg-opacity-10 text-danger">FAILED</span>
+                {% elif v.sync_status == 'pending' %}
+                  <span class="badge bg-warning bg-opacity-10 text-warning">SYNCING</span>
+                {% else %}
+                  <span class="badge bg-secondary bg-opacity-10 text-secondary">{{ v.sync_status|default('N/A')|upper }}</span>
+                {% endif %}
+              </td>
               <td class="small text-muted">{{ v.created_at }}</td>
               <td class="text-end">
                 <button class="btn btn-outline-danger btn-sm" onclick="deleteItem('voucher','{{ v._id }}','{{ v.code }}')">
@@ -635,7 +652,7 @@ body {
             </tr>
             {% else %}
             <tr>
-              <td colspan="7" class="text-center text-muted py-4">No vouchers recorded.</td>
+              <td colspan="8" class="text-center text-muted py-4">No vouchers recorded.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -795,7 +812,7 @@ body {
     <div class="modal-content">
       <form method="post" action="/customer/routers/add">
         <div class="modal-header border-bottom border-secondary border-opacity-25">
-          <h5 class="modal-header-title text-white fw-bold mb-0">Register MikroTik Router</h5>
+          <h5 class="modal-header-title text-white fw-bold mb-0">Connect MikroTik Router</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
@@ -814,16 +831,24 @@ body {
             </div>
           </div>
           <div class="mb-3">
-            <label class="form-label small text-muted">API Username</label>
+            <label class="form-label small text-muted">Router Type</label>
+            <select name="router_type" class="form-select">
+              <option value="hardware">MikroTik Hardware Router</option>
+              <option value="chr">MikroTik CHR / Cloud Router</option>
+            </select>
+            <div class="form-text text-muted">Zote zinatumia RouterOS API; chagua aina kwa utambuzi tu.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-muted">MikroTik API Username</label>
             <input name="username" class="form-control" required>
           </div>
           <div class="mb-3">
-            <label class="form-label small text-muted">API Password</label>
-            <input name="password" class="form-control" type="password">
+            <label class="form-label small text-muted">MikroTik API Password</label>
+            <input name="password" class="form-control" type="password" autocomplete="new-password" required>
           </div>
         </div>
         <div class="modal-footer border-top border-secondary border-opacity-25">
-          <button type="submit" class="btn btn-primary w-100">Submit Router for Approval</button>
+          <button type="submit" class="btn btn-primary w-100">Test Connection & Register Router</button>
         </div>
       </form>
     </div>
@@ -885,6 +910,12 @@ function deleteItem(type, id, name) {
 
 function animateMachine() {
   const reactor = document.getElementById('voucherReactor');
+  const form = document.getElementById('voucherForm');
+  if (form) {
+    const dataVisible = document.getElementById('inputDataLimitVisible');
+    const dataHidden = document.getElementById('inputDataLimit');
+    if (dataVisible && dataHidden) dataHidden.value = dataVisible.value.trim() || 'Unlimited';
+  }
   reactor.classList.add('generating');
 }
 
@@ -903,7 +934,7 @@ function applySelectedPackage(selectElement) {
 
   if (price) document.getElementById('inputPrice').value = price;
   if (validity) document.getElementById('inputValidity').value = validity;
-  if (limit) document.getElementById('inputDataLimit').value = limit;
+  if (limit) { document.getElementById('inputDataLimit').value = limit; document.getElementById('inputDataLimitVisible').value = limit; }
   if (speed) document.getElementById('inputSpeedLimit').value = speed;
   
   document.getElementById('inputPackageId').value = selectElement.value;

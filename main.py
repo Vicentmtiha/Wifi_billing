@@ -352,17 +352,41 @@ class VoucherService:
         return code_part
 
     @staticmethod
+    def duration_to_seconds(time_str: str) -> int:
+        """Convert voucher duration to real elapsed seconds.
+
+        IMPORTANT: this is wall-clock time, not MikroTik uptime. Once a voucher
+        is first used, its expiry is calculated as started_at + duration.
+        Disconnecting/reconnecting does not pause the timer.
+        """
+        value = str(time_str or "1 Hour").strip().lower()
+        match = re.search(r"(\d+(?:\.\d+)?)", value)
+        number = float(match.group(1)) if match else 1.0
+
+        compact = re.sub(r"\s+", "", value)
+        if compact.endswith(("weeks", "week", "wks", "wk", "w")):
+            seconds = number * 7 * 24 * 3600
+        elif compact.endswith(("days", "day", "d")):
+            seconds = number * 24 * 3600
+        elif compact.endswith(("hours", "hour", "hrs", "hr", "h")):
+            seconds = number * 3600
+        elif compact.endswith(("minutes", "minute", "mins", "min", "m")):
+            seconds = number * 60
+        elif compact.endswith(("seconds", "second", "secs", "sec", "s")):
+            seconds = number
+        else:
+            # Default a bare number to hours, preserving the existing UI behavior.
+            seconds = number * 3600
+
+        return max(1, int(seconds))
+
+    @staticmethod
     def convert_to_mikrotik_time(time_str: str) -> str:
-        time_str = str(time_str).lower().strip()
-        match = re.search(r"\d+", time_str)
-        num = int(match.group()) if match else 1
-        if "day" in time_str or "d" in time_str:
-            return f"{num * 24:02}:00:00"
-        elif "h" in time_str:
-            return f"{num:02}:00:00"
-        elif "m" in time_str:
-            return f"00:{num:02}:00"
-        return "01:00:00"
+        """Legacy formatter kept for compatibility; NOT used for voucher expiry."""
+        total_seconds = VoucherService.duration_to_seconds(time_str)
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
 
     @staticmethod
     def create_voucher(
@@ -381,27 +405,55 @@ class VoucherService:
                     price, uptime, data_limit, profile_name, prefix, owner_username
                 )
 
-            expiry_date = datetime.datetime.now() + datetime.timedelta(days=30)
+            now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            duration_seconds = VoucherService.duration_to_seconds(uptime)
+
+            # Customer vouchers are tenant-isolated:
+            # they MUST have an approved router and MUST NOT use global MikroTik.
+            # Only admin/global voucher creation (empty owner_username) may use
+            # the global MikroTik configured in .env.
+            clean_owner = str(owner_username or "").strip().lower()
+            router = MikrotikService.get_router_for_owner(clean_owner) if clean_owner else None
+
+            if clean_owner and not router:
+                logger.debug(
+                    "Customer voucher blocked from MikroTik: owner=%s has no approved router",
+                    clean_owner,
+                )
+                return None
+
+            router_id = str(router.get("_id")) if router else None
+
             voucher_doc = {
                 "id": random.randint(10000, 99999),
                 "code": code,
                 "profile": profile_name,
                 "price": int(price),
                 "uptime": str(uptime),
+                "duration_seconds": duration_seconds,
                 "data_limit": str(data_limit),
                 "status": "unused",
-                "created_at": datetime.datetime.now(),
-                "expires_at": expiry_date,
+                "created_at": now,
+                # Do NOT start the timer at generation. It starts on first use.
+                "started_at": None,
+                "activated_at": None,
+                "expires_at": None,
                 "used_by": "",
-                "owner_username": owner_username.strip(),
+                "owner_username": owner_username.strip().lower(),
+                "router_id": router_id,
             }
             db.vouchers.insert_one(voucher_doc)
-            logger.info(f"Voucher created: {code} for owner: {owner_username}")
+            logger.info(
+                "Voucher created: %s owner=%s router=%s duration=%ss",
+                code, owner_username, router_id or "GLOBAL", duration_seconds,
+            )
 
             if mikrotik_config.ENABLED:
+                # Customer voucher => exact approved customer router.
+                # Admin/global voucher (owner empty) => global MikroTik.
                 threading.Thread(
                     target=MikrotikService.sync_voucher_to_mikrotik,
-                    args=(code, uptime),
+                    args=(code, uptime, clean_owner, router_id),
                     daemon=True,
                 ).start()
 
@@ -430,23 +482,52 @@ class VoucherService:
 
     @staticmethod
     def mark_used(voucher_id, client_mac: str = "") -> bool:
+        """Atomically start the voucher's wall-clock timer on first use."""
         try:
             query = (
-                {"id": int(voucher_id)}
+                {"id": int(voucher_id), "status": "unused"}
                 if str(voucher_id).isdigit()
-                else {"_id": ObjectId(str(voucher_id))}
+                else {"_id": ObjectId(str(voucher_id)), "status": "unused"}
             )
+            now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            voucher = VoucherService.get_voucher(voucher_id)
+            if not voucher or voucher.get("status") != "unused":
+                return False
+
+            duration_seconds = int(
+                voucher.get("duration_seconds")
+                or VoucherService.duration_to_seconds(voucher.get("uptime", "1 Hour"))
+            )
+            expires_at = now + datetime.timedelta(seconds=duration_seconds)
+
             result = db.vouchers.update_one(
                 query,
                 {
                     "$set": {
                         "status": "used",
                         "used_by": client_mac,
-                        "used_at": datetime.datetime.now(),
+                        "used_at": now,
+                        "started_at": now,
+                        "activated_at": now,
+                        "expires_at": expires_at,
+                        "duration_seconds": duration_seconds,
                     }
                 },
             )
-            return result.modified_count > 0
+            if result.modified_count <= 0:
+                return False
+
+            # If the voucher was generated before router registration, bind it to
+            # the owner's router at the moment it is first used when possible.
+            owner = str(voucher.get("owner_username", "")).strip().lower()
+            router = MikrotikService.get_router_for_owner(owner)
+            if router and not voucher.get("router_id"):
+                db.vouchers.update_one(
+                    {"_id": voucher["_id"]},
+                    {"$set": {"router_id": str(router.get("_id"))}},
+                )
+
+            return True
         except Exception as e:
             logger.error(f"Error marking voucher as used: {e}")
             return False
@@ -458,12 +539,14 @@ class VoucherService:
             if not v:
                 return False
 
-            query = {"_id": v["_id"]}
-            db.vouchers.update_one(query, {"$set": {"status": "expired"}})
+            db.vouchers.update_one(
+                {"_id": v["_id"]},
+                {"$set": {"status": "expired"}},
+            )
             if mikrotik_config.ENABLED:
                 threading.Thread(
                     target=MikrotikService.remove_user_from_mikrotik,
-                    args=(v["code"],),
+                    args=(v["code"], v),
                     daemon=True,
                 ).start()
             return True
@@ -482,7 +565,7 @@ class VoucherService:
             if mikrotik_config.ENABLED:
                 threading.Thread(
                     target=MikrotikService.remove_user_from_mikrotik,
-                    args=(code,),
+                    args=(code, v),
                     daemon=True,
                 ).start()
             return True
@@ -507,23 +590,44 @@ class VoucherService:
 
     @staticmethod
     def check_and_expire_vouchers() -> int:
+        """Expire vouchers using real elapsed wall-clock time.
+
+        A 3-hour voucher activated at 14:00 expires at 17:00 even if the client
+        disconnects after 10 minutes and reconnects later.
+        """
         expired_count = 0
         try:
-            now = datetime.datetime.now()
-            vouchers = list(
-                db.vouchers.find({"status": "unused", "expires_at": {"$lt": now}})
-            )
+            now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+
+            # New vouchers expire only after first use. Legacy unused vouchers
+            # that still have an old expires_at continue to be cleaned up.
+            query = {
+                "$or": [
+                    {
+                        "status": "used",
+                        "expires_at": {"$ne": None, "$lte": now},
+                    },
+                    {
+                        "status": "unused",
+                        "expires_at": {"$ne": None, "$lte": now},
+                    },
+                ]
+            }
+
+            vouchers = list(db.vouchers.find(query))
             for v in vouchers:
-                db.vouchers.update_one(
-                    {"_id": v["_id"]}, {"$set": {"status": "expired"}}
+                result = db.vouchers.update_one(
+                    {"_id": v["_id"], "status": {"$in": ["unused", "used"]}},
+                    {"$set": {"status": "expired", "expired_at": now}},
                 )
-                expired_count += 1
-                if mikrotik_config.ENABLED:
-                    threading.Thread(
-                        target=MikrotikService.remove_user_from_mikrotik,
-                        args=(v["code"],),
-                        daemon=True,
-                    ).start()
+                if result.modified_count:
+                    expired_count += 1
+                    if mikrotik_config.ENABLED:
+                        threading.Thread(
+                            target=MikrotikService.remove_user_from_mikrotik,
+                            args=(v["code"], v),
+                            daemon=True,
+                        ).start()
 
             if mikrotik_config.ENABLED:
                 MikrotikService.sync_live_voucher_statuses()
@@ -537,17 +641,118 @@ class VoucherService:
 class MikrotikService:
 
     @staticmethod
-    def get_api():
+    def get_router_for_owner(owner_username: str):
+        """Return ONLY an approved customer router.
+
+        IMPORTANT:
+        - A non-empty owner_username means this is a customer tenant.
+        - Customer traffic/vouchers MUST NEVER fall back to the global MikroTik.
+        - The global MikroTik is reserved for admin/system operations where
+          owner_username is empty.
+        """
+        owner = str(owner_username or "").strip().lower()
+
+        # Empty owner means "global/admin", not a customer.
+        if not owner or "routers" not in db.list_collection_names():
+            return None
+
         try:
+            # Only an approved/online router is eligible for customer vouchers.
+            # Pending/rejected routers are deliberately ignored.
+            router = db.routers.find_one(
+                {
+                    "$or": [
+                        {"owner_username": owner},
+                        {"owner_email": owner},
+                    ],
+                    "approved": True,
+                    "status": {"$nin": ["rejected", "disabled"]},
+                },
+                sort=[("created_at", -1)],
+            )
+
+            if router:
+                return router
+
+            # Backward compatibility for records created by older versions
+            # that may have status=online but no approved boolean.
+            return db.routers.find_one(
+                {
+                    "$or": [
+                        {"owner_username": owner},
+                        {"owner_email": owner},
+                    ],
+                    "status": "online",
+                },
+                sort=[("created_at", -1)],
+            )
+        except Exception as e:
+            logger.error(f"Error finding approved router for owner {owner}: {e}")
+            return None
+
+    @staticmethod
+    def get_router_for_voucher(voucher=None, owner_username: str = ""):
+        """Resolve the exact router for a voucher without cross-tenant fallback."""
+        if voucher:
+            owner_username = str(
+                voucher.get("owner_username", owner_username) or ""
+            ).strip().lower()
+            router_id = voucher.get("router_id")
+
+            if router_id and "routers" in db.list_collection_names():
+                try:
+                    router = db.routers.find_one({"_id": ObjectId(str(router_id))})
+                    if router:
+                        # Never use a rejected/disabled/pending customer router.
+                        if owner_username and (
+                            router.get("approved") is True
+                            or str(router.get("status", "")).lower() == "online"
+                        ):
+                            return router
+
+                        # Admin/global voucher may explicitly reference a router.
+                        if not owner_username and str(router.get("status", "")).lower() != "rejected":
+                            return router
+                except Exception:
+                    pass
+
+            # Customer voucher: resolve only from that customer's approved router.
+            if owner_username:
+                return MikrotikService.get_router_for_owner(owner_username)
+
+            # Admin/global voucher has no customer router.
+            return None
+
+        return MikrotikService.get_router_for_owner(owner_username)
+
+    @staticmethod
+    def get_api(router=None):
+        try:
+            if router:
+                host = router.get("host")
+                username = router.get("api_username") or router.get("username")
+                password = router.get("api_password", "")
+                port = int(router.get("port") or 8728)
+                if not host or not username:
+                    return None
+            else:
+                host = mikrotik_config.HOST
+                username = mikrotik_config.USER
+                password = mikrotik_config.PASS
+                port = mikrotik_config.PORT
+
             return connect(
-                host=mikrotik_config.HOST,
-                username=mikrotik_config.USER,
-                password=mikrotik_config.PASS,
-                port=mikrotik_config.PORT,
+                host=host,
+                username=username,
+                password=password,
+                port=port,
                 timeout=5,
             )
         except Exception as e:
-            logger.error(f"Mikrotik connection error: {e}")
+            target = (router or {}).get("host", "GLOBAL")
+            # MikroTik connection failures are intentionally quiet in normal terminal output.
+            # Details remain available when DEBUG logging is enabled.
+            logger.debug("Mikrotik connection error (%s): %s", target, e)
             return None
 
     @staticmethod
@@ -565,29 +770,100 @@ class MikrotikService:
     def user_exists_on_mikrotik(api, voucher_code: str) -> bool:
         try:
             hotspot_users = api.path("ip", "hotspot", "user")
-            users = list(hotspot_users)
-            return any(u.get("name") == voucher_code for u in users)
+            return any(u.get("name") == voucher_code for u in list(hotspot_users))
         except Exception as e:
             logger.error(f"Error checking user existence: {e}")
             return False
 
     @staticmethod
-    def sync_voucher_to_mikrotik(voucher_code: str, uptime: str) -> bool:
+    def sync_voucher_to_mikrotik(
+        voucher_code: str,
+        uptime: str,
+        owner_username: str = "",
+        router_id: Optional[str] = None,
+    ) -> bool:
+        """Create a voucher on the correct MikroTik tenant.
+
+        HARD ROUTING RULE:
+        - owner_username != ""  -> customer voucher; an approved router is REQUIRED.
+        - owner_username == ""  -> admin/global voucher; global .env MikroTik is allowed.
+
+        A customer voucher can NEVER fall back to the global CHR/default MikroTik.
+        """
         api = None
+        router = None
         try:
-            api = MikrotikService.get_api()
+            clean_owner = str(owner_username or "").strip().lower()
+
+            if router_id and "routers" in db.list_collection_names():
+                try:
+                    router = db.routers.find_one({"_id": ObjectId(str(router_id))})
+                except Exception:
+                    router = None
+
+            # Customer tenant: reject missing/unapproved router BEFORE opening
+            # any MikroTik connection. This is the critical isolation check.
+            if clean_owner:
+                if not router:
+                    router = MikrotikService.get_router_for_owner(clean_owner)
+
+                if not router:
+                    logger.debug(
+                        "BLOCKED customer voucher %s: owner=%s has no approved router",
+                        voucher_code,
+                        clean_owner,
+                    )
+                    return False
+
+                if not (
+                    router.get("approved") is True
+                    or str(router.get("status", "")).lower() == "online"
+                ):
+                    logger.debug(
+                        "BLOCKED customer voucher %s: router is not approved/online owner=%s router=%s",
+                        voucher_code,
+                        clean_owner,
+                        router.get("host"),
+                    )
+                    return False
+
+                # Extra tenant ownership check: the selected router must belong
+                # to the same customer that owns the voucher.
+                router_owner = str(
+                    router.get("owner_username") or router.get("owner_email") or ""
+                ).strip().lower()
+                if router_owner != clean_owner:
+                    logger.error(
+                        "TENANT ROUTING VIOLATION BLOCKED: owner=%s router_owner=%s",
+                        clean_owner,
+                        router_owner,
+                    )
+                    return False
+            else:
+                # Empty owner is reserved for admin/global operations.
+                router = None
+
+            # IMPORTANT: None here is intentional ONLY for admin/global vouchers.
+            api = MikrotikService.get_api(router)
             if not api:
                 return False
 
             if MikrotikService.user_exists_on_mikrotik(api, voucher_code):
                 return True
 
-            mikrotik_uptime = VoucherService.convert_to_mikrotik_time(uptime)
             hotspot_users = api.path("ip", "hotspot", "user")
             hotspot_users.add(
                 name=voucher_code,
                 password=voucher_code,
-                **{"limit-uptime": mikrotik_uptime, "comment": "Auto Voucher"},
+                **{
+                    "comment": f"Auto Voucher | Wall-clock {uptime}",
+                    "disabled": "no",
+                },
+            )
+            logger.info(
+                "Voucher %s synced to %s",
+                voucher_code,
+                router.get("host") if router else "GLOBAL-MIKROTIK",
             )
             return True
         except Exception as e:
@@ -601,18 +877,44 @@ class MikrotikService:
                     pass
 
     @staticmethod
-    def remove_user_from_mikrotik(voucher_code: str) -> bool:
+    def disconnect_voucher_sessions(api, voucher_code: str):
+        try:
+            active_path = api.path("ip", "hotspot", "active")
+            for active in list(active_path):
+                if active.get("user") == voucher_code:
+                    active_path.remove(active.get(".id"))
+        except Exception as e:
+            logger.warning(f"Could not disconnect active voucher {voucher_code}: {e}")
+
+    @staticmethod
+    def remove_user_from_mikrotik(voucher_code: str, voucher=None) -> bool:
         api = None
         try:
-            api = MikrotikService.get_api()
+            if voucher is None:
+                voucher = VoucherService.get_voucher_by_code(voucher_code)
+            router = MikrotikService.get_router_for_voucher(voucher)
+            owner = str((voucher or {}).get("owner_username", "") or "").strip().lower()
+
+            # Customer voucher without an assigned/approved router must NEVER
+            # be operated on through the global MikroTik.
+            if owner and not router:
+                logger.debug(
+                    "BLOCKED customer voucher operation: code=%s owner=%s has no approved router",
+                    voucher_code,
+                    owner,
+                )
+                return False
+
+            api = MikrotikService.get_api(router)
             if not api:
                 return False
+
+            MikrotikService.disconnect_voucher_sessions(api, voucher_code)
             hotspot_users = api.path("ip", "hotspot", "user")
-            users = list(hotspot_users)
             target_user = next(
-                (u for u in users if u.get("name") == voucher_code), None
+                (u for u in list(hotspot_users) if u.get("name") == voucher_code), None
             )
-            if target_user:
+            if target_user and target_user.get(".id"):
                 hotspot_users.remove(target_user[".id"])
             return True
         except Exception as e:
@@ -626,22 +928,34 @@ class MikrotikService:
                     pass
 
     @staticmethod
-    def lock_voucher_to_mac(voucher_code: str, mac: str) -> bool:
+    def lock_voucher_to_mac(voucher_code: str, mac: str, voucher=None) -> bool:
         api = None
         try:
-            api = MikrotikService.get_api()
+            if voucher is None:
+                voucher = VoucherService.get_voucher_by_code(voucher_code)
+            router = MikrotikService.get_router_for_voucher(voucher)
+            owner = str((voucher or {}).get("owner_username", "") or "").strip().lower()
+
+            # Customer voucher without an assigned/approved router must NEVER
+            # be operated on through the global MikroTik.
+            if owner and not router:
+                logger.debug(
+                    "BLOCKED customer voucher operation: code=%s owner=%s has no approved router",
+                    voucher_code,
+                    owner,
+                )
+                return False
+
+            api = MikrotikService.get_api(router)
             if not api:
                 return False
 
             hotspot_users = api.path("ip", "hotspot", "user")
-            users = list(hotspot_users)
             target_user = next(
-                (u for u in users if u.get("name") == voucher_code), None
+                (u for u in list(hotspot_users) if u.get("name") == voucher_code), None
             )
-
-            if target_user:
-                user_id = target_user[".id"]
-                hotspot_users.update(**{".id": user_id, "mac-address": mac})
+            if target_user and mac:
+                hotspot_users.update(**{".id": target_user[".id"], "mac-address": mac})
             return True
         except Exception as e:
             logger.error(f"Error locking MAC for {voucher_code}: {e}")
@@ -655,131 +969,190 @@ class MikrotikService:
 
     @staticmethod
     def get_active_users():
-        api = None
-        try:
-            api = MikrotikService.get_api()
-            if not api:
-                return []
+        """Return active users from the global router and registered customer routers."""
+        routers = [None]
+        if "routers" in db.list_collection_names():
+            try:
+                routers.extend(list(db.routers.find({"status": {"$ne": "rejected"}})))
+            except Exception:
+                pass
 
-            active_path = api.path("ip", "hotspot", "active")
-            active_list = list(active_path)
-
-            formatted_users = []
-            for u in active_list:
-                formatted_users.append({
-                    "id": u.get(".id"),
-                    "user": u.get("user", "Unknown"),
-                    "address": u.get("address", "-"),
-                    "mac": u.get("mac-address", "-"),
-                    "uptime": u.get("uptime", "0s"),
-                    "bytes_in": u.get("bytes-in", "0"),
-                    "bytes_out": u.get("bytes-out", "0"),
-                    "login_by": u.get("login-by", "-"),
-                })
-            return formatted_users
-        except Exception as e:
-            logger.error(f"Error fetching active users from Mikrotik: {e}")
-            return []
-        finally:
-            if api:
-                try:
-                    api.close()
-                except Exception:
-                    pass
+        formatted_users = []
+        seen = set()
+        for router in routers:
+            api = None
+            try:
+                api = MikrotikService.get_api(router)
+                if not api:
+                    continue
+                for u in list(api.path("ip", "hotspot", "active")):
+                    key = (str(router.get("_id")) if router else "GLOBAL", u.get(".id"))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    formatted_users.append({
+                        "id": u.get(".id"),
+                        "user": u.get("user", "Unknown"),
+                        "address": u.get("address", "-"),
+                        "mac": u.get("mac-address", "-"),
+                        "uptime": u.get("uptime", "0s"),
+                        "bytes_in": u.get("bytes-in", "0"),
+                        "bytes_out": u.get("bytes-out", "0"),
+                        "login_by": u.get("login-by", "-"),
+                        "router_id": str(router.get("_id")) if router else None,
+                        "router_name": router.get("name") if router else "Global MikroTik",
+                    })
+            except Exception as e:
+                logger.error(f"Error fetching active users from Mikrotik: {e}")
+            finally:
+                if api:
+                    try:
+                        api.close()
+                    except Exception:
+                        pass
+        return formatted_users
 
     @staticmethod
     def disconnect_user(active_id: str) -> bool:
-        api = None
-        try:
-            api = MikrotikService.get_api()
-            if not api:
-                return False
+        # Try the global router first, then all registered routers.
+        routers = [None]
+        if "routers" in db.list_collection_names():
+            routers.extend(list(db.routers.find({"status": {"$ne": "rejected"}})))
 
-            active_path = api.path("ip", "hotspot", "active")
-            active_path.remove(active_id)
-            logger.info(
-                f"User with active ID {active_id} disconnected from MikroTik."
-            )
-            return True
-        except Exception as e:
-            logger.error(f"Error disconnecting user {active_id}: {e}")
-            return False
-        finally:
-            if api:
-                try:
-                    api.close()
-                except Exception:
-                    pass
+        for router in routers:
+            api = None
+            try:
+                api = MikrotikService.get_api(router)
+                if not api:
+                    continue
+                active_path = api.path("ip", "hotspot", "active")
+                if any(u.get(".id") == active_id for u in list(active_path)):
+                    active_path.remove(active_id)
+                    return True
+            except Exception as e:
+                logger.error(f"Error disconnecting user {active_id}: {e}")
+            finally:
+                if api:
+                    try:
+                        api.close()
+                    except Exception:
+                        pass
+        return False
 
     @staticmethod
     def sync_live_voucher_statuses():
-        api = None
+        """Activate first-use timers and keep MikroTik vouchers aligned with MongoDB."""
         try:
-            api = MikrotikService.get_api()
-            if not api:
-                return
-
-            mt_users = {
-                u.get("name"): u for u in list(api.path("ip", "hotspot", "user"))
-            }
-            mt_active = [
-                u.get("user") for u in list(api.path("ip", "hotspot", "active"))
-            ]
-
             db_vouchers = list(
                 db.vouchers.find({"status": {"$in": ["unused", "used"]}})
             )
+            now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
 
             for v in db_vouchers:
                 code = v.get("code")
-                mt_u = mt_users.get(code)
-
-                if code in mt_active:
-                    if v.get("status") != "used":
-                        db.vouchers.update_one(
-                            {"_id": v["_id"]},
-                            {
-                                "$set": {
-                                    "status": "used",
-                                    "used_at": datetime.datetime.now(),
-                                }
-                            },
-                        )
+                if not code:
                     continue
 
-                if mt_u:
-                    uptime = str(mt_u.get("uptime", "0s"))
-                    limit_uptime = str(mt_u.get("limit-uptime", ""))
+                owner = str(v.get("owner_username", "") or "").strip().lower()
+                router = MikrotikService.get_router_for_voucher(v)
 
+                # Customer voucher with no approved router is intentionally skipped.
+                # This prevents the background worker from recreating it on the
+                # global CHR/default MikroTik.
+                if owner and not router:
+                    logger.debug(
+                        "Skipping MikroTik sync for customer voucher %s: no approved router owner=%s",
+                        v.get("code"),
+                        owner,
+                    )
+                    continue
+
+                api = MikrotikService.get_api(router)
+                if not api:
+                    continue
+
+                try:
+                    mt_users = {
+                        u.get("name"): u for u in list(api.path("ip", "hotspot", "user"))
+                    }
+                    mt_active = {
+                        u.get("user") for u in list(api.path("ip", "hotspot", "active"))
+                    }
+
+                    # Direct MikroTik login can activate a voucher too.
+                    if code in mt_active and v.get("status") == "unused":
+                        duration_seconds = int(
+                            v.get("duration_seconds")
+                            or VoucherService.duration_to_seconds(v.get("uptime", "1 Hour"))
+                        )
+                        started_at = now
+                        expires_at = started_at + datetime.timedelta(seconds=duration_seconds)
+                        db.vouchers.update_one(
+                            {"_id": v["_id"], "status": "unused"},
+                            {"$set": {
+                                "status": "used",
+                                "used_at": started_at,
+                                "started_at": started_at,
+                                "activated_at": started_at,
+                                "expires_at": expires_at,
+                                "duration_seconds": duration_seconds,
+                            }},
+                        )
+                        v.update({
+                            "status": "used",
+                            "started_at": started_at,
+                            "activated_at": started_at,
+                            "expires_at": expires_at,
+                            "duration_seconds": duration_seconds,
+                        })
+
+                    expires_at = v.get("expires_at")
+                    if expires_at and expires_at <= now:
+                        db.vouchers.update_one(
+                            {"_id": v["_id"], "status": {"$in": ["unused", "used"]}},
+                            {"$set": {"status": "expired", "expired_at": now}},
+                        )
+                        MikrotikService.disconnect_voucher_sessions(api, code)
+                        if code in mt_users:
+                            api.path("ip", "hotspot", "user").remove(mt_users[code][".id"])
+                        continue
+
+                    # Ensure a voucher that belongs to this router exists in MikroTik.
+                    if code not in mt_users:
+                        MikrotikService._sync_missing_voucher(v)
+
+                finally:
                     try:
-                        bytes_out = int(mt_u.get("bytes-out", 0) or 0)
-                    except (ValueError, TypeError):
-                        bytes_out = 0
-
-                    if limit_uptime and uptime == limit_uptime:
-                        db.vouchers.update_one(
-                            {"_id": v["_id"]}, {"$set": {"status": "expired"}}
-                        )
-                        MikrotikService.remove_user_from_mikrotik(code)
-                    elif bytes_out > 0 or uptime != "0s":
-                        if v.get("status") != "used":
-                            db.vouchers.update_one(
-                                {"_id": v["_id"]}, {"$set": {"status": "used"}}
-                            )
-                else:
-                    if v.get("status") == "used":
-                        db.vouchers.update_one(
-                            {"_id": v["_id"]}, {"$set": {"status": "expired"}}
-                        )
+                        api.close()
+                    except Exception:
+                        pass
 
         except Exception as e:
             logger.error(f"Error syncing live status with Mikrotik: {e}")
-        finally:
-            if api:
-                try:
-                    api.close()
-                except Exception:
-                    pass
+
+    @staticmethod
+    def _sync_missing_voucher(voucher):
+        if not mikrotik_config.ENABLED:
+            return False
+
+        owner = str(voucher.get("owner_username", "") or "").strip().lower()
+
+        # Never let a customer voucher without an approved router fall back
+        # to the global CHR/default MikroTik.
+        if owner and not MikrotikService.get_router_for_voucher(voucher):
+            logger.debug(
+                "Skipping missing-voucher sync: customer=%s code=%s has no approved router",
+                owner,
+                voucher.get("code"),
+            )
+            return False
+
+        return MikrotikService.sync_voucher_to_mikrotik(
+            voucher.get("code", ""),
+            voucher.get("uptime", "1 Hour"),
+            owner,
+            voucher.get("router_id"),
+        )
 
 
 # ================= USER SERVICE (MongoDB) =================
@@ -1334,6 +1707,7 @@ def customer_add_router_v2(
     port: int = Form(8728),
     username: str = Form(...),
     password: str = Form(""),
+    router_type: str = Form("hardware"),
 ):
     guard = _customer_guard(request)
     if guard:
@@ -1341,11 +1715,14 @@ def customer_add_router_v2(
     owner = _customer_username(request)
     if "routers" not in db.list_collection_names():
         db.create_collection("routers")
+    # Use the actual MikroTik credentials entered by the customer.
+    # The registration is accepted only after a real RouterOS API connection test.
     router_doc = {
         "id": random.randint(10000, 99999),
         "name": name.strip(),
         "host": host.strip(),
         "port": int(port or 8728),
+        "router_type": router_type.strip().lower() if router_type else "hardware",
         "username": username.strip(),
         "api_username": username.strip(),
         "api_password": password,
@@ -1355,8 +1732,42 @@ def customer_add_router_v2(
         "last_seen": None,
         "approved": False,
     }
-    db.routers.insert_one(router_doc)
-    audit_event("customer_router_registered", request, f"{owner}:{name}")
+
+    # Insert first so the same router object can be tested through the normal API helper.
+    result = db.routers.insert_one(router_doc)
+    router_doc["_id"] = result.inserted_id
+    api = None
+    try:
+        api = MikrotikService.get_api(router_doc)
+        if not api:
+            db.routers.delete_one({"_id": result.inserted_id})
+            request.session["router_error"] = "Connection imekataa. Hakikisha IP, API port, username na password za MikroTik ni sahihi."
+            return RedirectResponse("/customer/dashboard#routers", status_code=303)
+
+        # Successful RouterOS API handshake = immediately connected/approved.
+        try:
+            list(api.path("system", "resource"))
+        except Exception:
+            pass
+        now = datetime.datetime.now(datetime.timezone.utc)
+        db.routers.update_one({"_id": result.inserted_id}, {"$set": {
+            "status": "online",
+            "approved": True,
+            "last_seen": now,
+            "updated_at": now,
+        }})
+        audit_event("customer_router_connected", request, f"{owner}:{name}:{host}")
+    except Exception as e:
+        logger.warning("Customer router registration failed owner=%s host=%s: %s", owner, host, e)
+        db.routers.delete_one({"_id": result.inserted_id})
+        request.session["router_error"] = "Router haija-connect. Thibitisha RouterOS API service, IP/port na credentials."
+    finally:
+        if api:
+            try:
+                api.close()
+            except Exception:
+                pass
+
     return RedirectResponse("/customer/dashboard#routers", status_code=303)
 
 
@@ -1390,7 +1801,8 @@ def customer_edit_router_v2(
     if router and str(router.get("owner_username", "")).lower() == owner:
         db.routers.update_one({"_id": router["_id"]}, {"$set": {
             "name": name.strip(), "host": host.strip(), "port": int(port or 8728),
-            "username": username.strip(), "api_username": username.strip(),
+            # Keep the customer's email as the MikroTik API username.
+            "username": owner, "api_username": owner,
             "updated_at": datetime.datetime.now(datetime.timezone.utc),
             "status": "pending", "approved": False,
         }})
@@ -1413,6 +1825,22 @@ def customer_generate_vouchers_v2(
         return guard
     quantity = max(1, min(int(quantity or 1), 500))
     owner = _customer_username(request)
+
+    # Customer must have an approved router before generating vouchers.
+    # This makes the UI fail safely instead of creating vouchers that could
+    # accidentally be routed to the global CHR.
+    assigned_router = MikrotikService.get_router_for_owner(owner)
+    if not assigned_router:
+        logger.warning(
+            "Customer voucher generation blocked: owner=%s has no approved router",
+            owner,
+        )
+        request.session["voucher_error"] = (
+            "Hujaweza kutengeneza voucher. Sajili router yako na subiri admin ai-approve "
+            "kabla ya kutengeneza voucher."
+        )
+        return RedirectResponse("/customer/dashboard#vouchers", status_code=303)
+
     generated = []
     for _ in range(quantity):
         code = VoucherService.create_voucher(
@@ -2015,6 +2443,12 @@ def hotspot_login(voucher: str = Form(...), mac: str = Form("")):
             status_code=400,
         )
 
+    if voucher_obj["status"] != "unused":
+        return JSONResponse(
+            {"status": "error", "message": "Voucher tayari imetumika au haipo tayari kwa matumizi."},
+            status_code=400,
+        )
+
     success = VoucherService.mark_used(voucher_obj["id"], mac)
     if not success:
         return JSONResponse(
@@ -2026,9 +2460,11 @@ def hotspot_login(voucher: str = Form(...), mac: str = Form("")):
         )
 
     if mikrotik_config.ENABLED:
+        # Re-read after activation so the selected router_id is available.
+        activated_voucher = VoucherService.get_voucher_by_code(voucher_obj["code"]) or voucher_obj
         threading.Thread(
             target=MikrotikService.lock_voucher_to_mac,
-            args=(voucher_obj["code"], mac),
+            args=(activated_voucher["code"], mac, activated_voucher),
             daemon=True,
         ).start()
 
@@ -2230,7 +2666,9 @@ async def generate_vouchers_fast(
                 data_limit=data_limit,
                 profile_name=profile_name,
                 prefix=clean_prefix,
-                owner_username=username,
+                # Admin quick generator is the ONLY customer-independent/global
+                # voucher generator. Empty owner means use global MikroTik.
+                owner_username="",
             )
             if code:
                 generated_codes.append(code)
@@ -2528,7 +2966,8 @@ def generate_voucher(
         duration,
         data_limit,
         profile_name=profile_name or "Standard",
-        owner_username=username,
+        # Admin voucher belongs to the system/global MikroTik, not a customer.
+        owner_username="",
     )
     if not code:
         logger.error("Failed to generate voucher")

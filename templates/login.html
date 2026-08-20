@@ -160,11 +160,51 @@
             text-decoration: underline;
         }
 
+        /* Sehemu ya Msaada & WhatsApp Verification */
+        .support-section {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px dashed rgba(56, 189, 248, 0.25);
+            text-align: center;
+            font-size: 11px;
+            color: #cbd5e1;
+        }
+
+        .support-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .support-links {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .support-link {
+            color: #e2e8f0;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .support-link:hover {
+            color: #38bdf8;
+            text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+        }
+
         .footer-credits {
             text-align: center;
-            margin-top: 20px;
+            margin-top: 15px;
             border-top: 1px solid rgba(56, 189, 248, 0.2);
-            padding-top: 15px;
+            padding-top: 12px;
         }
 
         .footer-credits p {
@@ -240,7 +280,7 @@
                     <input type="password" id="pass" name="password" required placeholder="••••••••">
                     <span class="toggle-password" onclick="togglePass()">👁️</span>
                 </div>
-                <!-- Sehemu ya Forgot Password -->
+                <!-- Sehemu ya Forgot Password (Inaelekeza Email) -->
                 <div class="forgot-pass-wrapper">
                     <a href="/forgot-password" class="forgot-pass-link">Umesahau Nywila?</a>
                 </div>
@@ -254,6 +294,22 @@
             Huna akaunti? <a href="/register">Jisajili hapa</a>
         </div>
 
+        <!-- Mawasiliano & WhatsApp Verification -->
+        <div class="support-section">
+            <div class="support-title">Msaada Zaidi & Verification</div>
+            <div class="support-links">
+                <a href="mailto:vicentmtiha4@gmail.com" class="support-link">
+                    📧 Email: vicentmtiha4@gmail.com
+                </a>
+                <a href="javascript:void(0)" onclick="openWhatsApp('255627404930')" class="support-link">
+                    💬 WhatsApp: 0627404930
+                </a>
+                <a href="javascript:void(0)" onclick="openWhatsApp('255794204930')" class="support-link">
+                    💬 WhatsApp: 0794204930
+                </a>
+            </div>
+        </div>
+
         <div class="footer-credits">
             <p>Developed by <span>Venom Company</span></p>
         </div>
@@ -263,6 +319,12 @@
         function togglePass() {
             var x = document.getElementById("pass");
             x.type = (x.type === "password") ? "text" : "password";
+        }
+
+        // Script ya kumleta mtumiaji WhatsApp
+        function openWhatsApp(phone) {
+            var message = encodeURIComponent("Habari, naomba msaada wa verification / huduma kwenye mfumo wa CORE-WISP.");
+            window.open("https://wa.me/" + phone + "?text=" + message, "_blank");
         }
     </script>
 </body>
