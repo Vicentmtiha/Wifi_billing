@@ -969,28 +969,42 @@ class MikrotikService:
 
     @staticmethod
     def get_active_users():
-        """Return active users from the global router and registered customer routers."""
+        """Return unique active users from the global router and registered customer routers.
+
+        A client is considered unique by username + IP address + MAC address.
+        MikroTik's ``.id`` is deliberately not used for deduplication because the
+        same session can be returned more than once when the same router is reached
+        through multiple registered DB records.
+        """
         routers = [None]
         if "routers" in db.list_collection_names():
             try:
                 routers.extend(list(db.routers.find({"status": {"$ne": "rejected"}})))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Error loading registered routers for active users: {e}")
 
-        formatted_users = []
-        seen = set()
+        active_list = []
+        seen_fingerprints = set()
+
         for router in routers:
             api = None
             try:
                 api = MikrotikService.get_api(router)
                 if not api:
                     continue
-                for u in list(api.path("ip", "hotspot", "active")):
-                    key = (str(router.get("_id")) if router else "GLOBAL", u.get(".id"))
-                    if key in seen:
+
+                active_path = api.path("ip", "hotspot", "active")
+                for u in list(active_path):
+                    username = str(u.get("user") or "").strip().lower()
+                    address = str(u.get("address") or "").strip()
+                    mac = str(u.get("mac-address") or "").strip().lower()
+
+                    fingerprint = (username, address, mac)
+                    if fingerprint in seen_fingerprints:
                         continue
-                    seen.add(key)
-                    formatted_users.append({
+                    seen_fingerprints.add(fingerprint)
+
+                    active_list.append({
                         "id": u.get(".id"),
                         "user": u.get("user", "Unknown"),
                         "address": u.get("address", "-"),
@@ -1010,7 +1024,8 @@ class MikrotikService:
                         api.close()
                     except Exception:
                         pass
-        return formatted_users
+
+        return active_list
 
     @staticmethod
     def disconnect_user(active_id: str) -> bool:
@@ -1715,18 +1730,41 @@ def customer_add_router_v2(
     owner = _customer_username(request)
     if "routers" not in db.list_collection_names():
         db.create_collection("routers")
+    # Normalize the values used for duplicate protection.
+    clean_owner = str(owner or "").strip().lower()
+    clean_host = str(host or "").strip()
+    clean_port = int(port or 8728)
+
+    # Prevent the same customer from registering the same router endpoint twice.
+    # Existing duplicate records are NOT deleted or modified here.
+    existing_router = db.routers.find_one({
+        "owner_username": clean_owner,
+        "host": clean_host,
+        "port": clean_port,
+    })
+    if existing_router:
+        logger.warning(
+            "Duplicate router registration blocked: owner=%s host=%s port=%s existing_id=%s",
+            clean_owner, clean_host, clean_port, existing_router.get("_id"),
+        )
+        request.session["router_error"] = (
+            "Router hii tayari imesajiliwa kwenye akaunti yako "
+            f"({clean_host}:{clean_port}). Huwezi kusajili router ileile mara mbili."
+        )
+        return RedirectResponse("/customer/dashboard#routers", status_code=303)
+
     # Use the actual MikroTik credentials entered by the customer.
     # The registration is accepted only after a real RouterOS API connection test.
     router_doc = {
         "id": random.randint(10000, 99999),
         "name": name.strip(),
-        "host": host.strip(),
-        "port": int(port or 8728),
+        "host": clean_host,
+        "port": clean_port,
         "router_type": router_type.strip().lower() if router_type else "hardware",
         "username": username.strip(),
         "api_username": username.strip(),
         "api_password": password,
-        "owner_username": owner,
+        "owner_username": clean_owner,
         "status": "pending",
         "created_at": datetime.datetime.now(datetime.timezone.utc),
         "last_seen": None,
